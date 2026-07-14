@@ -721,7 +721,7 @@ export const initialData = {
         zh: "大山脚浸信教会 (主堂)",
         en: "Bukit Mertajam Baptist Chinese Church (Main)"
       },
-      googleMapsEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.0!2d100.4!3d5.37!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zQnVraXQgTWVydGFqYW0!5e0!3m2!1sen!2smy!4v1",
+      googleMapsEmbedUrl: "https://maps.google.com/maps?q=Bukit%20Mertajam%20Baptist%20Chinese%20Church%2C%20Taman%20Bukit%20Minyak%2C%2014000%20Bukit%20Mertajam%2C%20Penang%2C%20Malaysia&output=embed",
       address: {
         zh: "大山脚浸信教会 (主堂)\nTaman Bukit Minyak, 14000 Bukit Mertajam, Pulau Pinang, Malaysia",
         en: "Bukit Mertajam Baptist Chinese Church (Main)\nTaman Bukit Minyak, 14000 Bukit Mertajam, Penang, Malaysia"
@@ -741,7 +741,7 @@ export const initialData = {
         zh: "BMBCC 市中心聚会点",
         en: "BMBCC Downtown Fellowship Point"
       },
-      googleMapsEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.5!2d100.4!3d5.36!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2z5LiA5bCP!5e0!3m2!1sen!2smy!4v1",
+      googleMapsEmbedUrl: "https://maps.google.com/maps?q=Jalan%20Besar%2C%2014000%20Bukit%20Mertajam%2C%20Penang%2C%20Malaysia&output=embed",
       address: {
         zh: "BMBCC 市中心聚会点\nJalan Besar, 14000 Bukit Mertajam, Pulau Pinang, Malaysia",
         en: "BMBCC Downtown Fellowship Point\nJalan Besar, 14000 Bukit Mertajam, Penang, Malaysia"
@@ -761,7 +761,7 @@ export const initialData = {
         zh: "BMBCC 南区聚会点",
         en: "BMBCC South District Fellowship Point"
       },
-      googleMapsEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3967.0!2d100.42!3d5.35!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2z5Y2D5Y6f!5e0!3m2!1sen!2smy!4v1",
+      googleMapsEmbedUrl: "https://maps.google.com/maps?q=Taman%20Alma%2C%2014000%20Bukit%20Mertajam%2C%20Penang%2C%20Malaysia&output=embed",
       address: {
         zh: "BMBCC 南区聚会点\nTaman Alma, 14000 Bukit Mertajam, Pulau Pinang, Malaysia",
         en: "BMBCC South District Fellowship Point\nTaman Alma, 14000 Bukit Mertajam, Penang, Malaysia"
