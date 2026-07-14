@@ -32,6 +32,7 @@ import {
   LogOut,
   ArrowUp,
   ArrowDown,
+  ChevronDown,
   FileText,
   Gift,
   Map as MapIcon,
@@ -92,9 +93,11 @@ export default function App() {
   const [editingBulletin, setEditingBulletin] = useState(null);
   const [editingCellGroup, setEditingCellGroup] = useState(null);
   const [editingLeader, setEditingLeader] = useState(null);
+  const [editingSermon, setEditingSermon] = useState(null);
+  const [sermonFilter, setSermonFilter] = useState('all');
   const [importJsonText, setImportJsonText] = useState('');
   const [importError, setImportError] = useState('');
-
+  
   // Apply theme color
   useEffect(() => {
     const colorKey = data.settings.themeColor || 'emerald';
@@ -126,6 +129,21 @@ export default function App() {
     }, 6000);
     return () => clearInterval(interval);
   }, [data.carousel.length, activeTab]);
+
+  // URL-based admin access detection
+  useEffect(() => {
+    const hash = window.location.hash;
+    const pathname = window.location.pathname;
+    
+    // Check for #/admin or #admin in hash, or /admin in pathname
+    if (hash === '#/admin' || hash === '#admin' || pathname.endsWith('/admin')) {
+      setActiveTab('admin');
+      // Clean up the URL
+      if (hash) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+  }, []);
 
   // Translate helper
   const t = (obj, key) => {
@@ -264,7 +282,7 @@ export default function App() {
     }
   };
 
-  // 7. Bulletin Actions
+    // 7. Bulletin Actions
   const handleSaveBulletin = (item) => {
     const updated = { ...data };
     if (!updated.bulletins) updated.bulletins = [];
@@ -330,7 +348,37 @@ export default function App() {
     }
   };
 
-  // 10. Update Offerings
+  // 9.5 Sermon Actions
+  const handleSaveSermon = (item) => {
+    const updated = { ...data };
+    if (!updated.sermons) updated.sermons = [];
+    if (item.id === 'new') {
+      const newId = Math.max(...updated.sermons.map(s => s.id), 0) + 1;
+      updated.sermons.push({ ...item, id: newId });
+    } else {
+      updated.sermons = updated.sermons.map(s => s.id === item.id ? item : s);
+    }
+    saveAllData(updated);
+    setEditingSermon(null);
+  };
+
+  const handleDeleteSermon = (id) => {
+    if (window.confirm(lang === 'zh' ? '确定要删除此讲道吗？' : 'Are you sure you want to delete this sermon?')) {
+      const updated = { ...data };
+      updated.sermons = updated.sermons.filter(s => s.id !== id);
+      saveAllData(updated);
+    }
+  };
+
+  // 9.6 Page Visibility Actions
+  const togglePageVisibility = (pageKey) => {
+    const updated = { ...data };
+    if (!updated.pageVisibility) updated.pageVisibility = {};
+    updated.pageVisibility[pageKey] = !updated.pageVisibility[pageKey];
+    saveAllData(updated);
+  };
+
+    // 10. Update Offerings
   const updateOfferings = (key, value) => {
     const updated = { ...data };
     if (!updated.offerings) updated.offerings = {};
@@ -339,18 +387,6 @@ export default function App() {
   };
 
   // 11. Update Maps
-  const updateMaps = (key, subKey, value) => {
-    const updated = { ...data };
-    if (!updated.maps) updated.maps = {};
-    if (subKey) {
-      if (!updated.maps[key]) updated.maps[key] = {};
-      updated.maps[key][subKey] = value;
-    } else {
-      updated.maps[key] = value;
-    }
-    saveAllData(updated);
-  };
-
   // 12. Update New Friend Guide
   const updateNewFriendGuide = (key, value) => {
     const updated = { ...data };
@@ -464,32 +500,90 @@ export default function App() {
               </div>
             </div>
 
-            {/* Desktop Navigation Links */}
+            {/* Desktop Navigation Links - Grouped */}
             <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
-              {[
-                { id: 'home', label: lang === 'zh' ? '首页' : 'Home' },
-                { id: 'about', label: lang === 'zh' ? '关于我们' : 'About Us' },
-                { id: 'ministries', label: lang === 'zh' ? '主要事工' : 'Ministries' },
-                { id: 'timetable', label: lang === 'zh' ? '聚会时间' : 'Timetable' },
-                { id: 'events', label: lang === 'zh' ? '特别活动' : 'Events' },
-                { id: 'offerings', label: lang === 'zh' ? '奉献' : 'Offerings' },
-                { id: 'bulletins', label: lang === 'zh' ? '周报' : 'Bulletins' },
-                { id: 'cellgroups', label: lang === 'zh' ? '小组' : 'Cell Groups' },
-                { id: 'newfriend', label: lang === 'zh' ? '新朋友' : 'New Friend' },
-                { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); window.scrollTo(0, 0); }}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-primary/10 text-primary font-semibold'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+              {(() => {
+                const vis = data.pageVisibility || {};
+                const navGroups = [
+                  { id: 'home', label: lang === 'zh' ? '首页' : 'Home', standalone: true },
+                  { id: 'about', label: lang === 'zh' ? '关于我们' : 'About Us', standalone: true },
+                  { 
+                    id: 'ministry', 
+                    label: lang === 'zh' ? '事工' : 'Ministry', 
+                    items: [
+                      vis.ministries !== false && { id: 'ministries', label: lang === 'zh' ? '主要事工' : 'Ministries' },
+                      vis.cellgroups !== false && { id: 'cellgroups', label: lang === 'zh' ? '小组' : 'Cell Groups' },
+                      vis.offerings !== false && { id: 'offerings', label: lang === 'zh' ? '奉献' : 'Offerings' }
+                    ].filter(Boolean)
+                  },
+                  { 
+                    id: 'gatherings', 
+                    label: lang === 'zh' ? '聚会' : 'Gatherings', 
+                    items: [
+                      vis.timetable !== false && { id: 'timetable', label: lang === 'zh' ? '聚会时间' : 'Timetable' },
+                      vis.events !== false && { id: 'events', label: lang === 'zh' ? '特别活动' : 'Events' }
+                    ].filter(Boolean)
+                  },
+                  { 
+                    id: 'resources', 
+                    label: lang === 'zh' ? '资源' : 'Resources', 
+                    items: [
+                      vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '周报与讲道' : 'Bulletins & Sermons' },
+                      vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide' }
+                    ].filter(Boolean)
+                  },
+                  vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps', standalone: true }
+                ].filter(g => g && (g.standalone || (g.items && g.items.length > 0)));
+
+                return navGroups.map((group) => {
+                  if (group.standalone) {
+                    return (
+                      <button
+                        key={group.id}
+                        onClick={() => { setActiveTab(group.id); window.scrollTo(0, 0); }}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          activeTab === group.id
+                            ? 'bg-primary/10 text-primary font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                      >
+                        {group.label}
+                      </button>
+                    );
+                  }
+
+                  const isActive = group.items.some(item => item.id === activeTab);
+                  return (
+                    <div key={group.id} className="relative group/nav">
+                      <button
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
+                          isActive
+                            ? 'bg-primary/10 text-primary font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                      >
+                        {group.label}
+                        <ChevronDown size={14} className="transition-transform group-hover/nav:rotate-180" />
+                      </button>
+                      <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-all z-50">
+                        {group.items.map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => { setActiveTab(item.id); window.scrollTo(0, 0); }}
+                            className={`w-full text-left px-4 py-2.5 text-sm transition-all first:rounded-t-lg last:rounded-b-lg ${
+                              activeTab === item.id
+                                ? 'bg-primary/5 text-primary font-medium'
+                                : 'text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
 
               <div className="h-5 w-[1px] bg-gray-200 mx-2"></div>
 
@@ -503,21 +597,23 @@ export default function App() {
                 <span className="font-medium text-xs uppercase tracking-wider">{lang === 'zh' ? 'EN' : '中文'}</span>
               </button>
 
-              {/* Admin Panel Access Button */}
-              <button
-                onClick={() => { setActiveTab('admin'); window.scrollTo(0, 0); }}
-                className={`p-2 rounded-lg flex items-center gap-1.5 transition-all text-sm ${
-                  activeTab === 'admin'
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'text-gray-500 hover:bg-amber-50 hover:text-amber-700'
-                }`}
-                title={lang === 'zh' ? '管理员后台' : 'Admin Panel'}
-              >
-                <Shield size={17} />
-                <span className="font-semibold text-xs uppercase tracking-wider">
-                  {isAdminLoggedIn ? (lang === 'zh' ? '后台' : 'Admin') : (lang === 'zh' ? '登录' : 'Login')}
-                </span>
-              </button>
+              {/* Admin Panel Access Button - Hidden by default for security */}
+              {(data.settings.showLoginButton || isAdminLoggedIn) && (
+                <button
+                  onClick={() => { setActiveTab('admin'); window.scrollTo(0, 0); }}
+                  className={`p-2 rounded-lg flex items-center gap-1.5 transition-all text-sm ${
+                    activeTab === 'admin'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'text-gray-500 hover:bg-amber-50 hover:text-amber-700'
+                  }`}
+                  title={lang === 'zh' ? '管理员后台' : 'Admin Panel'}
+                >
+                  <Shield size={17} />
+                  <span className="font-semibold text-xs uppercase tracking-wider">
+                    {isAdminLoggedIn ? (lang === 'zh' ? '后台' : 'Admin') : (lang === 'zh' ? '登录' : 'Login')}
+                  </span>
+                </button>
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -544,38 +640,54 @@ export default function App() {
         {mobileMenuOpen && (
           <div className="md:hidden bg-white border-b border-gray-150 animate-fade-in-down shadow-inner">
             <div className="px-4 pt-2 pb-6 space-y-1">
-              {[
-                { id: 'home', label: lang === 'zh' ? '首页' : 'Home' },
-                { id: 'about', label: lang === 'zh' ? '关于我们' : 'About Us' },
-                { id: 'ministries', label: lang === 'zh' ? '主要事工' : 'Ministries' },
-                { id: 'timetable', label: lang === 'zh' ? '聚会时间' : 'Timetable' },
-                { id: 'events', label: lang === 'zh' ? '特别活动' : 'Events' },
-                { id: 'offerings', label: lang === 'zh' ? '奉献' : 'Offerings' },
-                { id: 'bulletins', label: lang === 'zh' ? '周报' : 'Bulletins' },
-                { id: 'cellgroups', label: lang === 'zh' ? '小组' : 'Cell Groups' },
-                { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide' },
-                { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
-                { id: 'admin', label: lang === 'zh' ? (isAdminLoggedIn ? '管理员控制台' : '后台管理登录') : (isAdminLoggedIn ? 'Admin Console' : 'Admin Login'), icon: Shield }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setMobileMenuOpen(false);
-                    window.scrollTo(0, 0);
-                  }}
-                  className={`w-full text-left px-4 py-3 rounded-xl text-base font-medium flex items-center gap-2 ${
-                    activeTab === tab.id
-                      ? 'bg-primary/10 text-primary font-bold'
-                      : tab.id === 'admin'
-                      ? 'text-amber-700 bg-amber-50'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  {tab.id === 'admin' && <Shield size={18} />}
-                  <span>{tab.label}</span>
-                </button>
-              ))}
+               {(() => {
+                const vis = data.pageVisibility || {};
+                const allTabs = [
+                  { id: 'home', label: lang === 'zh' ? '首页' : 'Home' },
+                  { id: 'about', label: lang === 'zh' ? '关于我们' : 'About Us' },
+                  { id: '__group_ministry__', label: lang === 'zh' ? '▸ 事工 / Ministry' : '▸ Ministry', group: true, disabled: true },
+                  vis.ministries !== false && { id: 'ministries', label: lang === 'zh' ? '  主要事工' : '  Ministries', sub: true },
+                  vis.cellgroups !== false && { id: 'cellgroups', label: lang === 'zh' ? '  小组' : '  Cell Groups', sub: true },
+                  vis.offerings !== false && { id: 'offerings', label: lang === 'zh' ? '  奉献' : '  Offerings', sub: true },
+                  { id: '__group_gatherings__', label: lang === 'zh' ? '▸ 聚会 / Gatherings' : '▸ Gatherings', group: true, disabled: true },
+                  vis.timetable !== false && { id: 'timetable', label: lang === 'zh' ? '  聚会时间' : '  Timetable', sub: true },
+                  vis.events !== false && { id: 'events', label: lang === 'zh' ? '  特别活动' : '  Events', sub: true },
+                  { id: '__group_resources__', label: lang === 'zh' ? '▸ 资源 / Resources' : '▸ Resources', group: true, disabled: true },
+                  vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '  周报与讲道' : '  Bulletins & Sermons', sub: true },
+                  vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '  新朋友指南' : '  New Friend Guide', sub: true },
+                  vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
+                  (data.settings.showLoginButton || isAdminLoggedIn) && { id: 'admin', label: lang === 'zh' ? (isAdminLoggedIn ? '管理员控制台' : '后台管理登录') : (isAdminLoggedIn ? 'Admin Console' : 'Admin Login'), icon: Shield }
+                ].filter(Boolean);
+
+                return allTabs.map((tab) => (
+                  tab.disabled ? (
+                    <div key={tab.id} className="w-full text-left px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider mt-2">
+                      <span>{tab.label}</span>
+                    </div>
+                  ) : (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id);
+                        setMobileMenuOpen(false);
+                        window.scrollTo(0, 0);
+                      }}
+                      className={`w-full text-left px-4 py-3 rounded-xl text-base font-medium flex items-center gap-2 ${
+                        tab.sub ? 'pl-8' : ''
+                      } ${
+                        activeTab === tab.id
+                          ? 'bg-primary/10 text-primary font-bold'
+                          : tab.id === 'admin'
+                          ? 'text-amber-700 bg-amber-50'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {tab.id === 'admin' && <Shield size={18} />}
+                      <span>{tab.label}</span>
+                    </button>
+                  )
+                ));
+              })()}
             </div>
           </div>
         )}
@@ -1196,7 +1308,7 @@ export default function App() {
         )}
 
 
-        {/* ==================== PAGE: OFFERINGS ==================== */}
+         {/* ==================== PAGE: OFFERINGS ==================== */}
         {activeTab === 'offerings' && (
           <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
             <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
@@ -1241,7 +1353,7 @@ export default function App() {
                   </div>
                 </div>
               ))}
-            </div>
+           </div>
 
             {/* Contact Note */}
             <div className="max-w-2xl mx-auto bg-amber-50 rounded-xl p-5 border border-amber-200/60 flex items-start gap-3.5">
@@ -1251,72 +1363,223 @@ export default function App() {
           </div>
         )}
 
-        {/* ==================== PAGE: BULLETINS ==================== */}
-        {activeTab === 'bulletins' && (
-          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-              <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {lang === 'zh' ? '教会动态 · 周报月刊' : 'Church Updates & Publications'}
-              </span>
-              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                {lang === 'zh' ? '教会周报与月刊' : 'Church Bulletins'}
-              </h1>
-              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                {lang === 'zh'
-                  ? '在此查阅教会每周周报和月刊，了解最新信息、代祷事项和活动预告。'
-                  : 'Browse our weekly bulletins and monthly newsletters for the latest church news, prayer requests, and upcoming events.'}
-              </p>
-            </div>
+        {/* ==================== PAGE: BULLETINS & SERMONS ==================== */}
+        {activeTab === 'bulletins' && (() => {
+          const [bulletinsTab, setBulletinsTab] = React.useState('bulletins');
+          const sermons = data.sermons || [];
+          const allPreachers = [...new Set(sermons.map(s => t(s.preacher)))];
+          const allSeries = [...new Set(sermons.map(s => t(s.series)))];
+          
+          const filteredSermons = sermonFilter === 'all' ? sermons :
+            sermons.filter(s => t(s.preacher) === sermonFilter || t(s.series) === sermonFilter);
+          
+          // Helper to extract YouTube video ID
+          const getYoutubeEmbedUrl = (url) => {
+            if (!url) return '';
+            const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
+            return match ? `https://www.youtube.com/embed/${match[1]}` : '';
+          };
+          
+          return (
+            <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
+              <div className="text-center max-w-3xl mx-auto space-y-4 mb-10">
+                <span className="text-primary font-bold uppercase tracking-wider text-xs">
+                  {lang === 'zh' ? '教会资源中心' : 'Church Resource Centre'}
+                </span>
+                <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+                  {lang === 'zh' ? '周报与讲道库' : 'Bulletins & Sermon Library'}
+                </h1>
+                <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
+                  {lang === 'zh'
+                    ? '查阅每周周报、代祷事项，或回顾过往讲道信息。'
+                    : 'Access weekly bulletins, prayer items, and past sermon messages.'}
+                </p>
+              </div>
 
-            {(data.bulletins || []).length > 0 ? (
-              <div className="space-y-6">
-                {data.bulletins.map((bulletin) => (
-                  <div key={bulletin.id} className="bg-white rounded-2xl border border-gray-150 shadow-sm hover:shadow-md transition-all overflow-hidden">
-                    <div className="flex flex-col md:flex-row">
-                      <div className="md:w-16 bg-primary/5 flex items-center justify-center p-4 md:p-0 shrink-0">
-                        <FileText className="text-primary" size={24} />
-                      </div>
-                      <div className="flex-grow p-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                          <div>
-                            <h3 className="font-extrabold text-lg text-gray-900">{t(bulletin.title)}</h3>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 text-primary text-[11px] font-bold">
-                                <Calendar size={11} />
-                                <span>{bulletin.date}</span>
-                              </span>
-                              <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600 text-[11px] font-medium">
-                                {t(bulletin.category)}
-                              </span>
+              {/* Tab Switcher */}
+              <div className="flex justify-center mb-10">
+                <div className="inline-flex bg-gray-100 rounded-xl p-1 gap-1">
+                  <button
+                    onClick={() => setBulletinsTab('bulletins')}
+                    className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                      bulletinsTab === 'bulletins'
+                        ? 'bg-white text-primary shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <FileText size={16} />
+                    <span>{lang === 'zh' ? '周报下载' : 'Weekly Bulletins'}</span>
+                  </button>
+                  <button
+                    onClick={() => setBulletinsTab('sermons')}
+                    className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                      bulletinsTab === 'sermons'
+                        ? 'bg-white text-primary shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <BookOpen size={16} />
+                    <span>{lang === 'zh' ? '讲道库' : 'Sermon Library'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Bulletins Tab */}
+              {bulletinsTab === 'bulletins' && (
+                <div>
+                  {(data.bulletins || []).length > 0 ? (
+                    <div className="space-y-6">
+                      {data.bulletins.map((bulletin) => (
+                        <div key={bulletin.id} className="bg-white rounded-2xl border border-gray-150 shadow-sm hover:shadow-md transition-all overflow-hidden">
+                          <div className="flex flex-col md:flex-row">
+                            <div className="md:w-16 bg-primary/5 flex items-center justify-center p-4 md:p-0 shrink-0">
+                              <FileText className="text-primary" size={24} />
+                            </div>
+                            <div className="flex-grow p-6">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                                <div>
+                                  <h3 className="font-extrabold text-lg text-gray-900">{t(bulletin.title)}</h3>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 text-primary text-[11px] font-bold">
+                                      <Calendar size={11} />
+                                      <span>{bulletin.date}</span>
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600 text-[11px] font-medium">
+                                      {t(bulletin.category)}
+                                    </span>
+                                  </div>
+                                </div>
+                                {bulletin.fileUrl && bulletin.fileUrl !== '#' && (
+                                  <a href={bulletin.fileUrl} target="_blank" rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all shrink-0">
+                                    <Download size={14} />
+                                    <span>{lang === 'zh' ? '下载周报' : 'Download PDF'}</span>
+                                  </a>
+                                )}
+                              </div>
+                              <p className="text-gray-600 text-sm font-light leading-relaxed mb-3">{t(bulletin.summary)}</p>
+                              {bulletin.highlights && (
+                                <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                                  <p className="text-gray-700 text-xs font-medium leading-relaxed whitespace-pre-line">{t(bulletin.highlights)}</p>
+                                </div>
+                              )}
                             </div>
                           </div>
-                          {bulletin.fileUrl && bulletin.fileUrl !== '#' && (
-                            <a href={bulletin.fileUrl} target="_blank" rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all shrink-0">
-                              <Download size={14} />
-                              <span>{lang === 'zh' ? '下载完整周报' : 'Download Full PDF'}</span>
-                            </a>
-                          )}
                         </div>
-                        <p className="text-gray-600 text-sm font-light leading-relaxed mb-3">{t(bulletin.summary)}</p>
-                        {bulletin.highlights && (
-                          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                            <p className="text-gray-700 text-xs font-medium leading-relaxed whitespace-pre-line">{t(bulletin.highlights)}</p>
-                          </div>
-                        )}
-                      </div>
+                      ))}
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-                <FileText className="mx-auto text-gray-400 mb-3" size={48} />
-                <p className="text-gray-500 font-light">{lang === 'zh' ? '目前暂无周报发布。' : 'No bulletins available at the moment.'}</p>
-              </div>
-            )}
-          </div>
-        )}
+                  ) : (
+                    <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                      <FileText className="mx-auto text-gray-400 mb-3" size={48} />
+                      <p className="text-gray-500 font-light">{lang === 'zh' ? '目前暂无周报发布。' : 'No bulletins available at the moment.'}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sermons Tab */}
+              {bulletinsTab === 'sermons' && (
+                <div>
+                  {/* Filters */}
+                  {(allPreachers.length > 0 || allSeries.length > 0) && (
+                    <div className="flex flex-wrap items-center gap-3 mb-8 justify-center">
+                      <button
+                        onClick={() => setSermonFilter('all')}
+                        className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                          sermonFilter === 'all'
+                            ? 'bg-primary text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {lang === 'zh' ? '全部' : 'All'}
+                      </button>
+                      {allSeries.map((series) => (
+                        <button
+                          key={series}
+                          onClick={() => setSermonFilter(series)}
+                          className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                            sermonFilter === series
+                              ? 'bg-primary text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {series}
+                        </button>
+                      ))}
+                      {allPreachers.map((preacher) => (
+                        <button
+                          key={preacher}
+                          onClick={() => setSermonFilter(preacher)}
+                          className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                            sermonFilter === preacher
+                              ? 'bg-primary text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {preacher}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {filteredSermons.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {filteredSermons.map((sermon) => (
+                        <div key={sermon.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col">
+                          {/* Video Thumbnail / Embed */}
+                          <div className="relative aspect-video bg-gray-900">
+                            {sermon.videoUrl && getYoutubeEmbedUrl(sermon.videoUrl) ? (
+                              <iframe
+                                src={getYoutubeEmbedUrl(sermon.videoUrl)}
+                                title={t(sermon.title)}
+                                className="absolute inset-0 w-full h-full"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center text-white">
+                                <BookOpen size={48} className="opacity-30" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="p-5 flex-grow flex flex-col justify-between space-y-3">
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-bold">
+                                  {t(sermon.series)}
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-gray-400 text-[10px]">
+                                  <Calendar size={10} />
+                                  {sermon.date}
+                                </span>
+                              </div>
+                              <h3 className="font-extrabold text-sm text-gray-900 leading-tight">{t(sermon.title)}</h3>
+                              {sermon.scripture && (
+                                <p className="text-xs text-primary font-medium mt-1 italic">📖 {sermon.scripture}</p>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-gray-600 text-xs font-light leading-relaxed line-clamp-2">{t(sermon.description)}</p>
+                              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+                                <Users size={12} className="text-gray-400" />
+                                <span className="text-xs text-gray-500">{t(sermon.preacher)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                      <BookOpen className="mx-auto text-gray-400 mb-3" size={48} />
+                      <p className="text-gray-500 font-light">{lang === 'zh' ? '目前暂无讲道信息。' : 'No sermons available at the moment.'}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ==================== PAGE: CELL GROUPS ==================== */}
         {activeTab === 'cellgroups' && (
@@ -1447,64 +1710,82 @@ export default function App() {
                 <MapIcon className="text-primary" size={36} />
                 <span>{lang === 'zh' ? '教会地图与交通指南' : 'Church Map & Directions'}</span>
               </h1>
+              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
+                {lang === 'zh' ? '我们在多个地点设有聚会点，请选择离您最近的地点。' : 'We have fellowship points at multiple locations. Choose the one closest to you.'}
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Map Embed */}
-              <div className="lg:col-span-2 rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-gray-100 min-h-[400px]">
-                <iframe
-                  src={data.maps?.googleMapsEmbedUrl || ''}
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0, minHeight: '400px' }}
-                  allowFullScreen=""
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  title="Church Location Map"
-                  className="w-full h-full"
-                />
-              </div>
-
-              {/* Info Sidebar */}
-              <div className="space-y-6">
-                {/* Address */}
-                <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
-                  <div className="flex items-center gap-2 text-primary">
-                    <MapPin size={20} />
-                    <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '教会地址' : 'Church Address'}</h3>
-                  </div>
-                  <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(data.maps?.address)}</p>
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.settings.contactAddress || '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-primary text-xs font-semibold hover:text-primary-dark transition-all"
-                  >
-                    <Navigation size={14} />
-                    <span>{lang === 'zh' ? '在 Google Maps 中打开' : 'Open in Google Maps'}</span>
-                  </a>
-                </div>
-
-                {/* Directions */}
-                <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
-                  <div className="flex items-center gap-2 text-primary">
-                    <Navigation size={20} />
-                    <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '交通指南' : 'Directions'}</h3>
-                  </div>
-                  <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(data.maps?.directions)}</p>
-                </div>
-
-                {/* Landmarks */}
-                {data.maps?.landmarks && (
-                  <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
-                    <div className="flex items-center gap-2 text-primary">
+            {/* Multiple Church Locations */}
+            <div className="space-y-12">
+              {(data.maps || []).map((church) => (
+                <div key={church.id} className="space-y-6">
+                  {/* Church Name Header */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
                       <MapIcon size={20} />
-                      <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '附近地标' : 'Nearby Landmarks'}</h3>
                     </div>
-                    <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(data.maps.landmarks)}</p>
+                    <h2 className="text-2xl font-extrabold text-gray-900">{t(church.name)}</h2>
                   </div>
-                )}
-              </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Map Embed */}
+                    <div className="lg:col-span-2 rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-gray-100 min-h-[400px]">
+                      <iframe
+                        src={church.googleMapsEmbedUrl || ''}
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0, minHeight: '400px' }}
+                        allowFullScreen=""
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        title={t(church.name)}
+                        className="w-full h-full"
+                      />
+                    </div>
+
+                    {/* Info Sidebar */}
+                    <div className="space-y-6">
+                      {/* Address */}
+                      <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
+                        <div className="flex items-center gap-2 text-primary">
+                          <MapPin size={20} />
+                          <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '地址' : 'Address'}</h3>
+                        </div>
+                        <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(church.address)}</p>
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t(church.address))}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-primary text-xs font-semibold hover:text-primary-dark transition-all"
+                        >
+                          <Navigation size={14} />
+                          <span>{lang === 'zh' ? '在 Google Maps 中打开' : 'Open in Google Maps'}</span>
+                        </a>
+                      </div>
+
+                      {/* Directions */}
+                      <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
+                        <div className="flex items-center gap-2 text-primary">
+                          <Navigation size={20} />
+                          <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '交通指南' : 'Directions'}</h3>
+                        </div>
+                        <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(church.directions)}</p>
+                      </div>
+
+                      {/* Landmarks */}
+                      {church.landmarks && (
+                        <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
+                          <div className="flex items-center gap-2 text-primary">
+                            <MapIcon size={20} />
+                            <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '附近地标' : 'Nearby Landmarks'}</h3>
+                          </div>
+                          <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(church.landmarks)}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -1595,6 +1876,7 @@ export default function App() {
                         { id: 'leadership', label: lang === 'zh' ? '牧者同工编辑' : 'Pastor/Leader Editor', icon: Users },
                         { id: 'offerings', label: lang === 'zh' ? '奉献设置' : 'Offerings Settings', icon: HandHeart },
                         { id: 'bulletins', label: lang === 'zh' ? '周报管理' : 'Bulletins Manager', icon: FileText },
+                        { id: 'sermons', label: lang === 'zh' ? '讲道库' : 'Sermon Library', icon: BookOpen },
                         { id: 'cellgroups', label: lang === 'zh' ? '小组管理' : 'Cell Groups', icon: Compass },
                         { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide', icon: HelpCircle },
                         { id: 'maps', label: lang === 'zh' ? '地图设置' : 'Maps Settings', icon: MapIcon },
@@ -1783,6 +2065,80 @@ export default function App() {
                             onChange={(e) => updateSetting('adminPassword', null, e.target.value)}
                             className="w-full px-3 py-2 rounded border border-amber-300 bg-amber-50/30 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
                           />
+                        </div>
+
+                                                {/* SHOW LOGIN BUTTON TOGGLE */}
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-bold text-gray-700 mb-1">
+                            {lang === 'zh' ? '显示登录按钮 / Show Login Button' : 'Show Login Button / 显示登录按钮'}
+                          </label>
+                          <p className="text-[10px] text-gray-500 mb-2">
+                            {lang === 'zh' 
+                              ? '关闭后，登录按钮将从导航栏隐藏，提高安全性。仍可通过网址 #/admin 访问。' 
+                              : 'When disabled, the login button will be hidden from navigation for better security. You can still access admin via URL #/admin'}
+                          </p>
+                          <button
+                            onClick={() => updateSetting('showLoginButton', null, !data.settings.showLoginButton)}
+                            className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
+                              data.settings.showLoginButton
+                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                                : 'bg-gray-100 text-gray-600 border border-gray-300'
+                            }`}
+                          >
+                            <Shield size={14} />
+                            <span>
+                              {data.settings.showLoginButton 
+                                ? (lang === 'zh' ? '✓ 登录按钮已显示' : '✓ Login Button Visible')
+                                : (lang === 'zh' ? '✗ 登录按钮已隐藏' : '✗ Login Button Hidden')}
+                            </span>
+                          </button>
+                          <p className="text-[10px] text-amber-600 mt-2 font-medium">
+                            {lang === 'zh' 
+                              ? '💡 提示：访问后台管理网址 = 您的网站网址 + #/admin'
+                              : '💡 Tip: Admin access URL = your site URL + #/admin'}
+                          </p>
+                        </div>
+
+                        {/* PAGE VISIBILITY TOGGLES */}
+                        <div className="md:col-span-2 pt-4 border-t border-gray-100">
+                          <label className="block text-xs font-bold text-gray-800 mb-3 uppercase tracking-wide">
+                            {lang === 'zh' ? '页面显示控制 / Page Visibility' : 'Page Visibility / 页面显示控制'}
+                          </label>
+                          <p className="text-[10px] text-gray-500 mb-3">
+                            {lang === 'zh' ? '关闭不需要的页面，它们将从导航菜单中隐藏' : 'Toggle off pages you don\'t need - they will be hidden from the navigation menu'}
+                          </p>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            {[
+                              { key: 'ministries', zh: '主要事工', en: 'Ministries' },
+                              { key: 'timetable', zh: '聚会时间', en: 'Timetable' },
+                              { key: 'events', zh: '特别活动', en: 'Events' },
+                              { key: 'offerings', zh: '奉献', en: 'Offerings' },
+                              { key: 'bulletins', zh: '周报与讲道', en: 'Bulletins & Sermons' },
+                              { key: 'cellgroups', zh: '小组', en: 'Cell Groups' },
+                              { key: 'newfriend', zh: '新朋友指南', en: 'New Friend Guide' },
+                              { key: 'maps', zh: '地图', en: 'Maps' }
+                            ].map((page) => {
+                              const isVisible = (data.pageVisibility || {})[page.key] !== false;
+                              return (
+                                <button
+                                  key={page.key}
+                                  onClick={() => togglePageVisibility(page.key)}
+                                  className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition-all text-left ${
+                                    isVisible 
+                                      ? 'border-primary bg-primary/5 text-primary' 
+                                      : 'border-gray-200 bg-gray-50 text-gray-400'
+                                  }`}
+                                >
+                                  <div className={`w-3 h-3 rounded-full border-2 ${
+                                    isVisible ? 'border-primary bg-primary' : 'border-gray-300 bg-white'
+                                  }`}>
+                                    {isVisible && <Check size={10} className="text-white" />}
+                                  </div>
+                                  <span className="text-[10px] text-center font-medium">{lang === 'zh' ? page.zh : page.en}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
 
                         {/* SELECT BRAND COLOR Theme */}
@@ -2785,6 +3141,120 @@ export default function App() {
                     </div>
                   )}
 
+                  {/* SECTION: SERMON LIBRARY MANAGER */}
+                  {adminActiveSection === 'sermons' && (
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-start gap-4">
+                        <div>
+                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '讲道库管理' : 'Sermon Library Manager'}</h2>
+                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理讲道视频、讲员、系列和日期' : 'Manage sermon videos, preachers, series, and dates'}</p>
+                        </div>
+                        {editingSermon === null && (
+                          <button
+                            onClick={() => setEditingSermon({
+                              id: 'new',
+                              title: { zh: '新讲道', en: 'New Sermon' },
+                              preacher: { zh: '讲员姓名', en: 'Preacher Name' },
+                              date: new Date().toISOString().slice(0, 10),
+                              videoUrl: 'https://www.youtube.com/watch?v=',
+                              series: { zh: '讲道系列', en: 'Sermon Series' },
+                              scripture: '',
+                              description: { zh: '讲道描述...', en: 'Sermon description...' },
+                              thumbnail: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80'
+                            })}
+                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                          >
+                            <Plus size={14} />
+                            <span>{lang === 'zh' ? '添加讲道' : 'Add Sermon'}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {editingSermon ? (
+                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
+                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
+                            {editingSermon.id === 'new' ? (lang === 'zh' ? '新增讲道' : 'Add New Sermon') : (lang === 'zh' ? '编辑讲道' : 'Edit Sermon')}
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '标题 (中文)' : 'Title (Chinese)'}</label>
+                              <input type="text" value={editingSermon.title.zh} onChange={(e) => setEditingSermon({ ...editingSermon, title: { ...editingSermon.title, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Title (English)' : 'Title (English)'}</label>
+                              <input type="text" value={editingSermon.title.en} onChange={(e) => setEditingSermon({ ...editingSermon, title: { ...editingSermon.title, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '讲员 (中文)' : 'Preacher (Chinese)'}</label>
+                              <input type="text" value={editingSermon.preacher.zh} onChange={(e) => setEditingSermon({ ...editingSermon, preacher: { ...editingSermon.preacher, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Preacher (English)' : 'Preacher (English)'}</label>
+                              <input type="text" value={editingSermon.preacher.en} onChange={(e) => setEditingSermon({ ...editingSermon, preacher: { ...editingSermon.preacher, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '日期' : 'Date'}</label>
+                              <input type="date" value={editingSermon.date} onChange={(e) => setEditingSermon({ ...editingSermon, date: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '经文引用' : 'Scripture Reference'}</label>
+                              <input type="text" value={editingSermon.scripture || ''} onChange={(e) => setEditingSermon({ ...editingSermon, scripture: e.target.value })} placeholder="例: 约翰福音 3:16" className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '系列 (中文)' : 'Series (Chinese)'}</label>
+                              <input type="text" value={editingSermon.series.zh} onChange={(e) => setEditingSermon({ ...editingSermon, series: { ...editingSermon.series, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Series (English)' : 'Series (English)'}</label>
+                              <input type="text" value={editingSermon.series.en} onChange={(e) => setEditingSermon({ ...editingSermon, series: { ...editingSermon.series, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'YouTube 视频链接' : 'YouTube Video URL'}</label>
+                              <input type="text" value={editingSermon.videoUrl} onChange={(e) => setEditingSermon({ ...editingSermon, videoUrl: e.target.value })} placeholder="https://www.youtube.com/watch?v=..." className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '支持 YouTube 视频链接' : 'Supports YouTube video URLs'}</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '描述 (中文)' : 'Description (Chinese)'}</label>
+                              <textarea rows={3} value={editingSermon.description.zh} onChange={(e) => setEditingSermon({ ...editingSermon, description: { ...editingSermon.description, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Description (English)' : 'Description (English)'}</label>
+                              <textarea rows={3} value={editingSermon.description.en} onChange={(e) => setEditingSermon({ ...editingSermon, description: { ...editingSermon.description, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
+                            <button onClick={() => setEditingSermon(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
+                            <button onClick={() => handleSaveSermon(editingSermon)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 pt-4 border-t border-gray-100">
+                          {(data.sermons || []).map((sermon) => (
+                            <div key={sermon.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                              <div className="flex gap-3 items-center w-full sm:w-3/4">
+                                <div className="w-16 h-12 bg-gray-200 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                                  {sermon.videoUrl ? (
+                                    <BookOpen className="text-gray-400" size={20} />
+                                  ) : (
+                                    <BookOpen className="text-gray-400" size={20} />
+                                  )}
+                                </div>
+                                <div className="space-y-1">
+                                  <h4 className="font-bold text-sm text-gray-900">{t(sermon.title)}</h4>
+                                  <p className="text-xs text-gray-500">{sermon.date} • {t(sermon.preacher)} • {t(sermon.series)}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                <button onClick={() => setEditingSermon(sermon)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
+                                <button onClick={() => handleDeleteSermon(sermon.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* SECTION: CELL GROUPS MANAGER */}
                   {adminActiveSection === 'cellgroups' && (
                     <div className="space-y-6">
@@ -2947,41 +3417,177 @@ export default function App() {
                   {/* SECTION: MAPS SETTINGS */}
                   {adminActiveSection === 'maps' && (
                     <div className="space-y-6">
-                      <div>
-                        <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '地图设置' : 'Maps Settings'}</h2>
-                        <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '设置地图嵌入链接、地址和交通指南' : 'Configure map embed URL, address, and directions'}</p>
+                      <div className="flex justify-between items-start gap-4">
+                        <div>
+                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '地图设置' : 'Maps Settings'}</h2>
+                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理多个教会地点的地图、地址和交通指南' : 'Manage maps, addresses, and directions for multiple church locations'}</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const newLocation = {
+                              id: 'new',
+                              name: { zh: '新聚会点', en: 'New Fellowship Point' },
+                              googleMapsEmbedUrl: '',
+                              address: { zh: '地址', en: 'Address' },
+                              directions: { zh: '交通指南', en: 'Directions' },
+                              landmarks: { zh: '附近地标', en: 'Nearby Landmarks' }
+                            };
+                            const updated = { ...data };
+                            if (!updated.maps) updated.maps = [];
+                            const newId = Math.max(...updated.maps.map(m => m.id), 0) + 1;
+                            updated.maps.push({ ...newLocation, id: newId });
+                            saveAllData(updated);
+                          }}
+                          className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                        >
+                          <Plus size={14} />
+                          <span>{lang === 'zh' ? '添加聚会点' : 'Add Location'}</span>
+                        </button>
                       </div>
 
                       <div className="space-y-4 pt-4 border-t border-gray-100">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Google Maps 嵌入链接' : 'Google Maps Embed URL'}</label>
-                          <input type="text" value={data.maps?.googleMapsEmbedUrl || ''} onChange={(e) => updateMaps('googleMapsEmbedUrl', null, e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                          <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '从 Google Maps > 分享 > 嵌入地图 获取链接' : 'Get from Google Maps > Share > Embed a map'}</p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '地址 (中文)' : 'Address (Chinese)'}</label>
-                          <textarea rows={2} value={data.maps?.address?.zh || ''} onChange={(e) => updateMaps('address', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Address (English)' : 'Address (English)'}</label>
-                          <textarea rows={2} value={data.maps?.address?.en || ''} onChange={(e) => updateMaps('address', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '交通指南 (中文)' : 'Directions (Chinese)'}</label>
-                          <textarea rows={5} value={data.maps?.directions?.zh || ''} onChange={(e) => updateMaps('directions', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Directions (English)' : 'Directions (English)'}</label>
-                          <textarea rows={5} value={data.maps?.directions?.en || ''} onChange={(e) => updateMaps('directions', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '附近地标 (中文)' : 'Nearby Landmarks (Chinese)'}</label>
-                          <textarea rows={3} value={data.maps?.landmarks?.zh || ''} onChange={(e) => updateMaps('landmarks', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Nearby Landmarks (English)' : 'Nearby Landmarks (English)'}</label>
-                          <textarea rows={3} value={data.maps?.landmarks?.en || ''} onChange={(e) => updateMaps('landmarks', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
+                        {(data.maps || []).map((church, idx) => (
+                          <div key={church.id} className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4">
+                            <div className="flex justify-between items-center">
+                              <h3 className="font-extrabold text-sm text-gray-900">
+                                {lang === 'zh' ? `地点 ${idx + 1}: ` : `Location ${idx + 1}: `} {t(church.name)}
+                              </h3>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(lang === 'zh' ? '确定要删除此聚会点吗？' : 'Are you sure you want to delete this location?')) {
+                                    const updated = { ...data };
+                                    updated.maps = updated.maps.filter((_, i) => i !== idx);
+                                    saveAllData(updated);
+                                  }
+                                }}
+                                className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+
+                            <div className="space-y-4">
+                              <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '地点名称 (中文)' : 'Location Name (Chinese)'}</label>
+                                <input
+                                  type="text"
+                                  value={church.name.zh}
+                                  onChange={(e) => {
+                                    const updated = { ...data };
+                                    updated.maps[idx].name.zh = e.target.value;
+                                    saveAllData(updated);
+                                  }}
+                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Location Name (English)' : 'Location Name (English)'}</label>
+                                <input
+                                  type="text"
+                                  value={church.name.en}
+                                  onChange={(e) => {
+                                    const updated = { ...data };
+                                    updated.maps[idx].name.en = e.target.value;
+                                    saveAllData(updated);
+                                  }}
+                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Google Maps 嵌入链接' : 'Google Maps Embed URL'}</label>
+                                <input
+                                  type="text"
+                                  value={church.googleMapsEmbedUrl}
+                                  onChange={(e) => {
+                                    const updated = { ...data };
+                                    updated.maps[idx].googleMapsEmbedUrl = e.target.value;
+                                    saveAllData(updated);
+                                  }}
+                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                                />
+                                <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '从 Google Maps > 分享 > 嵌入地图 获取链接' : 'Get from Google Maps > Share > Embed a map'}</p>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '地址 (中文)' : 'Address (Chinese)'}</label>
+                                <textarea
+                                  rows={2}
+                                  value={church.address.zh}
+                                  onChange={(e) => {
+                                    const updated = { ...data };
+                                    updated.maps[idx].address.zh = e.target.value;
+                                    saveAllData(updated);
+                                  }}
+                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Address (English)' : 'Address (English)'}</label>
+                                <textarea
+                                  rows={2}
+                                  value={church.address.en}
+                                  onChange={(e) => {
+                                    const updated = { ...data };
+                                    updated.maps[idx].address.en = e.target.value;
+                                    saveAllData(updated);
+                                  }}
+                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '交通指南 (中文)' : 'Directions (Chinese)'}</label>
+                                <textarea
+                                  rows={4}
+                                  value={church.directions.zh}
+                                  onChange={(e) => {
+                                    const updated = { ...data };
+                                    updated.maps[idx].directions.zh = e.target.value;
+                                    saveAllData(updated);
+                                  }}
+                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Directions (English)' : 'Directions (English)'}</label>
+                                <textarea
+                                  rows={4}
+                                  value={church.directions.en}
+                                  onChange={(e) => {
+                                    const updated = { ...data };
+                                    updated.maps[idx].directions.en = e.target.value;
+                                    saveAllData(updated);
+                                  }}
+                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '附近地标 (中文)' : 'Nearby Landmarks (Chinese)'}</label>
+                                <textarea
+                                  rows={3}
+                                  value={church.landmarks.zh}
+                                  onChange={(e) => {
+                                    const updated = { ...data };
+                                    updated.maps[idx].landmarks.zh = e.target.value;
+                                    saveAllData(updated);
+                                  }}
+                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Nearby Landmarks (English)' : 'Nearby Landmarks (English)'}</label>
+                                <textarea
+                                  rows={3}
+                                  value={church.landmarks.en}
+                                  onChange={(e) => {
+                                    const updated = { ...data };
+                                    updated.maps[idx].landmarks.en = e.target.value;
+                                    saveAllData(updated);
+                                  }}
+                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -3113,27 +3719,30 @@ export default function App() {
           <div className="space-y-3">
             <h4 className="text-white text-xs font-bold uppercase tracking-wider">{lang === 'zh' ? '网站导航' : 'Navigation'}</h4>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              {[
-                { id: 'home', label: lang === 'zh' ? '主页' : 'Home' },
-                { id: 'about', label: lang === 'zh' ? '关于我们' : 'About Us' },
-                { id: 'ministries', label: lang === 'zh' ? '主要事工' : 'Ministries' },
-                { id: 'timetable', label: lang === 'zh' ? '聚会时间' : 'Timetable' },
-                { id: 'events', label: lang === 'zh' ? '活动预告' : 'Events' },
-                { id: 'cellgroups', label: lang === 'zh' ? '小组' : 'Cell Groups' },
-                { id: 'offerings', label: lang === 'zh' ? '奉献' : 'Offerings' },
-                { id: 'bulletins', label: lang === 'zh' ? '周报' : 'Bulletins' },
-                { id: 'newfriend', label: lang === 'zh' ? '新朋友' : 'New Friend' },
-                { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
-                { id: 'admin', label: lang === 'zh' ? '后台管理' : 'Admin Area' }
-              ].map((lnk) => (
-                <button
-                  key={lnk.id}
-                  onClick={() => { setActiveTab(lnk.id); window.scrollTo(0, 0); }}
-                  className="text-left hover:text-white hover:underline transition-all"
-                >
-                  {lnk.label}
-                </button>
-              ))}
+              {(() => {
+                const vis = data.pageVisibility || {};
+                return [
+                  { id: 'home', label: lang === 'zh' ? '主页' : 'Home' },
+                  { id: 'about', label: lang === 'zh' ? '关于我们' : 'About Us' },
+                  vis.ministries !== false && { id: 'ministries', label: lang === 'zh' ? '主要事工' : 'Ministries' },
+                  vis.timetable !== false && { id: 'timetable', label: lang === 'zh' ? '聚会时间' : 'Timetable' },
+                  vis.events !== false && { id: 'events', label: lang === 'zh' ? '活动预告' : 'Events' },
+                  vis.cellgroups !== false && { id: 'cellgroups', label: lang === 'zh' ? '小组' : 'Cell Groups' },
+                  vis.offerings !== false && { id: 'offerings', label: lang === 'zh' ? '奉献' : 'Offerings' },
+                  vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '周报与讲道' : 'Bulletins & Sermons' },
+                  vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '新朋友' : 'New Friend' },
+                  vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
+                  (data.settings.showLoginButton || isAdminLoggedIn) && { id: 'admin', label: lang === 'zh' ? '后台管理' : 'Admin Area' }
+                ].filter(Boolean).map((lnk) => (
+                  <button
+                    key={lnk.id}
+                    onClick={() => { setActiveTab(lnk.id); window.scrollTo(0, 0); }}
+                    className="text-left hover:text-white hover:underline transition-all"
+                  >
+                    {lnk.label}
+                  </button>
+                ));
+              })()}
             </div>
           </div>
 
