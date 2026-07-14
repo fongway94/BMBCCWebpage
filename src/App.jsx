@@ -31,7 +31,16 @@ import {
   AlertTriangle,
   LogOut,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  FileText,
+  Gift,
+  Map as MapIcon,
+  Building,
+  Smartphone,
+  HandHeart,
+  Compass,
+  HelpCircle,
+  Navigation
 } from 'lucide-react';
 import { initialData } from './data/initialData';
 
@@ -80,6 +89,9 @@ export default function App() {
   const [editingTimetable, setEditingTimetable] = useState(null); // timetable item ID or 'new'
   const [editingEvent, setEditingEvent] = useState(null); // event ID or 'new'
   const [editingMinistry, setEditingMinistry] = useState(null); // ministry ID or 'new'
+  const [editingBulletin, setEditingBulletin] = useState(null);
+  const [editingCellGroup, setEditingCellGroup] = useState(null);
+  const [editingLeader, setEditingLeader] = useState(null);
   const [importJsonText, setImportJsonText] = useState('');
   const [importError, setImportError] = useState('');
 
@@ -252,6 +264,121 @@ export default function App() {
     }
   };
 
+  // 7. Bulletin Actions
+  const handleSaveBulletin = (item) => {
+    const updated = { ...data };
+    if (!updated.bulletins) updated.bulletins = [];
+    if (item.id === 'new') {
+      const newId = Math.max(...updated.bulletins.map(b => b.id), 0) + 1;
+      updated.bulletins.push({ ...item, id: newId });
+    } else {
+      updated.bulletins = updated.bulletins.map(b => b.id === item.id ? item : b);
+    }
+    saveAllData(updated);
+    setEditingBulletin(null);
+  };
+
+  const handleDeleteBulletin = (id) => {
+    if (window.confirm(lang === 'zh' ? '确定要删除此周报吗？' : 'Are you sure you want to delete this bulletin?')) {
+      const updated = { ...data };
+      updated.bulletins = updated.bulletins.filter(b => b.id !== id);
+      saveAllData(updated);
+    }
+  };
+
+  // 8. Cell Group Actions
+  const handleSaveCellGroup = (item) => {
+    const updated = { ...data };
+    if (!updated.cellGroups) updated.cellGroups = [];
+    if (item.id === 'new') {
+      const newId = Math.max(...updated.cellGroups.map(c => c.id), 0) + 1;
+      updated.cellGroups.push({ ...item, id: newId });
+    } else {
+      updated.cellGroups = updated.cellGroups.map(c => c.id === item.id ? item : c);
+    }
+    saveAllData(updated);
+    setEditingCellGroup(null);
+  };
+
+  const handleDeleteCellGroup = (id) => {
+    if (window.confirm(lang === 'zh' ? '确定要删除此小组吗？' : 'Are you sure you want to delete this cell group?')) {
+      const updated = { ...data };
+      updated.cellGroups = updated.cellGroups.filter(c => c.id !== id);
+      saveAllData(updated);
+    }
+  };
+
+  // 9. Leadership/Pastor Actions
+  const handleSaveLeader = (item) => {
+    const updated = { ...data };
+    if (!updated.leadership) updated.leadership = [];
+    if (item.id === 'new') {
+      const newId = Math.max(...updated.leadership.map(l => l.id), 0) + 1;
+      updated.leadership.push({ ...item, id: newId });
+    } else {
+      updated.leadership = updated.leadership.map(l => l.id === item.id ? item : l);
+    }
+    saveAllData(updated);
+    setEditingLeader(null);
+  };
+
+  const handleDeleteLeader = (id) => {
+    if (window.confirm(lang === 'zh' ? '确定要删除此牧者/同工吗？' : 'Are you sure you want to delete this leader?')) {
+      const updated = { ...data };
+      updated.leadership = updated.leadership.filter(l => l.id !== id);
+      saveAllData(updated);
+    }
+  };
+
+  // 10. Update Offerings
+  const updateOfferings = (key, value) => {
+    const updated = { ...data };
+    if (!updated.offerings) updated.offerings = {};
+    updated.offerings[key] = value;
+    saveAllData(updated);
+  };
+
+  // 11. Update Maps
+  const updateMaps = (key, subKey, value) => {
+    const updated = { ...data };
+    if (!updated.maps) updated.maps = {};
+    if (subKey) {
+      if (!updated.maps[key]) updated.maps[key] = {};
+      updated.maps[key][subKey] = value;
+    } else {
+      updated.maps[key] = value;
+    }
+    saveAllData(updated);
+  };
+
+  // 12. Update New Friend Guide
+  const updateNewFriendGuide = (key, value) => {
+    const updated = { ...data };
+    if (!updated.newFriendGuide) updated.newFriendGuide = {};
+    updated.newFriendGuide[key] = value;
+    saveAllData(updated);
+  };
+
+  const handleSaveGuideSection = (section, index) => {
+    const updated = { ...data };
+    if (!updated.newFriendGuide) updated.newFriendGuide = {};
+    if (!updated.newFriendGuide.sections) updated.newFriendGuide.sections = [];
+    if (index !== undefined && index >= 0) {
+      updated.newFriendGuide.sections[index] = section;
+    } else {
+      const newId = Math.max(...(updated.newFriendGuide.sections.map(s => s.id) || [0]), 0) + 1;
+      updated.newFriendGuide.sections.push({ ...section, id: newId });
+    }
+    saveAllData(updated);
+  };
+
+  const handleDeleteGuideSection = (index) => {
+    const updated = { ...data };
+    if (!updated.newFriendGuide || !updated.newFriendGuide.sections) return;
+    updated.newFriendGuide.sections.splice(index, 1);
+    saveAllData(updated);
+  };
+
   // 6. Backup Actions
   const handleExportData = () => {
     const jsonStr = JSON.stringify(data, null, 2);
@@ -344,7 +471,12 @@ export default function App() {
                 { id: 'about', label: lang === 'zh' ? '关于我们' : 'About Us' },
                 { id: 'ministries', label: lang === 'zh' ? '主要事工' : 'Ministries' },
                 { id: 'timetable', label: lang === 'zh' ? '聚会时间' : 'Timetable' },
-                { id: 'events', label: lang === 'zh' ? '特别活动' : 'Events' }
+                { id: 'events', label: lang === 'zh' ? '特别活动' : 'Events' },
+                { id: 'offerings', label: lang === 'zh' ? '奉献' : 'Offerings' },
+                { id: 'bulletins', label: lang === 'zh' ? '周报' : 'Bulletins' },
+                { id: 'cellgroups', label: lang === 'zh' ? '小组' : 'Cell Groups' },
+                { id: 'newfriend', label: lang === 'zh' ? '新朋友' : 'New Friend' },
+                { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -418,6 +550,11 @@ export default function App() {
                 { id: 'ministries', label: lang === 'zh' ? '主要事工' : 'Ministries' },
                 { id: 'timetable', label: lang === 'zh' ? '聚会时间' : 'Timetable' },
                 { id: 'events', label: lang === 'zh' ? '特别活动' : 'Events' },
+                { id: 'offerings', label: lang === 'zh' ? '奉献' : 'Offerings' },
+                { id: 'bulletins', label: lang === 'zh' ? '周报' : 'Bulletins' },
+                { id: 'cellgroups', label: lang === 'zh' ? '小组' : 'Cell Groups' },
+                { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide' },
+                { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
                 { id: 'admin', label: lang === 'zh' ? (isAdminLoggedIn ? '管理员控制台' : '后台管理登录') : (isAdminLoggedIn ? 'Admin Console' : 'Admin Login'), icon: Shield }
               ].map((tab) => (
                 <button
@@ -1058,6 +1195,320 @@ export default function App() {
           </div>
         )}
 
+
+        {/* ==================== PAGE: OFFERINGS ==================== */}
+        {activeTab === 'offerings' && (
+          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
+            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+              <span className="text-primary font-bold uppercase tracking-wider text-xs">
+                {lang === 'zh' ? '忠心管家 · 感恩奉献' : 'Faithful Stewardship · Thankful Giving'}
+              </span>
+              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+                {lang === 'zh' ? '奉献指南' : 'Offerings & Tithes'}
+              </h1>
+              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
+                {t(data.offerings?.intro)}
+              </p>
+            </div>
+
+            {/* Scripture Quote */}
+            <div className="max-w-3xl mx-auto mb-12">
+              <div className="bg-primary/5 border-l-4 border-primary p-6 rounded-r-xl">
+                <p className="text-gray-700 italic text-sm md:text-base leading-relaxed font-light">
+                  {t(data.offerings?.scripture)}
+                </p>
+              </div>
+            </div>
+
+            {/* Offering Methods */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+              {(data.offerings?.methods || []).map((method, idx) => (
+                <div key={method.id || idx} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col">
+                  <div className="bg-primary/5 p-6 text-center border-b border-gray-100">
+                    <div className="inline-flex p-3 rounded-xl bg-primary/10 text-primary mb-3">
+                      {method.icon === 'heart' && <HandHeart size={28} />}
+                      {method.icon === 'building' && <Building size={28} />}
+                      {method.icon === 'smartphone' && <Smartphone size={28} />}
+                      {!['heart','building','smartphone'].includes(method.icon) && <Gift size={28} />}
+                    </div>
+                    <h3 className="font-extrabold text-lg text-gray-900">{t(method.title)}</h3>
+                  </div>
+                  <div className="p-6 flex-grow space-y-4">
+                    <p className="text-gray-600 text-sm font-light leading-relaxed">{t(method.description)}</p>
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                      <p className="text-gray-700 text-xs font-medium leading-relaxed whitespace-pre-line">{t(method.details)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Contact Note */}
+            <div className="max-w-2xl mx-auto bg-amber-50 rounded-xl p-5 border border-amber-200/60 flex items-start gap-3.5">
+              <Info className="text-amber-600 shrink-0 mt-0.5" size={20} />
+              <p className="text-xs text-amber-900 font-light leading-relaxed">{t(data.offerings?.contactNote)}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== PAGE: BULLETINS ==================== */}
+        {activeTab === 'bulletins' && (
+          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
+            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+              <span className="text-primary font-bold uppercase tracking-wider text-xs">
+                {lang === 'zh' ? '教会动态 · 周报月刊' : 'Church Updates & Publications'}
+              </span>
+              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+                {lang === 'zh' ? '教会周报与月刊' : 'Church Bulletins'}
+              </h1>
+              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
+                {lang === 'zh'
+                  ? '在此查阅教会每周周报和月刊，了解最新信息、代祷事项和活动预告。'
+                  : 'Browse our weekly bulletins and monthly newsletters for the latest church news, prayer requests, and upcoming events.'}
+              </p>
+            </div>
+
+            {(data.bulletins || []).length > 0 ? (
+              <div className="space-y-6">
+                {data.bulletins.map((bulletin) => (
+                  <div key={bulletin.id} className="bg-white rounded-2xl border border-gray-150 shadow-sm hover:shadow-md transition-all overflow-hidden">
+                    <div className="flex flex-col md:flex-row">
+                      <div className="md:w-16 bg-primary/5 flex items-center justify-center p-4 md:p-0 shrink-0">
+                        <FileText className="text-primary" size={24} />
+                      </div>
+                      <div className="flex-grow p-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                          <div>
+                            <h3 className="font-extrabold text-lg text-gray-900">{t(bulletin.title)}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 text-primary text-[11px] font-bold">
+                                <Calendar size={11} />
+                                <span>{bulletin.date}</span>
+                              </span>
+                              <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600 text-[11px] font-medium">
+                                {t(bulletin.category)}
+                              </span>
+                            </div>
+                          </div>
+                          {bulletin.fileUrl && bulletin.fileUrl !== '#' && (
+                            <a href={bulletin.fileUrl} target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all shrink-0">
+                              <Download size={14} />
+                              <span>{lang === 'zh' ? '下载完整周报' : 'Download Full PDF'}</span>
+                            </a>
+                          )}
+                        </div>
+                        <p className="text-gray-600 text-sm font-light leading-relaxed mb-3">{t(bulletin.summary)}</p>
+                        {bulletin.highlights && (
+                          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                            <p className="text-gray-700 text-xs font-medium leading-relaxed whitespace-pre-line">{t(bulletin.highlights)}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                <FileText className="mx-auto text-gray-400 mb-3" size={48} />
+                <p className="text-gray-500 font-light">{lang === 'zh' ? '目前暂无周报发布。' : 'No bulletins available at the moment.'}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==================== PAGE: CELL GROUPS ==================== */}
+        {activeTab === 'cellgroups' && (
+          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
+            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+              <span className="text-primary font-bold uppercase tracking-wider text-xs">
+                {lang === 'zh' ? '小组生活 · 彼此相顾' : 'Community Life · Caring for One Another'}
+              </span>
+              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+                {lang === 'zh' ? '细胞小组' : 'Cell Groups'}
+              </h1>
+              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
+                {lang === 'zh'
+                  ? '小组是我们教会最重要的团契生活单元。每个小组定期聚会，一同查经、祷告、分享生命，在主爱中彼此建立。欢迎加入我们的小组！'
+                  : 'Cell groups are the heart of our fellowship life. Each group meets regularly for Bible study, prayer, and life sharing, building each other up in the Lord\'s love. Join us!'}
+              </p>
+            </div>
+
+            {(data.cellGroups || []).length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {data.cellGroups.map((group) => (
+                  <div key={group.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-lg transition-all duration-300">
+                    <div className="relative h-48 overflow-hidden">
+                      <img src={group.image} alt={t(group.name)} className="w-full h-full object-cover hover:scale-105 transition-all duration-500" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                      <div className="absolute bottom-4 left-4 text-white">
+                        <h3 className="font-extrabold text-xl">{t(group.name)}</h3>
+                        <span className="text-xs text-white/80 bg-primary/80 px-2 py-0.5 rounded mt-1 inline-block">{t(group.target)}</span>
+                      </div>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      <p className="text-gray-600 text-sm font-light leading-relaxed">{t(group.description)}</p>
+                      <div className="space-y-2 text-xs text-gray-500 border-t border-gray-100 pt-4">
+                        <div className="flex items-center gap-2">
+                          <Users size={14} className="text-primary shrink-0" />
+                          <span className="font-medium text-gray-700">{lang === 'zh' ? '负责人：' : 'Leader: '}</span>
+                          <span>{t(group.leader)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock size={14} className="text-primary shrink-0" />
+                          <span className="font-medium text-gray-700">{lang === 'zh' ? '聚会时间：' : 'Schedule: '}</span>
+                          <span>{t(group.schedule)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin size={14} className="text-primary shrink-0" />
+                          <span className="font-medium text-gray-700">{lang === 'zh' ? '地点：' : 'Location: '}</span>
+                          <span>{t(group.location)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                <Users className="mx-auto text-gray-400 mb-3" size={48} />
+                <p className="text-gray-500 font-light">{lang === 'zh' ? '目前暂无小组信息。' : 'No cell groups listed at the moment.'}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==================== PAGE: NEW FRIEND GUIDE ==================== */}
+        {activeTab === 'newfriend' && (
+          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
+            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+              <span className="text-primary font-bold uppercase tracking-wider text-xs">
+                {lang === 'zh' ? '欢迎来到神的家' : 'Welcome to God\'s Family'}
+              </span>
+              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight flex items-center justify-center gap-3">
+                <Compass className="text-primary" size={36} />
+                <span>{lang === 'zh' ? '新朋友指南' : 'New Friend Guide'}</span>
+              </h1>
+              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
+                {t(data.newFriendGuide?.welcome)}
+              </p>
+            </div>
+
+            <div className="space-y-8 max-w-4xl mx-auto">
+              {(data.newFriendGuide?.sections || []).map((section, index) => (
+                <div key={section.id || index} className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 md:p-8 hover:shadow-md transition-all">
+                  <div className="flex items-start gap-4">
+                    <div className="shrink-0 w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-extrabold text-sm">
+                      {index + 1}
+                    </div>
+                    <div className="flex-grow space-y-3">
+                      <h2 className="text-xl font-extrabold text-gray-900">{t(section.title)}</h2>
+                      <div className="w-12 h-1 bg-primary rounded" />
+                      <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(section.content)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick Contact CTA */}
+            <div className="mt-12 bg-primary/5 rounded-2xl p-8 text-center max-w-3xl mx-auto border border-primary/10">
+              <HelpCircle className="mx-auto text-primary mb-3" size={32} />
+              <h3 className="text-lg font-extrabold text-gray-900 mb-2">
+                {lang === 'zh' ? '还有疑问？随时联系我们！' : 'Still have questions? Contact us anytime!'}
+              </h3>
+              <p className="text-gray-600 text-sm font-light mb-4">
+                {lang === 'zh' ? '我们的接待团队随时准备为您解答任何问题。' : 'Our welcome team is ready to answer any questions you may have.'}
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <a href={`tel:${data.settings.contactPhone}`} className="px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold flex items-center gap-2 hover:bg-primary-dark transition-all">
+                  <Phone size={16} />
+                  <span>{data.settings.contactPhone}</span>
+                </a>
+                <button onClick={() => { setActiveTab('maps'); window.scrollTo(0, 0); }}
+                  className="px-5 py-2.5 rounded-lg border border-primary text-primary text-sm font-semibold flex items-center gap-2 hover:bg-primary/5 transition-all">
+                  <Navigation size={16} />
+                  <span>{lang === 'zh' ? '查看地图与方向' : 'View Map & Directions'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== PAGE: MAPS ==================== */}
+        {activeTab === 'maps' && (
+          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
+            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+              <span className="text-primary font-bold uppercase tracking-wider text-xs">
+                {lang === 'zh' ? '找到我们' : 'Find Us'}
+              </span>
+              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight flex items-center justify-center gap-3">
+                <MapIcon className="text-primary" size={36} />
+                <span>{lang === 'zh' ? '教会地图与交通指南' : 'Church Map & Directions'}</span>
+              </h1>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Map Embed */}
+              <div className="lg:col-span-2 rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-gray-100 min-h-[400px]">
+                <iframe
+                  src={data.maps?.googleMapsEmbedUrl || ''}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0, minHeight: '400px' }}
+                  allowFullScreen=""
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Church Location Map"
+                  className="w-full h-full"
+                />
+              </div>
+
+              {/* Info Sidebar */}
+              <div className="space-y-6">
+                {/* Address */}
+                <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
+                  <div className="flex items-center gap-2 text-primary">
+                    <MapPin size={20} />
+                    <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '教会地址' : 'Church Address'}</h3>
+                  </div>
+                  <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(data.maps?.address)}</p>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.settings.contactAddress || '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-primary text-xs font-semibold hover:text-primary-dark transition-all"
+                  >
+                    <Navigation size={14} />
+                    <span>{lang === 'zh' ? '在 Google Maps 中打开' : 'Open in Google Maps'}</span>
+                  </a>
+                </div>
+
+                {/* Directions */}
+                <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Navigation size={20} />
+                    <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '交通指南' : 'Directions'}</h3>
+                  </div>
+                  <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(data.maps?.directions)}</p>
+                </div>
+
+                {/* Landmarks */}
+                {data.maps?.landmarks && (
+                  <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
+                    <div className="flex items-center gap-2 text-primary">
+                      <MapIcon size={20} />
+                      <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '附近地标' : 'Nearby Landmarks'}</h3>
+                    </div>
+                    <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(data.maps.landmarks)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ==================== PAGE: ADMIN PANEL ==================== */}
         {activeTab === 'admin' && (
           <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
@@ -1141,6 +1592,12 @@ export default function App() {
                         { id: 'timetable', label: lang === 'zh' ? '聚会时间表' : 'Timetable Services', icon: Calendar },
                         { id: 'ministries', label: lang === 'zh' ? '核心事工管理' : 'Ministries Content', icon: Heart },
                         { id: 'events', label: lang === 'zh' ? '活动内容发布' : 'Events Post', icon: CalendarCheck },
+                        { id: 'leadership', label: lang === 'zh' ? '牧者同工编辑' : 'Pastor/Leader Editor', icon: Users },
+                        { id: 'offerings', label: lang === 'zh' ? '奉献设置' : 'Offerings Settings', icon: HandHeart },
+                        { id: 'bulletins', label: lang === 'zh' ? '周报管理' : 'Bulletins Manager', icon: FileText },
+                        { id: 'cellgroups', label: lang === 'zh' ? '小组管理' : 'Cell Groups', icon: Compass },
+                        { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide', icon: HelpCircle },
+                        { id: 'maps', label: lang === 'zh' ? '地图设置' : 'Maps Settings', icon: MapIcon },
                         { id: 'backup', label: lang === 'zh' ? '数据备份与恢复' : 'Backup & Restore', icon: Download }
                       ].map((sec) => (
                         <button
@@ -1151,6 +1608,9 @@ export default function App() {
                             setEditingTimetable(null);
                             setEditingEvent(null);
                             setEditingMinistry(null);
+                            setEditingBulletin(null);
+                            setEditingCellGroup(null);
+                            setEditingLeader(null);
                           }}
                           className={`w-full text-left px-3.5 py-3 rounded-lg text-xs font-semibold flex items-center gap-2.5 transition-all ${
                             adminActiveSection === sec.id
@@ -2072,6 +2532,460 @@ export default function App() {
                     </div>
                   )}
 
+
+                  {/* SECTION: LEADERSHIP / PASTOR EDITOR */}
+                  {adminActiveSection === 'leadership' && (
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-start gap-4">
+                        <div>
+                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '牧者同工编辑' : 'Pastor / Leader Editor'}</h2>
+                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理牧者、传道、长老及事工负责人的资料与简介' : 'Manage pastors, evangelists, elders, and ministry leaders profiles'}</p>
+                        </div>
+                        {editingLeader === null && (
+                          <button
+                            onClick={() => setEditingLeader({
+                              id: 'new',
+                              name: { zh: '新牧者/同工', en: 'New Leader' },
+                              role: { zh: '职务', en: 'Role' },
+                              image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=300&q=80',
+                              bio: { zh: '在此填写牧者/同工的简介。', en: 'Write the leader biography here.' }
+                            })}
+                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                          >
+                            <Plus size={14} />
+                            <span>{lang === 'zh' ? '添加牧者/同工' : 'Add Leader'}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {editingLeader ? (
+                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
+                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
+                            {editingLeader.id === 'new' ? (lang === 'zh' ? '新增牧者/同工' : 'Add New Leader') : (lang === 'zh' ? '编辑牧者/同工' : 'Edit Leader')}
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '照片链接' : 'Photo URL'}</label>
+                              <input type="text" value={editingLeader.image} onChange={(e) => setEditingLeader({ ...editingLeader, image: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '姓名 (中文)' : 'Name (Chinese)'}</label>
+                              <input type="text" value={editingLeader.name.zh} onChange={(e) => setEditingLeader({ ...editingLeader, name: { ...editingLeader.name, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Name (English)' : 'Name (English)'}</label>
+                              <input type="text" value={editingLeader.name.en} onChange={(e) => setEditingLeader({ ...editingLeader, name: { ...editingLeader.name, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '职位/角色 (中文)' : 'Role (Chinese)'}</label>
+                              <input type="text" value={editingLeader.role.zh} onChange={(e) => setEditingLeader({ ...editingLeader, role: { ...editingLeader.role, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Role (English)' : 'Role (English)'}</label>
+                              <input type="text" value={editingLeader.role.en} onChange={(e) => setEditingLeader({ ...editingLeader, role: { ...editingLeader.role, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '简介 (中文)' : 'Bio (Chinese)'}</label>
+                              <textarea rows={4} value={editingLeader.bio.zh} onChange={(e) => setEditingLeader({ ...editingLeader, bio: { ...editingLeader.bio, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Bio (English)' : 'Bio (English)'}</label>
+                              <textarea rows={4} value={editingLeader.bio.en} onChange={(e) => setEditingLeader({ ...editingLeader, bio: { ...editingLeader.bio, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
+                            <button onClick={() => setEditingLeader(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
+                            <button onClick={() => handleSaveLeader(editingLeader)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 pt-4 border-t border-gray-100">
+                          {(data.leadership || []).map((leader) => (
+                            <div key={leader.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                              <div className="flex gap-4 items-center w-full sm:w-3/4">
+                                <img src={leader.image} alt="Preview" className="w-14 h-14 object-cover rounded-lg shrink-0 border border-gray-200" />
+                                <div className="space-y-1">
+                                  <h4 className="font-bold text-sm text-gray-900">{leader.name.zh} / {leader.name.en}</h4>
+                                  <p className="text-xs text-primary font-semibold">{leader.role.zh} / {leader.role.en}</p>
+                                  <p className="text-xs text-gray-500 font-light line-clamp-1">{leader.bio.zh}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                <button onClick={() => setEditingLeader(leader)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
+                                <button onClick={() => handleDeleteLeader(leader.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* SECTION: OFFERINGS SETTINGS */}
+                  {adminActiveSection === 'offerings' && (
+                    <div className="space-y-6">
+                      <div>
+                        <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '奉献页面设置' : 'Offerings Settings'}</h2>
+                        <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '编辑奉献页面的引言、经文、奉献方式和联系信息' : 'Edit offerings page intro, scripture, giving methods, and contact info'}</p>
+                      </div>
+
+                      <div className="space-y-4 pt-4 border-t border-gray-100">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '奉献引言 (中文)' : 'Intro (Chinese)'}</label>
+                          <textarea rows={3} value={data.offerings?.intro?.zh || ''} onChange={(e) => updateOfferings('intro', { ...(data.offerings?.intro || {}), zh: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Intro (English)' : 'Intro (English)'}</label>
+                          <textarea rows={3} value={data.offerings?.intro?.en || ''} onChange={(e) => updateOfferings('intro', { ...(data.offerings?.intro || {}), en: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '经文引用 (中文)' : 'Scripture Quote (Chinese)'}</label>
+                          <textarea rows={3} value={data.offerings?.scripture?.zh || ''} onChange={(e) => updateOfferings('scripture', { ...(data.offerings?.scripture || {}), zh: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Scripture Quote (English)' : 'Scripture Quote (English)'}</label>
+                          <textarea rows={3} value={data.offerings?.scripture?.en || ''} onChange={(e) => updateOfferings('scripture', { ...(data.offerings?.scripture || {}), en: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '联系备注 (中文)' : 'Contact Note (Chinese)'}</label>
+                          <input type="text" value={data.offerings?.contactNote?.zh || ''} onChange={(e) => updateOfferings('contactNote', { ...(data.offerings?.contactNote || {}), zh: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Contact Note (English)' : 'Contact Note (English)'}</label>
+                          <input type="text" value={data.offerings?.contactNote?.en || ''} onChange={(e) => updateOfferings('contactNote', { ...(data.offerings?.contactNote || {}), en: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        {/* Offering Methods Management */}
+                        <div className="pt-4 border-t border-gray-200">
+                          <h3 className="text-sm font-bold text-gray-800 mb-3">{lang === 'zh' ? '奉献方式管理' : 'Giving Methods'}</h3>
+                          {(data.offerings?.methods || []).map((method, idx) => (
+                            <div key={method.id || idx} className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3 flex flex-col sm:flex-row gap-3 items-start justify-between">
+                              <div className="flex-grow">
+                                <span className="font-bold text-sm text-gray-900">{method.title.zh} / {method.title.en}</span>
+                                <p className="text-xs text-gray-500 mt-1 line-clamp-1">{method.description.zh}</p>
+                              </div>
+                              <button onClick={() => handleDeleteOfferingMethod(idx)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50 shrink-0"><Trash2 size={14} /></button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => handleSaveOfferingMethod({
+                              title: { zh: '新奉献方式', en: 'New Method' },
+                              description: { zh: '描述...', en: 'Description...' },
+                              details: { zh: '详细信息...', en: 'Details...' },
+                              icon: 'heart'
+                            })}
+                            className="mt-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                          >
+                            <Plus size={14} />
+                            <span>{lang === 'zh' ? '添加奉献方式' : 'Add Method'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SECTION: BULLETINS MANAGER */}
+                  {adminActiveSection === 'bulletins' && (
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-start gap-4">
+                        <div>
+                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '周报/月刊管理' : 'Bulletins Manager'}</h2>
+                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理教会周报和月刊的发布' : 'Manage church weekly bulletins and monthly newsletters'}</p>
+                        </div>
+                        {editingBulletin === null && (
+                          <button
+                            onClick={() => setEditingBulletin({
+                              id: 'new',
+                              title: { zh: '新周报', en: 'New Bulletin' },
+                              date: new Date().toISOString().slice(0, 10),
+                              category: { zh: '周报', en: 'Bulletin' },
+                              fileUrl: '#',
+                              summary: { zh: '周报摘要...', en: 'Bulletin summary...' },
+                              highlights: { zh: '• 要点1\n• 要点2', en: '• Point 1\n• Point 2' }
+                            })}
+                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                          >
+                            <Plus size={14} />
+                            <span>{lang === 'zh' ? '发布周报' : 'Publish Bulletin'}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {editingBulletin ? (
+                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
+                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
+                            {editingBulletin.id === 'new' ? (lang === 'zh' ? '发布新周报' : 'New Bulletin') : (lang === 'zh' ? '编辑周报' : 'Edit Bulletin')}
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '标题 (中文)' : 'Title (Chinese)'}</label>
+                              <input type="text" value={editingBulletin.title.zh} onChange={(e) => setEditingBulletin({ ...editingBulletin, title: { ...editingBulletin.title, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Title (English)' : 'Title (English)'}</label>
+                              <input type="text" value={editingBulletin.title.en} onChange={(e) => setEditingBulletin({ ...editingBulletin, title: { ...editingBulletin.title, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '日期' : 'Date'}</label>
+                              <input type="date" value={editingBulletin.date} onChange={(e) => setEditingBulletin({ ...editingBulletin, date: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '分类 (中文)' : 'Category (Chinese)'}</label>
+                              <input type="text" value={editingBulletin.category.zh} onChange={(e) => setEditingBulletin({ ...editingBulletin, category: { ...editingBulletin.category, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '分类 (英文)' : 'Category (English)'}</label>
+                              <input type="text" value={editingBulletin.category.en} onChange={(e) => setEditingBulletin({ ...editingBulletin, category: { ...editingBulletin.category, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'PDF/文件链接' : 'PDF/File URL'}</label>
+                              <input type="text" value={editingBulletin.fileUrl} onChange={(e) => setEditingBulletin({ ...editingBulletin, fileUrl: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '摘要 (中文)' : 'Summary (Chinese)'}</label>
+                              <textarea rows={2} value={editingBulletin.summary.zh} onChange={(e) => setEditingBulletin({ ...editingBulletin, summary: { ...editingBulletin.summary, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Summary (English)' : 'Summary (English)'}</label>
+                              <textarea rows={2} value={editingBulletin.summary.en} onChange={(e) => setEditingBulletin({ ...editingBulletin, summary: { ...editingBulletin.summary, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '要点 (中文)' : 'Highlights (Chinese)'}</label>
+                              <textarea rows={3} value={editingBulletin.highlights.zh} onChange={(e) => setEditingBulletin({ ...editingBulletin, highlights: { ...editingBulletin.highlights, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Highlights (English)' : 'Highlights (English)'}</label>
+                              <textarea rows={3} value={editingBulletin.highlights.en} onChange={(e) => setEditingBulletin({ ...editingBulletin, highlights: { ...editingBulletin.highlights, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
+                            <button onClick={() => setEditingBulletin(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
+                            <button onClick={() => handleSaveBulletin(editingBulletin)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 pt-4 border-t border-gray-100">
+                          {(data.bulletins || []).map((bulletin) => (
+                            <div key={bulletin.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                              <div className="flex gap-3 items-center w-full sm:w-3/4">
+                                <FileText className="text-primary shrink-0" size={20} />
+                                <div className="space-y-1">
+                                  <h4 className="font-bold text-sm text-gray-900">{bulletin.title.zh} / {bulletin.title.en}</h4>
+                                  <p className="text-xs text-gray-500">{bulletin.date} • {bulletin.category.zh}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                <button onClick={() => setEditingBulletin(bulletin)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
+                                <button onClick={() => handleDeleteBulletin(bulletin.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* SECTION: CELL GROUPS MANAGER */}
+                  {adminActiveSection === 'cellgroups' && (
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-start gap-4">
+                        <div>
+                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '细胞小组管理' : 'Cell Groups Manager'}</h2>
+                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理教会各细胞小组的信息、负责人和聚会时间' : 'Manage cell group details, leaders, and meeting schedules'}</p>
+                        </div>
+                        {editingCellGroup === null && (
+                          <button
+                            onClick={() => setEditingCellGroup({
+                              id: 'new',
+                              name: { zh: '新小组', en: 'New Cell Group' },
+                              leader: { zh: '负责人', en: 'Leader' },
+                              schedule: { zh: '聚会时间', en: 'Schedule' },
+                              location: { zh: '聚会地点', en: 'Location' },
+                              target: { zh: '适合人群', en: 'Target Group' },
+                              description: { zh: '小组简介...', en: 'Group description...' },
+                              image: 'https://images.unsplash.com/photo-1529156069898-49953e39b8f2?auto=format&fit=crop&w=600&q=80'
+                            })}
+                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                          >
+                            <Plus size={14} />
+                            <span>{lang === 'zh' ? '添加小组' : 'Add Cell Group'}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {editingCellGroup ? (
+                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
+                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
+                            {editingCellGroup.id === 'new' ? (lang === 'zh' ? '新增小组' : 'Add Cell Group') : (lang === 'zh' ? '编辑小组' : 'Edit Cell Group')}
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '图片链接' : 'Image URL'}</label>
+                              <input type="text" value={editingCellGroup.image} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, image: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '小组名称 (中文)' : 'Name (Chinese)'}</label>
+                              <input type="text" value={editingCellGroup.name.zh} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, name: { ...editingCellGroup.name, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Name (English)' : 'Name (English)'}</label>
+                              <input type="text" value={editingCellGroup.name.en} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, name: { ...editingCellGroup.name, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '负责人 (中文)' : 'Leader (Chinese)'}</label>
+                              <input type="text" value={editingCellGroup.leader.zh} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, leader: { ...editingCellGroup.leader, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Leader (English)' : 'Leader (English)'}</label>
+                              <input type="text" value={editingCellGroup.leader.en} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, leader: { ...editingCellGroup.leader, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '聚会时间 (中文)' : 'Schedule (Chinese)'}</label>
+                              <input type="text" value={editingCellGroup.schedule.zh} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, schedule: { ...editingCellGroup.schedule, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Schedule (English)' : 'Schedule (English)'}</label>
+                              <input type="text" value={editingCellGroup.schedule.en} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, schedule: { ...editingCellGroup.schedule, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '地点 (中文)' : 'Location (Chinese)'}</label>
+                              <input type="text" value={editingCellGroup.location.zh} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, location: { ...editingCellGroup.location, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Location (English)' : 'Location (English)'}</label>
+                              <input type="text" value={editingCellGroup.location.en} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, location: { ...editingCellGroup.location, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '适合人群 (中文)' : 'Target (Chinese)'}</label>
+                              <input type="text" value={editingCellGroup.target.zh} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, target: { ...editingCellGroup.target, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Target (English)' : 'Target (English)'}</label>
+                              <input type="text" value={editingCellGroup.target.en} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, target: { ...editingCellGroup.target, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '简介 (中文)' : 'Description (Chinese)'}</label>
+                              <textarea rows={3} value={editingCellGroup.description.zh} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, description: { ...editingCellGroup.description, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Description (English)' : 'Description (English)'}</label>
+                              <textarea rows={3} value={editingCellGroup.description.en} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, description: { ...editingCellGroup.description, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
+                            <button onClick={() => setEditingCellGroup(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
+                            <button onClick={() => handleSaveCellGroup(editingCellGroup)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 pt-4 border-t border-gray-100">
+                          {(data.cellGroups || []).map((group) => (
+                            <div key={group.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                              <div className="flex gap-3 items-center w-full sm:w-3/4">
+                                <img src={group.image} alt="Preview" className="w-12 h-12 object-cover rounded-lg shrink-0 border border-gray-200" />
+                                <div className="space-y-1">
+                                  <h4 className="font-bold text-sm text-gray-900">{group.name.zh} / {group.name.en}</h4>
+                                  <p className="text-xs text-gray-500">{group.schedule.zh} • {group.location.zh}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                <button onClick={() => setEditingCellGroup(group)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
+                                <button onClick={() => handleDeleteCellGroup(group.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* SECTION: NEW FRIEND GUIDE EDITOR */}
+                  {adminActiveSection === 'newfriend' && (
+                    <div className="space-y-6">
+                      <div>
+                        <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '新朋友指南编辑' : 'New Friend Guide Editor'}</h2>
+                        <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '编辑新朋友指南的欢迎词和各章节内容' : 'Edit welcome message and section content of the new friend guide'}</p>
+                      </div>
+
+                      <div className="space-y-4 pt-4 border-t border-gray-100">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '欢迎词 (中文)' : 'Welcome Message (Chinese)'}</label>
+                          <textarea rows={3} value={data.newFriendGuide?.welcome?.zh || ''} onChange={(e) => updateNewFriendGuide('welcome', { ...(data.newFriendGuide?.welcome || {}), zh: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Welcome Message (English)' : 'Welcome Message (English)'}</label>
+                          <textarea rows={3} value={data.newFriendGuide?.welcome?.en || ''} onChange={(e) => updateNewFriendGuide('welcome', { ...(data.newFriendGuide?.welcome || {}), en: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        {/* Guide Sections */}
+                        <div className="pt-4 border-t border-gray-200">
+                          <h3 className="text-sm font-bold text-gray-800 mb-3">{lang === 'zh' ? '指南章节管理' : 'Guide Sections'}</h3>
+                          {(data.newFriendGuide?.sections || []).map((section, idx) => (
+                            <div key={section.id || idx} className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3 flex flex-col sm:flex-row gap-3 items-start justify-between">
+                              <div className="flex-grow">
+                                <span className="font-bold text-sm text-gray-900">{section.title.zh} / {section.title.en}</span>
+                                <p className="text-xs text-gray-500 mt-1 line-clamp-1">{section.content.zh?.substring(0, 80)}...</p>
+                              </div>
+                              <button onClick={() => handleDeleteGuideSection(idx)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50 shrink-0"><Trash2 size={14} /></button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => handleSaveGuideSection({
+                              title: { zh: '新章节标题', en: 'New Section Title' },
+                              content: { zh: '章节内容...', en: 'Section content...' }
+                            })}
+                            className="mt-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                          >
+                            <Plus size={14} />
+                            <span>{lang === 'zh' ? '添加章节' : 'Add Section'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SECTION: MAPS SETTINGS */}
+                  {adminActiveSection === 'maps' && (
+                    <div className="space-y-6">
+                      <div>
+                        <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '地图设置' : 'Maps Settings'}</h2>
+                        <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '设置地图嵌入链接、地址和交通指南' : 'Configure map embed URL, address, and directions'}</p>
+                      </div>
+
+                      <div className="space-y-4 pt-4 border-t border-gray-100">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Google Maps 嵌入链接' : 'Google Maps Embed URL'}</label>
+                          <input type="text" value={data.maps?.googleMapsEmbedUrl || ''} onChange={(e) => updateMaps('googleMapsEmbedUrl', null, e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                          <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '从 Google Maps > 分享 > 嵌入地图 获取链接' : 'Get from Google Maps > Share > Embed a map'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '地址 (中文)' : 'Address (Chinese)'}</label>
+                          <textarea rows={2} value={data.maps?.address?.zh || ''} onChange={(e) => updateMaps('address', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Address (English)' : 'Address (English)'}</label>
+                          <textarea rows={2} value={data.maps?.address?.en || ''} onChange={(e) => updateMaps('address', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '交通指南 (中文)' : 'Directions (Chinese)'}</label>
+                          <textarea rows={5} value={data.maps?.directions?.zh || ''} onChange={(e) => updateMaps('directions', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Directions (English)' : 'Directions (English)'}</label>
+                          <textarea rows={5} value={data.maps?.directions?.en || ''} onChange={(e) => updateMaps('directions', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '附近地标 (中文)' : 'Nearby Landmarks (Chinese)'}</label>
+                          <textarea rows={3} value={data.maps?.landmarks?.zh || ''} onChange={(e) => updateMaps('landmarks', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Nearby Landmarks (English)' : 'Nearby Landmarks (English)'}</label>
+                          <textarea rows={3} value={data.maps?.landmarks?.en || ''} onChange={(e) => updateMaps('landmarks', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* SECTION 6: BACKUP & DATA TRANSFERS */}
                   {adminActiveSection === 'backup' && (
                     <div className="space-y-6">
@@ -2205,6 +3119,11 @@ export default function App() {
                 { id: 'ministries', label: lang === 'zh' ? '主要事工' : 'Ministries' },
                 { id: 'timetable', label: lang === 'zh' ? '聚会时间' : 'Timetable' },
                 { id: 'events', label: lang === 'zh' ? '活动预告' : 'Events' },
+                { id: 'cellgroups', label: lang === 'zh' ? '小组' : 'Cell Groups' },
+                { id: 'offerings', label: lang === 'zh' ? '奉献' : 'Offerings' },
+                { id: 'bulletins', label: lang === 'zh' ? '周报' : 'Bulletins' },
+                { id: 'newfriend', label: lang === 'zh' ? '新朋友' : 'New Friend' },
+                { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
                 { id: 'admin', label: lang === 'zh' ? '后台管理' : 'Admin Area' }
               ].map((lnk) => (
                 <button
