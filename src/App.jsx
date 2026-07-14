@@ -133,17 +133,34 @@ export default function App() {
 
   // URL-based admin access detection
   useEffect(() => {
-    const hash = window.location.hash;
-    const pathname = window.location.pathname;
-    
-    // Check for #/admin or #admin in hash, or /admin in pathname
-    if (hash === '#/admin' || hash === '#admin' || pathname.endsWith('/admin')) {
-      setActiveTab('admin');
-      // Clean up the URL
-      if (hash) {
-        window.history.replaceState(null, '', window.location.pathname);
+    const openAdminFromUrl = () => {
+      const hash = window.location.hash.replace(/#/g, '').trim().toLowerCase();
+      const pathname = window.location.pathname.replace(/\/+$/, '').toLowerCase();
+      const searchParams = new URLSearchParams(window.location.search);
+      const adminQuery = searchParams.has('admin') || searchParams.get('page') === 'admin';
+
+      if (
+        hash === '#/admin' ||
+        hash === '#/admin/' ||
+        hash === '#admin' ||
+        hash === '#admin/' ||
+        pathname.endsWith('/admin') ||
+        adminQuery
+      ) {
+        setActiveTab('admin');
+        setMobileMenuOpen(false);
+        window.scrollTo(0, 0);
       }
-    }
+    };
+
+    openAdminFromUrl();
+    window.addEventListener('hashchange', openAdminFromUrl);
+    window.addEventListener('popstate', openAdminFromUrl);
+
+    return () => {
+      window.removeEventListener('hashchange', openAdminFromUrl);
+      window.removeEventListener('popstate', openAdminFromUrl);
+    };
   }, []);
 
   // Translate helper
