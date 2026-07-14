@@ -33,7 +33,8 @@ export const initialData = {
       zh: "走入百利镇及大山脚社区，广传耶稣基督的救恩福音，关怀弱势群体，并栽培生命成熟、热心服侍的门徒。",
       en: "Step into the communities of Taman Bukit Minyak and Bukit Mertajam, spread the gospel of salvation of Jesus Christ, care for the vulnerable, and nurture mature, service-oriented disciples."
     },
-    adminPassword: "bmbccadmin123" // Simple default password, can be changed in settings
+    adminPassword: "bmbccadmin123", // Simple default password, can be changed in settings
+    showLoginButton: false, // Hidden by default for security. Access admin via URL #/admin
   },
   carousel: [
     {
@@ -450,7 +451,90 @@ export const initialData = {
       }
     }
   ],
-  // ===== NEW: CELL GROUPS DATA =====
+  // ===== NEW: SERMONS DATA (within Resources/Bulletins page) =====
+  sermons: [
+    {
+      id: 1,
+      title: {
+        zh: "行走在光中 - 在主爱里生活系列 (一)",
+        en: "Walking in the Light - Living in the Lord's Love Series (1)"
+      },
+      preacher: {
+        zh: "陈福林 牧师",
+        en: "Pastor Tan Hock Lim"
+      },
+      date: "2026-07-06",
+      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      series: {
+        zh: "在主爱里生活",
+        en: "Living in the Lord's Love"
+      },
+      scripture: "约翰一书 1:5-10",
+      description: {
+        zh: "第一讲：当我们行在光中，就能与神和彼此有真实的团契。探讨如何靠着主的恩典，过一个光明、诚实、彼此认罪代祷的生活。",
+        en: "Part 1: When we walk in the light, we have true fellowship with God and each other. Explore how by God's grace we can live a life of light, honesty, and mutual confession and prayer."
+      },
+      thumbnail: "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      id: 2,
+      title: {
+        zh: "爱的诫命 - 在主爱里生活系列 (二)",
+        en: "The Commandment of Love - Living in the Lord's Love Series (2)"
+      },
+      preacher: {
+        zh: "陈福林 牧师",
+        en: "Pastor Tan Hock Lim"
+      },
+      date: "2026-07-13",
+      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      series: {
+        zh: "在主爱里生活",
+        en: "Living in the Lord's Love"
+      },
+      scripture: "约翰福音 13:34-35",
+      description: {
+        zh: "第二讲：主耶稣赐给我们一条新命令，叫我们彼此相爱。当我们彼此相爱时，众人就能认出我们是基督的门徒。",
+        en: "Part 2: The Lord Jesus gives us a new commandment—to love one another. When we love each other, everyone will know we are His disciples."
+      },
+      thumbnail: "https://images.unsplash.com/photo-1455849318743-b2233052fcff?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      id: 3,
+      title: {
+        zh: "走入社区，宣扬主爱 - 2026年度主题信息",
+        en: "Enter the Community, Proclaim the Lord's Love - 2026 Theme Message"
+      },
+      preacher: {
+        zh: "黄淑珍 传道",
+        en: "Evangelist Ooi Sock Chin"
+      },
+      date: "2026-01-04",
+      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      series: {
+        zh: "年度主题",
+        en: "Yearly Theme"
+      },
+      scripture: "马太福音 5:13-16",
+      description: {
+        zh: "2026年教会异象：走入社区，宣扬主爱。我们是世上的光和盐，被呼召进入社区，将基督的爱活出来、传出去。",
+        en: "2026 Church Vision: Enter the community, proclaim the Lord's love. We are the light and salt of the earth, called to go into the community and live out and share Christ's love."
+      },
+      thumbnail: "https://images.unsplash.com/photo-1438232992991-995b705bafb1?auto=format&fit=crop&w=800&q=80"
+    }
+  ],
+  // ===== PAGE VISIBILITY SETTINGS =====
+  pageVisibility: {
+    ministries: true,
+    timetable: true,
+    events: true,
+    offerings: true,
+    bulletins: true,
+    cellgroups: true,
+    newfriend: true,
+    maps: true
+  },
+    // ===== NEW: CELL GROUPS DATA =====
   cellGroups: [
     {
       id: 1,
@@ -629,20 +713,67 @@ export const initialData = {
       }
     ]
   },
-  // ===== NEW: MAPS DATA =====
-  maps: {
-    googleMapsEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.0!2d100.4!3d5.37!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zQnVraXQgTWVydGFqYW0!5e0!3m2!1sen!2smy!4v1",
-    address: {
-      zh: "大山脚浸信教会\nTaman Bukit Minyak, 14000 Bukit Mertajam, Pulau Pinang, Malaysia",
-      en: "Bukit Mertajam Baptist Chinese Church\nTaman Bukit Minyak, 14000 Bukit Mertajam, Penang, Malaysia"
+  // ===== NEW: MAPS DATA (Multiple Church Locations) =====
+  maps: [
+    {
+      id: 1,
+      name: {
+        zh: "大山脚浸信教会 (主堂)",
+        en: "Bukit Mertajam Baptist Chinese Church (Main)"
+      },
+      googleMapsEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.0!2d100.4!3d5.37!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zQnVraXQgTWVydGFqYW0!5e0!3m2!1sen!2smy!4v1",
+      address: {
+        zh: "大山脚浸信教会 (主堂)\nTaman Bukit Minyak, 14000 Bukit Mertajam, Pulau Pinang, Malaysia",
+        en: "Bukit Mertajam Baptist Chinese Church (Main)\nTaman Bukit Minyak, 14000 Bukit Mertajam, Penang, Malaysia"
+      },
+      directions: {
+        zh: "如何到达：\n\n🚗 自驾车：\n从南北大道（PLUS Highway）大山脚出口下，沿Jalan Bukit Minyak行驶约3公里即可到达。教会建筑位于道路右侧，设有明显十字架标志。\n\n🚌 公共交通：\n可搭乘 Rapid Penang 巴士 701/702 号至 Taman Bukit Minyak 站下车，步行约5分钟即到。\n\n🅿️ 停车：\n教会前方及后方均设有免费停车场，可容纳约50辆车。",
+        en: "How to get here:\n\n🚗 By Car:\nTake the Bukit Mertajam exit from PLUS Highway, drive along Jalan Bukit Minyak for about 3km. The church building is on the right side with a prominent cross sign.\n\n🚌 Public Transport:\nTake Rapid Penang Bus 701/702 to Taman Bukit Minyak stop, a 5-minute walk to the church.\n\n🅿️ Parking:\nFree parking available at the front and rear of the church, accommodating approximately 50 vehicles."
+      },
+      landmarks: {
+        zh: "附近地标：\n• Bukit Minyak 商业中心 (500米)\n• AEON Mall Bukit Mertajam (2公里)\n• SMK Bukit Minyak 学校 (300米)",
+        en: "Nearby Landmarks:\n• Bukit Minyak Commercial Centre (500m)\n• AEON Mall Bukit Mertajam (2km)\n• SMK Bukit Minyak School (300m)"
+      }
     },
-    directions: {
-      zh: "如何到达：\n\n🚗 自驾车：\n从南北大道（PLUS Highway）大山脚出口下，沿Jalan Bukit Minyak行驶约3公里即可到达。教会建筑位于道路右侧，设有明显十字架标志。\n\n🚌 公共交通：\n可搭乘 Rapid Penang 巴士 701/702 号至 Taman Bukit Minyak 站下车，步行约5分钟即到。\n\n🅿️ 停车：\n教会前方及后方均设有免费停车场，可容纳约50辆车。",
-      en: "How to get here:\n\n🚗 By Car:\nTake the Bukit Mertajam exit from PLUS Highway, drive along Jalan Bukit Minyak for about 3km. The church building is on the right side with a prominent cross sign.\n\n🚌 Public Transport:\nTake Rapid Penang Bus 701/702 to Taman Bukit Minyak stop, a 5-minute walk to the church.\n\n🅿️ Parking:\nFree parking available at the front and rear of the church, accommodating approximately 50 vehicles."
+    {
+      id: 2,
+      name: {
+        zh: "BMBCC 市中心聚会点",
+        en: "BMBCC Downtown Fellowship Point"
+      },
+      googleMapsEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.5!2d100.4!3d5.36!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2z5LiA5bCP!5e0!3m2!1sen!2smy!4v1",
+      address: {
+        zh: "BMBCC 市中心聚会点\nJalan Besar, 14000 Bukit Mertajam, Pulau Pinang, Malaysia",
+        en: "BMBCC Downtown Fellowship Point\nJalan Besar, 14000 Bukit Mertajam, Penang, Malaysia"
+      },
+      directions: {
+        zh: "如何到达：\n\n🚗 自驾车：\n位于大山脚市中心区域，从主堂驱车约10分钟即可到达。附近有公共停车场。\n\n🚌 公共交通：\n可搭乘 Rapid Penang 巴士至 Bukit Mertajam 市中心站下车，步行约3分钟即到。\n\n🅿️ 停车：\n建筑物后方设有付费停车场，或可使用路边停车位。",
+        en: "How to get here:\n\n🚗 By Car:\nLocated in downtown Bukit Mertajam, about 10 minutes drive from the main church. Public parking available nearby.\n\n🚌 Public Transport:\nTake Rapid Penang Bus to Bukit Mertajam downtown stop, a 3-minute walk to the location.\n\n🅿️ Parking:\nPaid parking available behind the building, or use street parking."
+      },
+      landmarks: {
+        zh: "附近地标：\n• Bukit Mertajam 市中心广场 (100米)\n• 大山脚巴刹 (200米)\n• Maybank 分行 (150米)",
+        en: "Nearby Landmarks:\n• Bukit Mertajam Town Square (100m)\n• Bukit Mertajam Market (200m)\n• Maybank Branch (150m)"
+      }
     },
-    landmarks: {
-      zh: "附近地标：\n• Bukit Minyak 商业中心 (500米)\n• AEON Mall Bukit Mertajam (2公里)\n• SMK Bukit Minyak 学校 (300米)",
-      en: "Nearby Landmarks:\n• Bukit Minyak Commercial Centre (500m)\n• AEON Mall Bukit Mertajam (2km)\n• SMK Bukit Minyak School (300m)"
+    {
+      id: 3,
+      name: {
+        zh: "BMBCC 南区聚会点",
+        en: "BMBCC South District Fellowship Point"
+      },
+      googleMapsEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3967.0!2d100.42!3d5.35!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2z5Y2D5Y6f!5e0!3m2!1sen!2smy!4v1",
+      address: {
+        zh: "BMBCC 南区聚会点\nTaman Alma, 14000 Bukit Mertajam, Pulau Pinang, Malaysia",
+        en: "BMBCC South District Fellowship Point\nTaman Alma, 14000 Bukit Mertajam, Penang, Malaysia"
+      },
+      directions: {
+        zh: "如何到达：\n\n🚗 自驾车：\n从主堂沿 Jalan Bukit Minyak 向南行驶约5公里，转入 Taman Alma 区域即可到达。\n\n🚌 公共交通：\n可搭乘 Rapid Penang 巴士至 Taman Alma 站下车，步行约2分钟即到。\n\n🅿️ 停车：\n聚会点前方设有免费停车场，可容纳约20辆车。",
+        en: "How to get here:\n\n🚗 By Car:\nFrom the main church, drive south along Jalan Bukit Minyak for about 5km, then turn into Taman Alma area.\n\n🚌 Public Transport:\nTake Rapid Penang Bus to Taman Alma stop, a 2-minute walk to the location.\n\n🅿️ Parking:\nFree parking available in front of the fellowship point, accommodating approximately 20 vehicles."
+      },
+      landmarks: {
+        zh: "附近地标：\n• Taman Alma 商业中心 (200米)\n• SMK Alma 学校 (300米)\n• 7-Eleven 便利店 (100米)",
+        en: "Nearby Landmarks:\n• Taman Alma Commercial Centre (200m)\n• SMK Alma School (300m)\n• 7-Eleven Convenience Store (100m)"
+      }
     }
-  }
+  ]
 };
