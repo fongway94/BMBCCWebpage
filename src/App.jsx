@@ -72,7 +72,7 @@ export default function App() {
           }
           return parsedObj;
         };
-        const settingsKeys = ['churchName','slogan','description','themeYear','aboutIntro','aboutVision','aboutMission','homeVisionPara1','homeVisionPara2'];
+        const settingsKeys = ['churchName','slogan','description','themeYear','aboutIntro','aboutVision','aboutMission','homeVisionPara1','homeVisionPara2','yearlyVisionLabel','yearlyVisionTitle','yearlyVisionBadge','yearlyVisionScripture','yearlyVisionRef','ctaTitle','ctaDescription'];
         const mergedSettings = { ...initialData.settings, ...(parsed.settings || {}) };
         settingsKeys.forEach(k => {
           if (initialData.settings[k]) {
@@ -876,11 +876,11 @@ export default function App() {
                   {/* Left Column: Vision Header & Text */}
                   <div className="md:col-span-7 p-8 md:p-12 space-y-6">
                     <div className="inline-flex px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider">
-                      {lang === 'zh' ? '年度主题与异象' : 'Yearly Vision'}
+                      {t(data.settings.yearlyVisionLabel) || (lang === 'zh' ? '年度主题与异象' : 'Yearly Vision')}
                     </div>
                     
                     <h3 className="text-2xl sm:text-3xl font-extrabold text-gray-900 leading-tight">
-                      {lang === 'zh' ? '走入社区，宣扬主爱' : 'Go into the Community, Proclaim Lord\'s Love'}
+                      {t(data.settings.yearlyVisionTitle) || (lang === 'zh' ? '走入社区，宣扬主爱' : 'Go into the Community, Proclaim Lord\'s Love')}
                     </h3>
                     
                     <div className="border-l-4 border-primary pl-4 text-lg font-medium text-gray-800 whitespace-pre-line leading-relaxed italic bg-white/60 p-4 rounded-r-lg">
@@ -904,20 +904,20 @@ export default function App() {
                   {/* Right Column: Soaring Eagle Image & Scripture Overlay */}
                   <div className="md:col-span-5 h-[320px] md:h-full min-h-[360px] relative">
                     <img 
-                      src="https://images.unsplash.com/photo-1540979388789-6cee28a16838?auto=format&fit=crop&w=800&q=80" 
-                      alt="Soaring Eagle" 
+                      src={data.settings.yearlyVisionImage || "https://images.unsplash.com/photo-1540979388789-6cee28a16838?auto=format&fit=crop&w=800&q=80"}
+                      alt="Vision" 
                       className="absolute inset-0 w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent md:bg-gradient-to-l md:from-black/90 md:via-black/40" />
                     <div className="absolute inset-0 flex flex-col justify-end p-8 text-white space-y-3">
                       <span className="text-primary font-bold tracking-widest text-xs uppercase">
-                        {lang === 'zh' ? '展翅高飞 • 广传福音' : 'Soar High • Spread Gospel'}
+                        {t(data.settings.yearlyVisionBadge) || (lang === 'zh' ? '展翅高飞 • 广传福音' : 'Soar High • Spread Gospel')}
                       </span>
                       <h4 className="text-lg font-bold italic leading-relaxed">
-                        “{lang === 'zh' ? '神爱世人，甚至把他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。' : 'For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.'}”
+                        “{t(data.settings.yearlyVisionScripture) || (lang === 'zh' ? '神爱世人，甚至把他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。' : 'For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.')}”
                       </h4>
                       <span className="text-right text-xs text-gray-300 font-semibold block">
-                        —— {lang === 'zh' ? '约翰福音 3:16' : 'John 3:16'}
+                        —— {t(data.settings.yearlyVisionRef) || (lang === 'zh' ? '约翰福音 3:16' : 'John 3:16')}
                       </span>
                     </div>
                   </div>
@@ -1050,12 +1050,12 @@ export default function App() {
               <div className="relative max-w-4xl mx-auto space-y-6">
                 <Heart size={44} className="mx-auto text-white fill-white/10 animate-bounce" />
                 <h2 className="text-3xl md:text-4xl font-extrabold">
-                  {lang === 'zh' ? '耶稣爱你，我们欢迎你！' : 'Jesus Loves You & We Welcome You!'}
+                  {t(data.settings.ctaTitle) || (lang === 'zh' ? '耶稣爱你，我们欢迎你！' : 'Jesus Loves You & We Welcome You!')}
                 </h2>
                 <p className="text-base md:text-lg text-white/95 max-w-xl mx-auto font-light leading-relaxed">
-                  {lang === 'zh' 
+                  {t(data.settings.ctaDescription) || (lang === 'zh' 
                     ? '无论您是在寻找生命的意义、属灵的港湾，还是社区的陪伴，这里的大门始终为您敞开。让我们一起在主爱里生活，彼此扶持！' 
-                    : 'Whether you seek the meaning of life, a spiritual home, or community fellowship, our doors are always open. Let\'s grow and support each other in His grace!'}
+                    : 'Whether you seek the meaning of life, a spiritual home, or community fellowship, our doors are always open. Let\'s grow and support each other in His grace!')}
                 </p>
                 <div className="pt-2 flex justify-center gap-4">
                   <button 
@@ -2261,6 +2261,87 @@ export default function App() {
                             onChange={(e) => updateSetting('homeVisionPara2', 'en', e.target.value)}
                             className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
                           />
+                        </div>
+
+                        {/* ===== Yearly Vision Image & Scripture Card ===== */}
+                        <div className="md:col-span-2 pt-4 mt-2 border-t border-gray-100">
+                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2"><Sparkles size={14} className="text-primary" /> {lang === 'zh' ? '首页 - 年度异象卡片（图片与经文）' : 'Home - Yearly Vision Card (Image & Scripture)'}</h3>
+                          <p className="text-[10px] text-gray-500 mb-3">{lang === 'zh' ? '编辑首页年度异象卡片的图片、标签、标题和经文' : 'Edit image, labels, title and scripture of yearly vision card on Home'}</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">年度异象标签 (中文) - 小药丸标签</label>
+                          <input type="text" value={data.settings.yearlyVisionLabel?.zh || ''} onChange={(e) => updateSetting('yearlyVisionLabel','zh',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Yearly Vision Label (English)</label>
+                          <input type="text" value={data.settings.yearlyVisionLabel?.en || ''} onChange={(e) => updateSetting('yearlyVisionLabel','en',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">年度异象标题 (中文) - 大标题</label>
+                          <input type="text" value={data.settings.yearlyVisionTitle?.zh || ''} onChange={(e) => updateSetting('yearlyVisionTitle','zh',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Yearly Vision Title (English)</label>
+                          <input type="text" value={data.settings.yearlyVisionTitle?.en || ''} onChange={(e) => updateSetting('yearlyVisionTitle','en',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-bold text-gray-700 mb-1">年度异象图片链接 / Vision Card Image URL</label>
+                          <input type="text" value={data.settings.yearlyVisionImage || ''} onChange={(e) => updateSetting('yearlyVisionImage', null, e.target.value)} placeholder="https://..." className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                          <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '建议使用 Unsplash 或公网图片链接，例如老鹰展翅图' : 'Use Unsplash or public image URL, e.g. soaring eagle'}</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">图片上小标签 (中文) - 如: 展翅高飞 • 广传福音</label>
+                          <input type="text" value={data.settings.yearlyVisionBadge?.zh || ''} onChange={(e) => updateSetting('yearlyVisionBadge','zh',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Image Badge (English)</label>
+                          <input type="text" value={data.settings.yearlyVisionBadge?.en || ''} onChange={(e) => updateSetting('yearlyVisionBadge','en',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">经文内容 (中文) - 图片上的金句</label>
+                          <textarea rows={3} value={data.settings.yearlyVisionScripture?.zh || ''} onChange={(e) => updateSetting('yearlyVisionScripture','zh',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Scripture Text (English)</label>
+                          <textarea rows={3} value={data.settings.yearlyVisionScripture?.en || ''} onChange={(e) => updateSetting('yearlyVisionScripture','en',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">经文出处 (中文) - 如: 约翰福音 3:16</label>
+                          <input type="text" value={data.settings.yearlyVisionRef?.zh || ''} onChange={(e) => updateSetting('yearlyVisionRef','zh',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Scripture Reference (English) - e.g. John 3:16</label>
+                          <input type="text" value={data.settings.yearlyVisionRef?.en || ''} onChange={(e) => updateSetting('yearlyVisionRef','en',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        {/* ===== Bottom CTA Banner ===== */}
+                        <div className="md:col-span-2 pt-4 mt-2 border-t border-gray-100">
+                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2"><Heart size={14} className="text-primary" /> {lang === 'zh' ? '首页底部 CTA 横幅' : 'Home Bottom CTA Banner'}</h3>
+                          <p className="text-[10px] text-gray-500 mb-3">{lang === 'zh' ? '“耶稣爱你，我们欢迎你！” 区域的标题和描述' : 'Edit title and description of the bottom welcome banner'}</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">底部 CTA 标题 (中文)</label>
+                          <input type="text" value={data.settings.ctaTitle?.zh || ''} onChange={(e) => updateSetting('ctaTitle','zh',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Bottom CTA Title (English)</label>
+                          <input type="text" value={data.settings.ctaTitle?.en || ''} onChange={(e) => updateSetting('ctaTitle','en',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">底部 CTA 描述 (中文)</label>
+                          <textarea rows={3} value={data.settings.ctaDescription?.zh || ''} onChange={(e) => updateSetting('ctaDescription','zh',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Bottom CTA Description (English)</label>
+                          <textarea rows={3} value={data.settings.ctaDescription?.en || ''} onChange={(e) => updateSetting('ctaDescription','en',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
                         </div>
 
                         {/* Contact details */}

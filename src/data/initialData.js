@@ -41,6 +41,37 @@ export const initialData = {
       zh: "我们透过‘爱邻社区关怀’、‘五饼二鱼’爱心便当等，用实际行动表明：主耶稣是爱他们的，也是在苦难和缺乏中的安慰与倚靠。",
       en: "Through our \"Neighborly Community Care\" and \"Five Loaves & Two Fishes\" warm bento service, we demonstrate in deeds: the Lord Jesus loves them and is their solace and provider."
     },
+    // Yearly Vision Card (right side image and scripture)
+    yearlyVisionLabel: {
+      zh: "年度主题与异象",
+      en: "Yearly Vision"
+    },
+    yearlyVisionTitle: {
+      zh: "走入社区，宣扬主爱",
+      en: "Go into the Community, Proclaim Lord's Love"
+    },
+    yearlyVisionImage: "https://images.unsplash.com/photo-1540979388789-6cee28a16838?auto=format&fit=crop&w=800&q=80",
+    yearlyVisionBadge: {
+      zh: "展翅高飞 • 广传福音",
+      en: "Soar High • Spread Gospel"
+    },
+    yearlyVisionScripture: {
+      zh: "神爱世人，甚至把他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。",
+      en: "For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life."
+    },
+    yearlyVisionRef: {
+      zh: "约翰福音 3:16",
+      en: "John 3:16"
+    },
+    // Bottom CTA Banner
+    ctaTitle: {
+      zh: "耶稣爱你，我们欢迎你！",
+      en: "Jesus Loves You & We Welcome You!"
+    },
+    ctaDescription: {
+      zh: "无论您是在寻找生命的意义、属灵的港湾，还是社区的陪伴，这里的大门始终为您敞开。让我们一起在主爱里生活，彼此扶持！",
+      en: "Whether you seek the meaning of life, a spiritual home, or community fellowship, our doors are always open. Let's grow and support each other in His grace!"
+    },
     adminPassword: "bmbccadmin123", // Simple default password, can be changed in settings
     showLoginButton: false, // Hidden by default for security. Access admin via URL #/admin
   },
