@@ -94,6 +94,7 @@ export default function App() {
   const [editingCellGroup, setEditingCellGroup] = useState(null);
   const [editingLeader, setEditingLeader] = useState(null);
   const [editingSermon, setEditingSermon] = useState(null);
+  const [editingOfferingMethod, setEditingOfferingMethod] = useState(null);
   const [sermonFilter, setSermonFilter] = useState('all');
   const [bulletinsTab, setBulletinsTab] = useState('bulletins');
   const [importJsonText, setImportJsonText] = useState('');
@@ -413,13 +414,19 @@ export default function App() {
     saveAllData(updated);
   };
 
-  const handleSaveOfferingMethod = (method) => {
+  const handleSaveOfferingMethod = (method, index) => {
     const updated = { ...data };
     if (!updated.offerings) updated.offerings = {};
     if (!updated.offerings.methods) updated.offerings.methods = [];
-    const newId = Math.max(...updated.offerings.methods.map(m => m.id || 0), 0) + 1;
-    updated.offerings.methods.push({ ...method, id: method.id || newId });
+    
+    if (index !== undefined && index !== null && index >= 0) {
+      updated.offerings.methods[index] = { ...method };
+    } else {
+      const newId = Math.max(...updated.offerings.methods.map(m => m.id || 0), 0) + 1;
+      updated.offerings.methods.push({ ...method, id: newId });
+    }
     saveAllData(updated);
+    setEditingOfferingMethod(null);
   };
 
   const handleDeleteOfferingMethod = (index) => {
@@ -429,6 +436,7 @@ export default function App() {
       updated.offerings.methods = [...(updated.offerings.methods || [])];
       updated.offerings.methods.splice(index, 1);
       saveAllData(updated);
+      setEditingOfferingMethod(null);
     }
   };
 
@@ -1391,11 +1399,23 @@ export default function App() {
                     </div>
                     <h3 className="font-extrabold text-lg text-gray-900">{t(method.title)}</h3>
                   </div>
-                  <div className="p-6 flex-grow space-y-4">
-                    <p className="text-gray-600 text-sm font-light leading-relaxed">{t(method.description)}</p>
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                      <p className="text-gray-700 text-xs font-medium leading-relaxed whitespace-pre-line">{t(method.details)}</p>
+                  <div className="p-6 flex-grow space-y-4 flex flex-col justify-between">
+                    <div className="space-y-4">
+                      <p className="text-gray-600 text-sm font-light leading-relaxed">{t(method.description)}</p>
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                        <p className="text-gray-700 text-xs font-medium leading-relaxed whitespace-pre-line">{t(method.details)}</p>
+                      </div>
                     </div>
+                    {method.qrCodeUrl && (
+                      <div className="pt-4 border-t border-gray-100 flex flex-col items-center justify-center space-y-2 mt-4">
+                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                          {lang === 'zh' ? '扫码奉献' : 'Scan to Give'}
+                        </span>
+                        <div className="p-2 border border-gray-200 rounded-xl bg-white shadow-sm max-w-[160px]">
+                          <img src={method.qrCodeUrl} alt="QR Code" className="w-full h-auto rounded-lg" onError={(e) => { e.target.style.display = 'none'; }} />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -3088,28 +3108,99 @@ export default function App() {
 
                         {/* Offering Methods Management */}
                         <div className="pt-4 border-t border-gray-200">
-                          <h3 className="text-sm font-bold text-gray-800 mb-3">{lang === 'zh' ? '奉献方式管理' : 'Giving Methods'}</h3>
-                          {(data.offerings?.methods || []).map((method, idx) => (
-                            <div key={method.id || idx} className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3 flex flex-col sm:flex-row gap-3 items-start justify-between">
-                              <div className="flex-grow">
-                                <span className="font-bold text-sm text-gray-900">{method.title.zh} / {method.title.en}</span>
-                                <p className="text-xs text-gray-500 mt-1 line-clamp-1">{method.description.zh}</p>
+                          <div className="flex justify-between items-center mb-3">
+                            <h3 className="text-sm font-bold text-gray-800">{lang === 'zh' ? '奉献方式管理' : 'Giving Methods'}</h3>
+                            {editingOfferingMethod === null && (
+                              <button
+                                onClick={() => setEditingOfferingMethod({
+                                  title: { zh: '', en: '' },
+                                  description: { zh: '', en: '' },
+                                  details: { zh: '', en: '' },
+                                  icon: 'heart',
+                                  qrCodeUrl: ''
+                                })}
+                                className="px-3 py-1.5 rounded bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1 transition-all"
+                              >
+                                <Plus size={12} />
+                                <span>{lang === 'zh' ? '添加奉献方式' : 'Add Method'}</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {editingOfferingMethod !== null ? (
+                            <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in mb-4">
+                              <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
+                                {editingOfferingMethod.index !== undefined ? (lang === 'zh' ? '编辑奉献方式' : 'Edit Giving Method') : (lang === 'zh' ? '添加奉献方式' : 'Add Giving Method')}
+                              </h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '名称 (中文)' : 'Name (Chinese)'}</label>
+                                  <input type="text" value={editingOfferingMethod.title?.zh || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, title: { ...(editingOfferingMethod.title || {}), zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Name (English)' : 'Name (English)'}</label>
+                                  <input type="text" value={editingOfferingMethod.title?.en || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, title: { ...(editingOfferingMethod.title || {}), en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div className="md:col-span-2">
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '简短描述 (中文)' : 'Short Description (Chinese)'}</label>
+                                  <textarea rows={2} value={editingOfferingMethod.description?.zh || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, description: { ...(editingOfferingMethod.description || {}), zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div className="md:col-span-2">
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Short Description (English)' : 'Short Description (English)'}</label>
+                                  <textarea rows={2} value={editingOfferingMethod.description?.en || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, description: { ...(editingOfferingMethod.description || {}), en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div className="md:col-span-2">
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '详细信息 / 账号信息 (中文)' : 'Details / Account Info (Chinese)'}</label>
+                                  <textarea rows={3} value={editingOfferingMethod.details?.zh || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, details: { ...(editingOfferingMethod.details || {}), zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div className="md:col-span-2">
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Details / Account Info (English)' : 'Details / Account Info (English)'}</label>
+                                  <textarea rows={3} value={editingOfferingMethod.details?.en || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, details: { ...(editingOfferingMethod.details || {}), en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '图标类型' : 'Icon Type'}</label>
+                                  <select value={editingOfferingMethod.icon || 'heart'} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, icon: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none">
+                                    <option value="heart">{lang === 'zh' ? '爱心 (崇拜现场)' : 'Heart (In-Person)'}</option>
+                                    <option value="building">{lang === 'zh' ? '建筑 (银行转账)' : 'Building (Bank Transfer)'}</option>
+                                    <option value="smartphone">{lang === 'zh' ? '手机 (二维码扫码)' : 'Smartphone (E-Giving)'}</option>
+                                    <option value="gift">{lang === 'zh' ? '礼包 (其他方式)' : 'Gift (Other)'}</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '二维码图片链接' : 'QR Code Image URL'}</label>
+                                  <input type="text" value={editingOfferingMethod.qrCodeUrl || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, qrCodeUrl: e.target.value })} placeholder="https://example.com/qrcode.png" className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                  <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '留空则不显示二维码。可直接粘贴公网图片链接。' : 'Leave empty if no QR code. Paste a direct image URL.'}</p>
+                                </div>
                               </div>
-                              <button onClick={() => handleDeleteOfferingMethod(idx)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50 shrink-0"><Trash2 size={14} /></button>
+                              <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
+                                <button onClick={() => setEditingOfferingMethod(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
+                                <button onClick={() => handleSaveOfferingMethod(editingOfferingMethod, editingOfferingMethod.index)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
+                              </div>
                             </div>
-                          ))}
-                          <button
-                            onClick={() => handleSaveOfferingMethod({
-                              title: { zh: '新奉献方式', en: 'New Method' },
-                              description: { zh: '描述...', en: 'Description...' },
-                              details: { zh: '详细信息...', en: 'Details...' },
-                              icon: 'heart'
-                            })}
-                            className="mt-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                          >
-                            <Plus size={14} />
-                            <span>{lang === 'zh' ? '添加奉献方式' : 'Add Method'}</span>
-                          </button>
+                          ) : (
+                            <div className="space-y-3">
+                              {(data.offerings?.methods || []).map((method, idx) => (
+                                <div key={method.id || idx} className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex flex-col sm:flex-row gap-3 items-center justify-between">
+                                  <div className="flex gap-3 items-center w-full sm:w-3/4">
+                                    <div className="p-2 rounded bg-primary/10 text-primary shrink-0">
+                                      {method.icon === 'heart' && <HandHeart size={16} />}
+                                      {method.icon === 'building' && <Building size={16} />}
+                                      {method.icon === 'smartphone' && <Smartphone size={16} />}
+                                      {!['heart','building','smartphone'].includes(method.icon) && <Gift size={16} />}
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      <span className="font-bold text-sm text-gray-900">{method.title.zh} / {method.title.en}</span>
+                                      <p className="text-xs text-gray-500 line-clamp-1">{method.description.zh}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                    <button onClick={() => setEditingOfferingMethod({ ...method, index: idx })} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
+                                    <button onClick={() => handleDeleteOfferingMethod(idx)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -3169,8 +3260,19 @@ export default function App() {
                               <input type="text" value={editingBulletin.category.en} onChange={(e) => setEditingBulletin({ ...editingBulletin, category: { ...editingBulletin.category, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
                             </div>
                             <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'PDF/文件链接' : 'PDF/File URL'}</label>
-                              <input type="text" value={editingBulletin.fileUrl} onChange={(e) => setEditingBulletin({ ...editingBulletin, fileUrl: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <label className="block text-xs font-bold text-gray-600 mb-1">
+                                {lang === 'zh' ? '周报下载链接 (PDF/文件)' : 'Weekly Bulletin Download Link (PDF/File URL)'}
+                              </label>
+                              <input 
+                                type="text" 
+                                value={editingBulletin.fileUrl} 
+                                onChange={(e) => setEditingBulletin({ ...editingBulletin, fileUrl: e.target.value })} 
+                                placeholder={lang === 'zh' ? '例如: https://drive.google.com/... 或 http://...' : 'e.g., https://drive.google.com/... or http://...'} 
+                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" 
+                              />
+                              <p className="text-[10px] text-gray-400 mt-1">
+                                {lang === 'zh' ? '💡 请粘帖周报的公网下载链接（如 Google Drive, Dropbox 共享链接等）。若填 # 或留空，周报页面将不会显示“下载周报”按钮。' : '💡 Please paste the public download link of your bulletin (e.g. Google Drive, Dropbox link). If set to # or left empty, the "Download PDF" button will be hidden.'}
+                              </p>
                             </div>
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '摘要 (中文)' : 'Summary (Chinese)'}</label>
@@ -3202,10 +3304,26 @@ export default function App() {
                                 <FileText className="text-primary shrink-0" size={20} />
                                 <div className="space-y-1">
                                   <h4 className="font-bold text-sm text-gray-900">{bulletin.title.zh} / {bulletin.title.en}</h4>
-                                  <p className="text-xs text-gray-500">{bulletin.date} • {bulletin.category.zh}</p>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-xs text-gray-500">{bulletin.date} • {bulletin.category.zh}</p>
+                                    {bulletin.fileUrl && bulletin.fileUrl !== '#' ? (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-700 border border-green-100">
+                                        {lang === 'zh' ? '已关联下载链接' : 'Download Link Attached'}
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
+                                        {lang === 'zh' ? '无下载链接' : 'No Download Link'}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                               <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                {bulletin.fileUrl && bulletin.fileUrl !== '#' && (
+                                  <a href={bulletin.fileUrl} target="_blank" rel="noopener noreferrer" title={lang === 'zh' ? '打开/下载周报' : 'Open/Download Bulletin'} className="p-1.5 rounded border border-green-200 text-green-600 hover:bg-green-50">
+                                    <Download size={14} />
+                                  </a>
+                                )}
                                 <button onClick={() => setEditingBulletin(bulletin)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
                                 <button onClick={() => handleDeleteBulletin(bulletin.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
                               </div>
