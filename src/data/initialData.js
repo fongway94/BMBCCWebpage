@@ -33,6 +33,14 @@ export const initialData = {
       zh: "走入百利镇及大山脚社区，广传耶稣基督的救恩福音，关怀弱势群体，并栽培生命成熟、热心服侍的门徒。",
       en: "Step into the communities of Taman Bukit Minyak and Bukit Mertajam, spread the gospel of salvation of Jesus Christ, care for the vulnerable, and nurture mature, service-oriented disciples."
     },
+    homeVisionPara1: {
+      zh: "大山脚浸信教会深信神赐予我们的召命：走出教会的舒适圈，切切实实走入我们所在的百利镇社区，接触身边的邻舍。",
+      en: "BMBCC firmly believes in the calling given by God: to step out of our comfort zones and walk directly into Taman Bukit Minyak community to touch our neighbors' lives."
+    },
+    homeVisionPara2: {
+      zh: "我们透过‘爱邻社区关怀’、‘五饼二鱼’爱心便当等，用实际行动表明：主耶稣是爱他们的，也是在苦难和缺乏中的安慰与倚靠。",
+      en: "Through our \"Neighborly Community Care\" and \"Five Loaves & Two Fishes\" warm bento service, we demonstrate in deeds: the Lord Jesus loves them and is their solace and provider."
+    },
     adminPassword: "bmbccadmin123", // Simple default password, can be changed in settings
     showLoginButton: false, // Hidden by default for security. Access admin via URL #/admin
   },
