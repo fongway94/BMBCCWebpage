@@ -95,6 +95,7 @@ export default function App() {
   const [editingLeader, setEditingLeader] = useState(null);
   const [editingSermon, setEditingSermon] = useState(null);
   const [sermonFilter, setSermonFilter] = useState('all');
+  const [bulletinsTab, setBulletinsTab] = useState('bulletins');
   const [importJsonText, setImportJsonText] = useState('');
   const [importError, setImportError] = useState('');
   
@@ -154,6 +155,17 @@ export default function App() {
     if (obj['zh']) return obj['zh'];
     if (obj['en']) return obj['en'];
     return '';
+  };
+
+  const getGoogleMapsEmbedUrl = (church) => {
+    const rawUrl = (church?.googleMapsEmbedUrl || '').trim();
+    // Some older/default demo embed URLs point at incomplete placeholder coordinates
+    // and can render as an empty map. Fall back to a reliable query-based embed.
+    const isPlaceholderEmbed = /!1d3966|!1d3967|!2d100\.4!3d5\.3/.test(rawUrl);
+    if (rawUrl && !isPlaceholderEmbed) return rawUrl;
+
+    const query = t(church?.address) || t(church?.name) || data.settings.contactAddress;
+    return query ? `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed` : '';
   };
 
   const handleAdminLogin = (e) => {
@@ -384,6 +396,25 @@ export default function App() {
     if (!updated.offerings) updated.offerings = {};
     updated.offerings[key] = value;
     saveAllData(updated);
+  };
+
+  const handleSaveOfferingMethod = (method) => {
+    const updated = { ...data };
+    if (!updated.offerings) updated.offerings = {};
+    if (!updated.offerings.methods) updated.offerings.methods = [];
+    const newId = Math.max(...updated.offerings.methods.map(m => m.id || 0), 0) + 1;
+    updated.offerings.methods.push({ ...method, id: method.id || newId });
+    saveAllData(updated);
+  };
+
+  const handleDeleteOfferingMethod = (index) => {
+    if (window.confirm(lang === 'zh' ? '确定要删除此奉献方式吗？' : 'Are you sure you want to delete this giving method?')) {
+      const updated = { ...data };
+      if (!updated.offerings) updated.offerings = {};
+      updated.offerings.methods = [...(updated.offerings.methods || [])];
+      updated.offerings.methods.splice(index, 1);
+      saveAllData(updated);
+    }
   };
 
   // 11. Update Maps
@@ -1365,7 +1396,6 @@ export default function App() {
 
         {/* ==================== PAGE: BULLETINS & SERMONS ==================== */}
         {activeTab === 'bulletins' && (() => {
-          const [bulletinsTab, setBulletinsTab] = React.useState('bulletins');
           const sermons = data.sermons || [];
           const allPreachers = [...new Set(sermons.map(s => t(s.preacher)))];
           const allSeries = [...new Set(sermons.map(s => t(s.series)))];
@@ -1716,77 +1746,106 @@ export default function App() {
             </div>
 
             {/* Multiple Church Locations */}
-            <div className="space-y-12">
-              {(data.maps || []).map((church) => (
-                <div key={church.id} className="space-y-6">
-                  {/* Church Name Header */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                      <MapIcon size={20} />
-                    </div>
-                    <h2 className="text-2xl font-extrabold text-gray-900">{t(church.name)}</h2>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Map Embed */}
-                    <div className="lg:col-span-2 rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-gray-100 min-h-[400px]">
-                      <iframe
-                        src={church.googleMapsEmbedUrl || ''}
-                        width="100%"
-                        height="100%"
-                        style={{ border: 0, minHeight: '400px' }}
-                        allowFullScreen=""
-                        loading="lazy"
-                        referrerPolicy="no-referrer-when-downgrade"
-                        title={t(church.name)}
-                        className="w-full h-full"
-                      />
+            {(data.maps || []).length > 0 ? (
+              <div className="space-y-12">
+                {(data.maps || []).map((church) => (
+                  <div key={church.id} className="space-y-6">
+                    {/* Church Name Header */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                        <MapIcon size={20} />
+                      </div>
+                      <h2 className="text-2xl font-extrabold text-gray-900">{t(church.name)}</h2>
                     </div>
 
-                    {/* Info Sidebar */}
-                    <div className="space-y-6">
-                      {/* Address */}
-                      <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
-                        <div className="flex items-center gap-2 text-primary">
-                          <MapPin size={20} />
-                          <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '地址' : 'Address'}</h3>
-                        </div>
-                        <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(church.address)}</p>
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t(church.address))}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-primary text-xs font-semibold hover:text-primary-dark transition-all"
-                        >
-                          <Navigation size={14} />
-                          <span>{lang === 'zh' ? '在 Google Maps 中打开' : 'Open in Google Maps'}</span>
-                        </a>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      {/* Map Embed */}
+                      <div className="lg:col-span-2 rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-gray-100 min-h-[400px]">
+                        {getGoogleMapsEmbedUrl(church) ? (
+                          <iframe
+                            src={getGoogleMapsEmbedUrl(church)}
+                            width="100%"
+                            height="100%"
+                            style={{ border: 0, minHeight: '400px' }}
+                            allowFullScreen=""
+                            loading="lazy"
+                            referrerPolicy="no-referrer-when-downgrade"
+                            title={t(church.name)}
+                            className="w-full h-full"
+                          />
+                        ) : (
+                          <div className="min-h-[400px] flex flex-col items-center justify-center text-center p-8 text-gray-500">
+                            <MapIcon size={48} className="text-gray-300 mb-3" />
+                            <p className="text-sm font-medium">{lang === 'zh' ? '尚未设置嵌入地图链接' : 'Map embed URL has not been set yet.'}</p>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Directions */}
-                      <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
-                        <div className="flex items-center gap-2 text-primary">
-                          <Navigation size={20} />
-                          <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '交通指南' : 'Directions'}</h3>
-                        </div>
-                        <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(church.directions)}</p>
-                      </div>
-
-                      {/* Landmarks */}
-                      {church.landmarks && (
+                      {/* Info Sidebar */}
+                      <div className="space-y-6">
+                        {/* Address */}
                         <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
                           <div className="flex items-center gap-2 text-primary">
-                            <MapIcon size={20} />
-                            <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '附近地标' : 'Nearby Landmarks'}</h3>
+                            <MapPin size={20} />
+                            <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '地址' : 'Address'}</h3>
                           </div>
-                          <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(church.landmarks)}</p>
+                          <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(church.address)}</p>
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t(church.address))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-primary text-xs font-semibold hover:text-primary-dark transition-all"
+                          >
+                            <Navigation size={14} />
+                            <span>{lang === 'zh' ? '在 Google Maps 中打开' : 'Open in Google Maps'}</span>
+                          </a>
                         </div>
-                      )}
+
+                        {/* Directions */}
+                        <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
+                          <div className="flex items-center gap-2 text-primary">
+                            <Navigation size={20} />
+                            <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '交通指南' : 'Directions'}</h3>
+                          </div>
+                          <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(church.directions)}</p>
+                        </div>
+
+                        {/* Landmarks */}
+                        {church.landmarks && (
+                          <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
+                            <div className="flex items-center gap-2 text-primary">
+                              <MapIcon size={20} />
+                              <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '附近地标' : 'Nearby Landmarks'}</h3>
+                            </div>
+                            <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(church.landmarks)}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="max-w-2xl mx-auto text-center py-16 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                <MapIcon className="mx-auto text-gray-400 mb-3" size={48} />
+                <h2 className="font-extrabold text-lg text-gray-900 mb-2">
+                  {lang === 'zh' ? '地图资料尚未设置' : 'Map information is not set yet'}
+                </h2>
+                <p className="text-gray-600 text-sm font-light mb-5 px-6">
+                  {lang === 'zh' ? '您仍可使用以下教会地址在 Google Maps 中搜寻。' : 'You can still search for the church using the address below.'}
+                </p>
+                <p className="text-gray-700 text-sm font-medium mb-5 px-6">{data.settings.contactAddress}</p>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.settings.contactAddress)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-dark transition-all"
+                >
+                  <Navigation size={16} />
+                  <span>{lang === 'zh' ? '在 Google Maps 中打开' : 'Open in Google Maps'}</span>
+                </a>
+              </div>
+            )}
           </div>
         )}
 
@@ -1893,6 +1952,7 @@ export default function App() {
                             setEditingBulletin(null);
                             setEditingCellGroup(null);
                             setEditingLeader(null);
+                            setEditingSermon(null);
                           }}
                           className={`w-full text-left px-3.5 py-3 rounded-lg text-xs font-semibold flex items-center gap-2.5 transition-all ${
                             adminActiveSection === sec.id
