@@ -1,13 +1,8 @@
-// Initial public site content.
-// SECURITY: Admin credentials are not stored in this client-side data file.
-// Cloudflare Pages Functions read ADMIN_PASSWORD and JWT_SECRET from encrypted
-// Cloudflare environment secrets at request time.
-
 export const initialData = {
   "settings": {
     "churchName": {
       "zh": "大山脚浸信教会",
-      "en": "Bukit Mertajam Baptist Church Chinese"
+      "en": "BMBCC"
     },
     "churchAbbreviation": "BMBCC",
     "slogan": {
