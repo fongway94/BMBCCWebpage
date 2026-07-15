@@ -3239,7 +3239,7 @@ export default function App() {
 
                 <div className="pt-2 border-t border-gray-100 text-center">
                   <span className="text-[10px] text-gray-400 font-mono">
-                    {lang === 'zh' ? '密码在构建时通过环境变量设置' : 'Password set via build-time env var'}
+                    {lang === 'zh' ? '密码由 Cloudflare Secret 安全验证' : 'Password verified securely by Cloudflare Secret'}
                   </span>
                 </div>
               </div>
