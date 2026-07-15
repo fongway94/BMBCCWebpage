@@ -812,34 +812,6 @@ export const initialData = {
         "en": "Group description..."
       },
       "image": "https://images.unsplash.com/photo-1529156069898-49953e39b8f2?auto=format&fit=crop&w=600&q=80"
-    },
-    {
-      "id": 7,
-      "name": {
-        "zh": "新小组",
-        "en": "New Cell Group"
-      },
-      "leader": {
-        "zh": "负责人",
-        "en": "Leader"
-      },
-      "schedule": {
-        "zh": "聚会时间",
-        "en": "Schedule"
-      },
-      "location": {
-        "zh": "聚会地点",
-        "en": "Location"
-      },
-      "target": {
-        "zh": "适合人群",
-        "en": "Target Group"
-      },
-      "description": {
-        "zh": "小组简介...",
-        "en": "Group description..."
-      },
-      "image": "https://images.unsplash.com/photo-1529156069898-49953e39b8f2?auto=format&fit=crop&w=600&q=80"
     }
   ],
   "newFriendGuide": {
