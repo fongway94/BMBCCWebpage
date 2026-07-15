@@ -1,3 +1,28 @@
+// Build-time configuration injected by Vite from environment variables
+// SECURITY: Admin password is NOT hardcoded - it comes from VITE_ADMIN_PASSWORD env var at build time
+// For GitHub Pages: Set VITE_ADMIN_PASSWORD in repository Settings > Secrets > Actions > Environment variables
+// or in your deployment workflow
+
+const ADMIN_PASSWORD = (() => {
+  const pwd = import.meta.env?.VITE_ADMIN_PASSWORD;
+  if (!pwd) {
+    // This will fail the build if no password is configured
+    throw new Error(
+      '[SECURITY ERROR] VITE_ADMIN_PASSWORD environment variable is required!\n' +
+      'Set it in your .env.local (local) or GitHub repository secrets (production).\n' +
+      'Generate a strong password: openssl rand -base64 18'
+    );
+  }
+  if (pwd.length < 12) {
+    throw new Error('[SECURITY ERROR] VITE_ADMIN_PASSWORD must be at least 12 characters long');
+  }
+  return pwd;
+})();
+
+const GITHUB_PAT = import.meta.env?.VITE_GITHUB_PAT || '';
+const GITHUB_REPO = import.meta.env?.VITE_GITHUB_REPO || 'fongway94/BMBCCWebpage';
+const AUTO_SAVE_GITHUB = import.meta.env?.VITE_AUTO_SAVE_GITHUB === 'true';
+
 export const initialData = {
   "settings": {
     "churchName": {
@@ -55,7 +80,7 @@ export const initialData = {
       "en": "Soar High • Spread Gospel"
     },
     "yearlyVisionScripture": {
-      "zh": "神爱世人，甚至把他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。",
+      "zh": "神爱世人，即使把他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。",
       "en": "For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life."
     },
     "yearlyVisionRef": {
@@ -70,7 +95,7 @@ export const initialData = {
       "zh": "无论您是在寻找生命的意义、属灵的港湾，还是社区的陪伴，这里的大门始终为您敞开。让我们一起在主爱里生活，彼此扶持！",
       "en": "Whether you seek the meaning of life, a spiritual home, or community fellowship, our doors are always open. Let's grow and support each other in His grace!"
     },
-    "adminPassword": "bmbccadmin123",
+    "adminPassword": ADMIN_PASSWORD,
     "showLoginButton": false
   },
   "carousel": [

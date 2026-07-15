@@ -143,6 +143,24 @@ export default function App() {
   const [adminActiveSection, setAdminActiveSection] = useState('settings'); // 'settings', 'carousel', 'timetable', 'events', 'ministries', 'backup'
   const [adminSuccessMessage, setAdminSuccessMessage] = useState('');
   
+  // Verify auth session on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/functions/auth', { 
+          method: 'GET', 
+          credentials: 'include' 
+        });
+        const data = await res.json();
+        setIsAdminLoggedIn(data.isAdmin);
+      } catch (err) {
+        console.error('Auth check failed:', err);
+        setIsAdminLoggedIn(false);
+      }
+    };
+    checkAuth();
+  }, []);
+  
   // Editor temporary states
   const [editingSlide, setEditingSlide] = useState(null); // slide ID or 'new'
   const [editingTimetable, setEditingTimetable] = useState(null); // timetable item ID or 'new'
@@ -175,15 +193,22 @@ export default function App() {
   const [selectedTimetableModal, setSelectedTimetableModal] = useState(null);
   const [copiedModalItem, setCopiedModalItem] = useState(false);
 
+  // Build-time GitHub config (injected by Vite from env vars)
+  const GITHUB_PAT_DEFAULT = import.meta.env?.VITE_GITHUB_PAT || '';
+  const GITHUB_REPO_DEFAULT = import.meta.env?.VITE_GITHUB_REPO || 'fongway94/BMBCCWebpage';
+  const AUTO_SAVE_GITHUB_DEFAULT = import.meta.env?.VITE_AUTO_SAVE_GITHUB === 'true';
+
   // Auto-save to GitHub state (direct API - no server needed)
   const [autoSaveToGithub, setAutoSaveToGithub] = useState(() => {
-    return localStorage.getItem('bmbcc_autosave_github') === 'true';
+    const saved = localStorage.getItem('bmbcc_autosave_github');
+    if (saved !== null) return saved === 'true';
+    return AUTO_SAVE_GITHUB_DEFAULT;
   });
   const [githubPat, setGithubPat] = useState(() => {
-    return localStorage.getItem('bmbcc_github_pat') || '';
+    return localStorage.getItem('bmbcc_github_pat') || GITHUB_PAT_DEFAULT;
   });
   const [githubRepo, setGithubRepo] = useState(() => {
-    return localStorage.getItem('bmbcc_github_repo') || 'fongway94/BMBCCWebpage';
+    return localStorage.getItem('bmbcc_github_repo') || GITHUB_REPO_DEFAULT;
   });
   const [autoSaveStatus, setAutoSaveStatus] = useState(''); // 'saving', 'success', 'error'
   const [autoSaveMessage, setAutoSaveMessage] = useState('');
@@ -339,18 +364,50 @@ export default function App() {
     return query ? `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed` : '';
   };
 
-  const handleAdminLogin = (e) => {
+  const handleAdminLogin = async (e) => {
     e.preventDefault();
-    if (adminPasswordInput === data.settings.adminPassword) {
-      setIsAdminLoggedIn(true);
-      setAdminLoginError('');
-      setAdminPasswordInput('');
-    } else {
-      setAdminLoginError(lang === 'zh' ? '密码不正确，请重试' : 'Incorrect password, please try again');
+
+    // Client-side minimum length check
+    if (adminPasswordInput.length < 8) {
+      setAdminLoginError(
+        lang === 'zh'
+          ? '密码至少需要 8 位字符'
+          : 'Password must be at least 8 characters'
+      );
+      return;
+    }
+
+    try {
+      const res = await fetch('/functions/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Critical: sends HttpOnly cookie
+        body: JSON.stringify({ password: adminPasswordInput })
+      });
+      const result = await res.json();
+      
+      if (result.ok) {
+        setIsAdminLoggedIn(true);
+        setAdminLoginError('');
+        setAdminPasswordInput('');
+      } else {
+        setAdminLoginError(result.error || (lang === 'zh' ? '登录失败' : 'Login failed'));
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setAdminLoginError(lang === 'zh' ? '网络错误，请重试' : 'Network error, please try again');
     }
   };
 
-  const handleAdminLogout = () => {
+  const handleAdminLogout = async () => {
+    try {
+      await fetch('/functions/auth', { 
+        method: 'DELETE', 
+        credentials: 'include' 
+      });
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
     setIsAdminLoggedIn(false);
     setActiveTab('home');
     setBackupAccessGranted(false);
@@ -3151,7 +3208,7 @@ export default function App() {
 
                 <div className="pt-2 border-t border-gray-100 text-center">
                   <span className="text-[10px] text-gray-400 font-mono">
-                    Default Password: <span className="font-bold underline select-all">bmbccadmin123</span>
+                    {lang === 'zh' ? '密码在构建时通过环境变量设置' : 'Password set via build-time env var'}
                   </span>
                 </div>
               </div>
