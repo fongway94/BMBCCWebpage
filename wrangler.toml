@@ -1,0 +1,13 @@
+name = "bmbcc-webpage"
+compatibility_date = "2024-07-15"
+pages_build_output_dir = "dist"
+
+# Environment variables (set in Cloudflare Pages dashboard, not here)
+# [vars]
+# ADMIN_PASSWORD = "your-strong-password"  # Set in dashboard
+# JWT_SECRET = "your-jwt-secret"          # Set in dashboard
+
+# Custom domain (optional, configure in dashboard)
+# routes = [
+#   { pattern = "bmbcc.example.com/*", zone_name = "example.com" }
+# ]
