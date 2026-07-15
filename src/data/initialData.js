@@ -827,7 +827,7 @@ export const initialData = {
           "en": "📍 First Visit Guide"
         },
         "content": {
-          "zh": "欢迎您第一次来到大山脚浸信教会！\n\n• 停车：教会前方及后方均设有免费停车场\n• 报到：进入大厅后，接待同工将在门口热情迎接您\n• 座位：欢迎自由选择座位，前排更佳体验\n• 儿童：如需儿童主日学服务，请在签到时告知\n• 茶点：崇拜后一楼大厅提供免费茶点，欢迎留下与弟兄姐妹交流\n• 新朋友礼：首次到访的朋友将获得精美小礼品和教会手册！\n\n如需任何帮助，请随时联系接待处的同工，他们很乐意为您服务。",
+          "zh": "欢迎您第一次来到大山脚浸信教会！!\n\n• 停车：教会前方及后方均设有免费停车场\n• 报到：进入大厅后，接待同工将在门口热情迎接您\n• 座位：欢迎自由选择座位，前排更佳体验\n• 儿童：如需儿童主日学服务，请在签到时告知\n• 茶点：崇拜后一楼大厅提供免费茶点，欢迎留下与弟兄姐妹交流\n• 新朋友礼：首次到访的朋友将获得精美小礼品和教会手册！\n\n如需任何帮助，请随时联系接待处的同工，他们很乐意为您服务。",
           "en": "Welcome to your first visit to BMBCC !\n\n• Parking: Free parking available at the front and rear of the church\n• Check-in: Our welcome team will greet you warmly at the entrance\n• Seating: Feel free to choose any seat—front rows for a better experience\n• Children: If you need Sunday School, please let us know at check-in\n• Refreshments: Free refreshments after service at the 1st Floor Hall\n• New Friend Gift: First-time visitors receive a welcome gift pack and church brochure!\n\nFor any assistance, please approach our welcome team—they're happy to serve you."
         }
       },
