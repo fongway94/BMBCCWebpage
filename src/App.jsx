@@ -3750,16 +3750,8 @@ export default function App() {
                           />
                         </div>
 
-                        {/* Admin password is managed server-side in Cloudflare, never stored in client data. */}
-                        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-800">
-                          <label className="block font-bold text-amber-900 mb-1">后台管理密码 / Admin Password</label>
-                          <p>
-                            {lang === 'zh'
-                              ? '密码已改由 Cloudflare Pages 的 ADMIN_PASSWORD Secret 管理，不会出现在网页代码或备份资料里。若要修改密码，请到 Cloudflare Dashboard → Pages → Settings → Environment variables 更新 ADMIN_PASSWORD。'
-                              : 'The password is now managed by the Cloudflare Pages ADMIN_PASSWORD secret and is never stored in the website bundle or backup data. To rotate it, update ADMIN_PASSWORD in Cloudflare Dashboard → Pages → Settings → Environment variables.'}
-                          </p>
-                        </div>
-
+                        {/* Admin password change setting temporarily hidden.
+                            Password rotation is handled in Cloudflare Pages secrets. */}
                                                 {/* SHOW LOGIN BUTTON TOGGLE */}
                         <div className="md:col-span-2">
                           <label className="block text-xs font-bold text-gray-700 mb-1">
