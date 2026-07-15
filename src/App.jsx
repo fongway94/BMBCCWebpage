@@ -41,9 +41,90 @@ import {
   HandHeart,
   Compass,
   HelpCircle,
-  Navigation
+  Navigation,
+  Search,
+  LayoutGrid,
+  ListFilter,
+  CalendarDays,
+  Copy,
+  Globe,
+  Filter,
+  Layers
 } from 'lucide-react';
 import { initialData } from './data/initialData';
+
+// Helper functions for Timetable styling
+const getDayBadgeStyle = (dayStr) => {
+  const str = String(dayStr || '').toLowerCase();
+  if (str.includes('日') || str.includes('sun')) {
+    return {
+      bg: 'bg-indigo-50/80 hover:bg-indigo-100/90',
+      text: 'text-indigo-700',
+      border: 'border-indigo-200/80',
+      gradient: 'from-indigo-600 to-violet-600',
+      pill: 'bg-indigo-100 text-indigo-800 font-semibold',
+      dot: 'bg-indigo-500'
+    };
+  }
+  if (str.includes('六') || str.includes('sat')) {
+    return {
+      bg: 'bg-sky-50/80 hover:bg-sky-100/90',
+      text: 'text-sky-700',
+      border: 'border-sky-200/80',
+      gradient: 'from-sky-500 to-blue-600',
+      pill: 'bg-sky-100 text-sky-800 font-semibold',
+      dot: 'bg-sky-500'
+    };
+  }
+  if (str.includes('五') || str.includes('fri')) {
+    return {
+      bg: 'bg-emerald-50/80 hover:bg-emerald-100/90',
+      text: 'text-emerald-700',
+      border: 'border-emerald-200/80',
+      gradient: 'from-emerald-500 to-teal-600',
+      pill: 'bg-emerald-100 text-emerald-800 font-semibold',
+      dot: 'bg-emerald-500'
+    };
+  }
+  if (str.includes('四') || str.includes('thu')) {
+    return {
+      bg: 'bg-amber-50/80 hover:bg-amber-100/90',
+      text: 'text-amber-700',
+      border: 'border-amber-200/80',
+      gradient: 'from-amber-500 to-orange-600',
+      pill: 'bg-amber-100 text-amber-800 font-semibold',
+      dot: 'bg-amber-500'
+    };
+  }
+  return {
+    bg: 'bg-purple-50/80 hover:bg-purple-100/90',
+    text: 'text-purple-700',
+    border: 'border-purple-200/80',
+    gradient: 'from-purple-500 to-indigo-600',
+    pill: 'bg-purple-100 text-purple-800 font-semibold',
+    dot: 'bg-purple-500'
+  };
+};
+
+const getLangBadgeStyle = (langStr) => {
+  const str = String(langStr || '').toLowerCase();
+  if (str.includes('华') || str.includes('中') || str.includes('chinese') || str.includes('mandarin')) {
+    return 'bg-emerald-50 text-emerald-700 border-emerald-200/80 ring-emerald-500/20';
+  }
+  if (str.includes('闽') || str.includes('福') || str.includes('hokkien')) {
+    return 'bg-violet-50 text-violet-700 border-violet-200/80 ring-violet-500/20';
+  }
+  if (str.includes('马') || str.includes('bahasa') || str.includes('malay')) {
+    return 'bg-amber-50 text-amber-800 border-amber-200/80 ring-amber-500/20';
+  }
+  if (str.includes('尼') || str.includes('nepal')) {
+    return 'bg-rose-50 text-rose-700 border-rose-200/80 ring-rose-500/20';
+  }
+  if (str.includes('英') || str.includes('english')) {
+    return 'bg-blue-50 text-blue-700 border-blue-200/80 ring-blue-500/20';
+  }
+  return 'bg-gray-50 text-gray-700 border-gray-200';
+};
 
 // Theme color map for CSS variable injection
 const colorsMap = {
@@ -117,6 +198,14 @@ export default function App() {
   const [bulletinsTab, setBulletinsTab] = useState('bulletins');
   const [importJsonText, setImportJsonText] = useState('');
   const [importError, setImportError] = useState('');
+
+  // Timetable page states
+  const [timetableFilterDay, setTimetableFilterDay] = useState('all');
+  const [timetableFilterLang, setTimetableFilterLang] = useState('all');
+  const [timetableSearchQuery, setTimetableSearchQuery] = useState('');
+  const [timetableViewMode, setTimetableViewMode] = useState('cards'); // 'cards', 'timeline', 'table'
+  const [selectedTimetableModal, setSelectedTimetableModal] = useState(null);
+  const [copiedModalItem, setCopiedModalItem] = useState(false);
 
   // Auto-save to GitHub state (direct API - no server needed)
   const [autoSaveToGithub, setAutoSaveToGithub] = useState(() => {
@@ -915,36 +1004,36 @@ export default function App() {
                     <img 
                       src={data.carousel[currentSlide].image} 
                       alt="Banner Image" 
-                      className="w-full h-full object-cover opacity-60"
+                      className="w-full h-full object-cover opacity-90"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-black/25 to-black/20" />
                   </div>
 
-                  {/* Slide Text Content */}
-                  <div className="absolute inset-0 flex items-center justify-center text-center px-4">
-                    <div className="max-w-4xl mx-auto space-y-6">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/20 text-primary border border-primary/30 text-xs uppercase tracking-wider font-bold animate-pulse">
-                        <Sparkles size={13} />
+                  {/* Slide Text Content with localized contrast scrim card for strong visibility */}
+                  <div className="absolute inset-0 flex items-center justify-center text-center px-4 py-8">
+                    <div className="max-w-4xl mx-auto p-6 sm:p-10 rounded-3xl bg-black/40 backdrop-blur-md border border-white/15 shadow-2xl space-y-5 transform transition-all">
+                      <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-primary/30 text-white border border-primary/40 text-xs uppercase tracking-wider font-extrabold shadow-sm">
+                        <Sparkles size={14} className="text-amber-300" />
                         {lang === 'zh' ? '欢迎莅临大山脚浸信教会' : 'Welcome to BMBCC'}
                       </span>
-                      <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold text-white leading-tight tracking-tight drop-shadow-md">
+                      <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
                         {t(data.carousel[currentSlide].title)}
                       </h1>
-                      <p className="text-base sm:text-lg md:text-xl text-gray-200 font-light max-w-2xl mx-auto leading-relaxed drop-shadow">
+                      <p className="text-base sm:text-lg md:text-xl text-white/95 font-medium max-w-2xl mx-auto leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                         {t(data.carousel[currentSlide].subtitle)}
                       </p>
                       
-                      <div className="pt-4 flex flex-wrap justify-center gap-4">
+                      <div className="pt-3 flex flex-wrap justify-center gap-3.5">
                         <button 
                           onClick={() => setActiveTab('timetable')}
-                          className="px-6 py-3 rounded-lg bg-primary hover:bg-primary-dark text-white font-semibold transition-all shadow-lg shadow-primary/30 flex items-center gap-2 transform hover:-translate-y-0.5"
+                          className="px-6 py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold transition-all shadow-lg shadow-primary/30 flex items-center gap-2 transform hover:-translate-y-0.5"
                         >
                           <Clock size={18} />
                           <span>{lang === 'zh' ? '聚会时间表' : 'Join Our Services'}</span>
                         </button>
                         <button 
                           onClick={() => setActiveTab('about')}
-                          className="px-6 py-3 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold border border-white/30 backdrop-blur-sm transition-all flex items-center gap-2 transform hover:-translate-y-0.5"
+                          className="px-6 py-3 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold border border-white/30 backdrop-blur-md transition-all flex items-center gap-2 transform hover:-translate-y-0.5 shadow-md"
                         >
                           <Info size={18} />
                           <span>{lang === 'zh' ? '关于我们' : 'Learn More'}</span>
@@ -1365,88 +1454,599 @@ export default function App() {
         )}
 
         {/* ==================== PAGE: TIMETABLE ==================== */}
-        {activeTab === 'timetable' && (
-          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-              <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {lang === 'zh' ? '与我们一同朝见神' : 'Fellowship & Grow Together'}
-              </span>
-              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                {lang === 'zh' ? '周聚会时间表' : 'Weekly Timetable'}
-              </h1>
-              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                {lang === 'zh' 
-                  ? '我们诚挚地邀请您和您的家人参与我们的周聚会，共同在敬拜、祷告、真理和爱心团契里，经历生命的翻转与复兴。' 
-                  : 'We sincerely invite you and your family to join our weekly fellowships, experiencing transformation and revival through worship, prayer, truth, and community.'}
-              </p>
-            </div>
+        {activeTab === 'timetable' && (() => {
+          // Dynamic available days & languages from data
+          const rawDays = data.timetable.map(item => t(item.day)).filter(Boolean);
+          const uniqueDays = Array.from(new Set(rawDays));
+          
+          const rawLangs = data.timetable.map(item => t(item.language)).filter(Boolean);
+          const uniqueLangs = Array.from(new Set(rawLangs));
 
-            {/* Elegant Table Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-150 overflow-hidden">
-              <div className="bg-primary/5 py-4 px-6 border-b border-gray-150 flex items-center gap-2">
-                <CalendarCheck className="text-primary shrink-0" size={20} />
-                <span className="text-sm font-bold text-gray-800 uppercase tracking-wider">
-                  {lang === 'zh' ? '定期崇拜与各级团契时间' : 'Regular Weekly Services & Fellowships'}
-                </span>
+          // Filter logic
+          const filteredItems = data.timetable.filter(item => {
+            const nameStr = t(item.name).toLowerCase();
+            const dayStr = t(item.day).toLowerCase();
+            const timeStr = String(item.time || '').toLowerCase();
+            const locStr = t(item.location).toLowerCase();
+            const langStr = t(item.language).toLowerCase();
+            const q = timetableSearchQuery.toLowerCase().trim();
+
+            const matchesSearch = !q || nameStr.includes(q) || dayStr.includes(q) || timeStr.includes(q) || locStr.includes(q) || langStr.includes(q);
+            const matchesDay = timetableFilterDay === 'all' || t(item.day) === timetableFilterDay;
+            const matchesLang = timetableFilterLang === 'all' || t(item.language) === timetableFilterLang;
+
+            return matchesSearch && matchesDay && matchesLang;
+          });
+
+          // Group by Day for Timeline view
+          const groupedByDay = filteredItems.reduce((acc, item) => {
+            const dayName = t(item.day) || (lang === 'zh' ? '其他' : 'Other');
+            if (!acc[dayName]) acc[dayName] = [];
+            acc[dayName].push(item);
+            return acc;
+          }, {});
+
+          const handleCopyInfo = (item) => {
+            const text = `${t(item.name)} | ${t(item.day)} ${item.time} | ${t(item.location)} (${t(item.language)})`;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text);
+              setCopiedModalItem(true);
+              setTimeout(() => setCopiedModalItem(false), 2000);
+            }
+          };
+
+          return (
+            <div className="animate-fade-in py-10 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto space-y-10">
+              {/* Header Hero Banner */}
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-gray-900 via-primary-dark to-gray-900 text-white p-8 sm:p-12 shadow-xl border border-white/10">
+                <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-80 h-80 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+
+                <div className="relative z-10 max-w-3xl space-y-4">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold uppercase tracking-wider text-primary-light">
+                    <Sparkles size={14} className="text-amber-300 animate-pulse" />
+                    <span>{lang === 'zh' ? '与我们一同朝见神与相聚' : 'Fellowship & Grow Together'}</span>
+                  </div>
+
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white leading-tight">
+                    {lang === 'zh' ? '周聚会与崇拜时间表' : 'Weekly Services & Timetable'}
+                  </h1>
+
+                  <p className="text-gray-200 text-base md:text-lg font-light leading-relaxed">
+                    {lang === 'zh' 
+                      ? '我们诚挚地邀请您和您的家人参与我们的周聚会，共同在敬拜、祷告、真理和爱心团契里，经历生命的翻转与复兴。' 
+                      : 'We warmly invite you and your family to join our weekly gatherings for worship, prayer, truth, and genuine community.'}
+                  </p>
+
+                  {/* Stat Highlights Pills */}
+                  <div className="pt-4 flex flex-wrap gap-3 text-xs md:text-sm font-medium">
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-white shadow-sm">
+                      <CalendarCheck size={18} className="text-emerald-400" />
+                      <span><strong>{data.timetable.length}</strong> {lang === 'zh' ? '场每周聚会' : 'Weekly Gatherings'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-white shadow-sm">
+                      <Globe size={18} className="text-sky-400" />
+                      <span><strong>{uniqueLangs.length}</strong> {lang === 'zh' ? '种媒介语言' : 'Languages Offered'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-white shadow-sm">
+                      <MapPin size={18} className="text-amber-400" />
+                      <span>{lang === 'zh' ? '主堂、分堂与各社区据点' : 'Multiple Worship Sanctuaries'}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50/75 border-b border-gray-150 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      <th className="py-4 px-6">{lang === 'zh' ? '聚会名称' : 'Meeting / Service'}</th>
-                      <th className="py-4 px-6">{lang === 'zh' ? '聚会时间' : 'Day & Time'}</th>
-                      <th className="py-4 px-6">{lang === 'zh' ? '地点 / 平台' : 'Location / Format'}</th>
-                      <th className="py-4 px-6">{lang === 'zh' ? '媒介语言' : 'Language'}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {data.timetable.map((item, index) => (
-                      <tr key={item.id} className="hover:bg-gray-50/60 transition-colors text-sm text-gray-700">
-                        <td className="py-4.5 px-6 font-bold text-gray-900">
-                          {t(item.name)}
-                        </td>
-                        <td className="py-4.5 px-6">
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 rounded bg-primary-light text-primary text-xs font-bold shrink-0">
+
+              {/* Filters & Control Toolbar */}
+              <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm space-y-4">
+                <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+                  {/* Search Bar */}
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input 
+                      type="text"
+                      value={timetableSearchQuery}
+                      onChange={(e) => setTimetableSearchQuery(e.target.value)}
+                      placeholder={lang === 'zh' ? '搜索聚会名称、时间、地点或语言...' : 'Search service, location, language, or time...'}
+                      className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-250 bg-gray-50/50 text-sm font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-white transition-all"
+                    />
+                    {timetableSearchQuery && (
+                      <button 
+                        onClick={() => setTimetableSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full hover:bg-gray-200/60"
+                      >
+                        <X size={15} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* View Mode Switcher */}
+                  <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl self-start lg:self-auto border border-gray-200/60">
+                    <button
+                      onClick={() => setTimetableViewMode('cards')}
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                        timetableViewMode === 'cards' 
+                          ? 'bg-white text-primary shadow-sm' 
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                      }`}
+                      title={lang === 'zh' ? '网格卡片视图' : 'Grid View'}
+                    >
+                      <LayoutGrid size={16} />
+                      <span>{lang === 'zh' ? '卡片模式' : 'Grid'}</span>
+                    </button>
+                    <button
+                      onClick={() => setTimetableViewMode('timeline')}
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                        timetableViewMode === 'timeline' 
+                          ? 'bg-white text-primary shadow-sm' 
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                      }`}
+                      title={lang === 'zh' ? '按星期时间轴视图' : 'Day Timeline View'}
+                    >
+                      <CalendarDays size={16} />
+                      <span>{lang === 'zh' ? '日程轴模式' : 'Timeline'}</span>
+                    </button>
+                    <button
+                      onClick={() => setTimetableViewMode('table')}
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                        timetableViewMode === 'table' 
+                          ? 'bg-white text-primary shadow-sm' 
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                      }`}
+                      title={lang === 'zh' ? '表格视图' : 'Table View'}
+                    >
+                      <ListFilter size={16} />
+                      <span>{lang === 'zh' ? '列表表格' : 'Table'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Day & Language Filter Badges */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-gray-100">
+                  {/* Day Pills */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1">
+                      <Filter size={12} />
+                      {lang === 'zh' ? '按星期:' : 'Day:'}
+                    </span>
+                    <button
+                      onClick={() => setTimetableFilterDay('all')}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                        timetableFilterDay === 'all'
+                          ? 'bg-gray-900 text-white shadow-xs'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {lang === 'zh' ? '全部日期' : 'All Days'}
+                    </button>
+                    {uniqueDays.map(dayName => (
+                      <button
+                        key={dayName}
+                        onClick={() => setTimetableFilterDay(dayName)}
+                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                          timetableFilterDay === dayName
+                            ? 'bg-primary text-white shadow-xs'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {dayName}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Language Filter Pills */}
+                  {uniqueLangs.length > 1 && (
+                    <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-auto">
+                      <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1">
+                        <Globe size={12} />
+                        {lang === 'zh' ? '语言:' : 'Lang:'}
+                      </span>
+                      <button
+                        onClick={() => setTimetableFilterLang('all')}
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold transition-all ${
+                          timetableFilterLang === 'all'
+                            ? 'bg-primary/20 text-primary border border-primary/30 font-bold'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {lang === 'zh' ? '全部语言' : 'All'}
+                      </button>
+                      {uniqueLangs.map(lName => (
+                        <button
+                          key={lName}
+                          onClick={() => setTimetableFilterLang(lName)}
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold transition-all ${
+                            timetableFilterLang === lName
+                              ? 'bg-primary/20 text-primary border border-primary/30 font-bold'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {lName}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Empty state if search or filter matches 0 items */}
+              {filteredItems.length === 0 && (
+                <div className="bg-white rounded-3xl p-12 text-center border border-gray-200 shadow-sm max-w-lg mx-auto space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center gap-2 justify-center mx-auto border border-amber-200">
+                    <CalendarCheck size={32} />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {lang === 'zh' ? '未找到相关聚会' : 'No Matching Gatherings Found'}
+                  </h3>
+                  <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                    {lang === 'zh' 
+                      ? '您可以尝试清除搜索关键词或重置日期与语言筛选条件。' 
+                      : 'Try clearing your search query or resetting the day and language filters.'}
+                  </p>
+                  <button
+                    onClick={() => {
+                      setTimetableSearchQuery('');
+                      setTimetableFilterDay('all');
+                      setTimetableFilterLang('all');
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-md hover:bg-primary-dark transition-all"
+                  >
+                    {lang === 'zh' ? '重置筛选条件' : 'Reset All Filters'}
+                  </button>
+                </div>
+              )}
+
+              {/* ================= VIEW MODE 1: GRID CARDS ================= */}
+              {timetableViewMode === 'cards' && filteredItems.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredItems.map((item) => {
+                    const style = getDayBadgeStyle(t(item.day));
+                    const langBadgeStyle = getLangBadgeStyle(t(item.language));
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="group bg-white rounded-2xl border border-gray-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden relative"
+                      >
+                        {/* Accent top gradient bar */}
+                        <div className={`h-1.5 w-full bg-gradient-to-r ${style.gradient}`} />
+
+                        <div className="p-6 space-y-5 flex-1">
+                          {/* Badges row */}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`px-3 py-1 rounded-full text-xs ${style.pill} border ${style.border} flex items-center gap-1.5`}>
+                              <span className={`w-2 h-2 rounded-full ${style.dot}`} />
                               {t(item.day)}
                             </span>
-                            <span className="font-medium text-gray-600">{item.time}</span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${langBadgeStyle}`}>
+                              {t(item.language)}
+                            </span>
                           </div>
-                        </td>
-                        <td className="py-4.5 px-6 text-gray-600 font-light">
-                          <div className="flex items-center gap-1.5">
-                            <MapPin size={14} className="text-gray-400 shrink-0" />
-                            <span>{t(item.location)}</span>
-                          </div>
-                        </td>
-                        <td className="py-4.5 px-6">
-                          <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 font-medium">
-                            {t(item.language)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
 
-            {/* Notice Footer */}
-            <div className="mt-8 bg-amber-50 rounded-xl p-5 border border-amber-200/60 flex items-start gap-3.5 max-w-3xl mx-auto">
-              <Info className="text-amber-600 shrink-0 mt-0.5" size={20} />
-              <div className="space-y-1.5 text-xs text-amber-900 font-light leading-relaxed">
-                <p className="font-bold">{lang === 'zh' ? '温馨提示' : 'Kind Notice'}:</p>
-                <p>
-                  {lang === 'zh'
-                    ? '由于有些聚会（如祷告会）或遇公共假期会改为联合或调整时间，新朋友莅临前欢迎先致电咨询，或通过后台联系同工，以便我们能为您提供最好的接待。'
-                    : 'Since some services or prayer meetings may shift or merge during public holidays, first-time visitors are encouraged to contact our pastoral team in advance for the best hospitality.'}
-                </p>
+                          {/* Meeting Title */}
+                          <div>
+                            <h3 className="text-xl font-extrabold text-gray-900 group-hover:text-primary transition-colors leading-snug">
+                              {t(item.name)}
+                            </h3>
+                          </div>
+
+                          {/* Time Card */}
+                          <div className="bg-gray-50 p-3 rounded-xl border border-gray-150 flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                              <Clock size={18} />
+                            </div>
+                            <div>
+                              <div className="text-[11px] uppercase font-bold text-gray-400 tracking-wider">
+                                {lang === 'zh' ? '聚会时间' : 'Gathering Time'}
+                              </div>
+                              <div className="text-sm font-bold text-gray-800">
+                                {item.time}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Location */}
+                          <div className="flex items-start gap-2.5 text-xs text-gray-600 font-medium">
+                            <MapPin size={16} className="text-primary shrink-0 mt-0.5" />
+                            <span className="leading-relaxed">{t(item.location)}</span>
+                          </div>
+                        </div>
+
+                        {/* Card Action Footer */}
+                        <div className="px-6 py-4 bg-gray-50/70 border-t border-gray-100 flex items-center justify-between gap-2">
+                          <button
+                            onClick={() => setSelectedTimetableModal(item)}
+                            className="flex-1 py-2 px-3 rounded-xl bg-white border border-gray-250 hover:border-primary hover:text-primary text-gray-700 text-xs font-bold shadow-2xs transition-all flex items-center justify-center gap-1.5"
+                          >
+                            <Info size={14} />
+                            <span>{lang === 'zh' ? '查看详情与指南' : 'View Details'}</span>
+                          </button>
+                          
+                          <button
+                            onClick={() => handleCopyInfo(item)}
+                            title={lang === 'zh' ? '复制时间与地点信息' : 'Copy gathering details'}
+                            className="p-2 rounded-xl bg-white border border-gray-250 text-gray-500 hover:text-primary hover:border-primary transition-all shadow-2xs"
+                          >
+                            <Copy size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ================= VIEW MODE 2: TIMELINE / DAY SCHEDULE ================= */}
+              {timetableViewMode === 'timeline' && filteredItems.length > 0 && (
+                <div className="space-y-8">
+                  {Object.entries(groupedByDay).map(([dayTitle, items]) => {
+                    const style = getDayBadgeStyle(dayTitle);
+
+                    return (
+                      <div key={dayTitle} className="bg-white rounded-3xl border border-gray-200/80 shadow-sm p-6 sm:p-8 space-y-6">
+                        {/* Day Header */}
+                        <div className="flex items-center justify-between border-b border-gray-150 pb-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${style.gradient} text-white flex items-center justify-center font-bold shadow-md`}>
+                              <CalendarCheck size={20} />
+                            </div>
+                            <div>
+                              <h2 className="text-xl font-extrabold text-gray-900">{dayTitle}</h2>
+                              <p className="text-xs text-gray-500">
+                                {lang === 'zh' ? `共 ${items.length} 场崇拜 / 团契` : `${items.length} services/fellowships`}
+                              </p>
+                            </div>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${style.pill} ${style.border}`}>
+                            {dayTitle}
+                          </span>
+                        </div>
+
+                        {/* Items Timeline list */}
+                        <div className="relative pl-4 sm:pl-6 space-y-6 border-l-2 border-primary/20 ml-2 sm:ml-4">
+                          {items.map((item) => (
+                            <div key={item.id} className="relative group">
+                              {/* Glowing node dot on vertical timeline */}
+                              <div className="absolute -left-[25px] sm:-left-[33px] top-1.5 w-4 h-4 rounded-full bg-white border-4 border-primary shadow-xs group-hover:scale-125 transition-transform" />
+
+                              <div className="bg-gray-50/80 hover:bg-primary/5 p-4 sm:p-5 rounded-2xl border border-gray-200/80 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="text-base font-extrabold text-gray-900 group-hover:text-primary transition-colors">
+                                      {t(item.name)}
+                                    </h3>
+                                    <span className={`text-[11px] px-2.5 py-0.5 rounded-full border ${getLangBadgeStyle(t(item.language))}`}>
+                                      {t(item.language)}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-gray-600">
+                                    <div className="flex items-center gap-1.5 font-bold text-gray-800 bg-white px-2.5 py-1 rounded-lg border border-gray-200">
+                                      <Clock size={14} className="text-primary" />
+                                      <span>{item.time}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <MapPin size={14} className="text-gray-400" />
+                                      <span>{t(item.location)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                                  <button
+                                    onClick={() => setSelectedTimetableModal(item)}
+                                    className="px-3.5 py-2 rounded-xl bg-white border border-gray-250 hover:border-primary hover:text-primary text-xs font-bold text-gray-700 shadow-2xs transition-all flex items-center gap-1.5"
+                                  >
+                                    <Info size={14} />
+                                    <span>{lang === 'zh' ? '详情' : 'Details'}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ================= VIEW MODE 3: REFINED MODERN TABLE ================= */}
+              {timetableViewMode === 'table' && filteredItems.length > 0 && (
+                <div className="bg-white rounded-3xl border border-gray-200/80 shadow-sm overflow-hidden">
+                  <div className="p-4 sm:p-6 bg-primary/5 border-b border-gray-200/80 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CalendarCheck className="text-primary shrink-0" size={22} />
+                      <span className="text-base font-extrabold text-gray-900">
+                        {lang === 'zh' ? '定期崇拜与各级团契时间总览' : 'Regular Weekly Services Overview'}
+                      </span>
+                    </div>
+                    <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
+                      {filteredItems.length} {lang === 'zh' ? '项结果' : 'Items'}
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50/90 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          <th className="py-4 px-6">{lang === 'zh' ? '聚会名称' : 'Meeting / Service'}</th>
+                          <th className="py-4 px-6">{lang === 'zh' ? '聚会时间' : 'Day & Time'}</th>
+                          <th className="py-4 px-6">{lang === 'zh' ? '地点 / 平台' : 'Location / Format'}</th>
+                          <th className="py-4 px-6">{lang === 'zh' ? '媒介语言' : 'Language'}</th>
+                          <th className="py-4 px-6 text-right">{lang === 'zh' ? '操作' : 'Action'}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-150">
+                        {filteredItems.map((item) => {
+                          const style = getDayBadgeStyle(t(item.day));
+                          return (
+                            <tr key={item.id} className="hover:bg-primary/5 transition-colors text-sm text-gray-700 group">
+                              <td className="py-4.5 px-6 font-extrabold text-gray-900 group-hover:text-primary transition-colors">
+                                {t(item.name)}
+                              </td>
+                              <td className="py-4.5 px-6">
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-2.5 py-0.5 rounded-full text-xs ${style.pill} border ${style.border} shrink-0`}>
+                                    {t(item.day)}
+                                  </span>
+                                  <span className="font-bold text-gray-700">{item.time}</span>
+                                </div>
+                              </td>
+                              <td className="py-4.5 px-6 text-gray-600 font-medium">
+                                <div className="flex items-center gap-1.5">
+                                  <MapPin size={15} className="text-primary/70 shrink-0" />
+                                  <span>{t(item.location)}</span>
+                                </div>
+                              </td>
+                              <td className="py-4.5 px-6">
+                                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${getLangBadgeStyle(t(item.language))}`}>
+                                  {t(item.language)}
+                                </span>
+                              </td>
+                              <td className="py-4.5 px-6 text-right">
+                                <button
+                                  onClick={() => setSelectedTimetableModal(item)}
+                                  className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-primary-dark hover:underline"
+                                >
+                                  <span>{lang === 'zh' ? '查看指南' : 'View Details'}</span>
+                                  <ChevronRight size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Detailed Service Modal Dialog */}
+              {selectedTimetableModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+                  <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-100 space-y-6 p-6 sm:p-8 relative">
+                    {/* Close button */}
+                    <button 
+                      onClick={() => setSelectedTimetableModal(null)}
+                      className="absolute top-5 right-5 p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      <X size={20} />
+                    </button>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${getDayBadgeStyle(t(selectedTimetableModal.day)).pill}`}>
+                          {t(selectedTimetableModal.day)}
+                        </span>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getLangBadgeStyle(t(selectedTimetableModal.language))}`}>
+                          {t(selectedTimetableModal.language)}
+                        </span>
+                      </div>
+                      <h2 className="text-2xl font-black text-gray-900 leading-tight">
+                        {t(selectedTimetableModal.name)}
+                      </h2>
+                    </div>
+
+                    <div className="space-y-3.5 bg-gray-50/80 p-4 rounded-2xl border border-gray-200/80 text-sm">
+                      <div className="flex items-center gap-3 text-gray-800">
+                        <Clock className="text-primary shrink-0" size={18} />
+                        <div>
+                          <div className="text-[11px] font-bold text-gray-400 uppercase">{lang === 'zh' ? '时间' : 'Time'}</div>
+                          <div className="font-bold">{selectedTimetableModal.time}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3 text-gray-800 pt-2 border-t border-gray-200/60">
+                        <MapPin className="text-primary shrink-0 mt-0.5" size={18} />
+                        <div>
+                          <div className="text-[11px] font-bold text-gray-400 uppercase">{lang === 'zh' ? '地点 / 会堂' : 'Location / Sanctuary'}</div>
+                          <div className="font-bold">{t(selectedTimetableModal.location)}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-gray-800 pt-2 border-t border-gray-200/60">
+                        <Globe className="text-primary shrink-0" size={18} />
+                        <div>
+                          <div className="text-[11px] font-bold text-gray-400 uppercase">{lang === 'zh' ? '使用语言' : 'Language'}</div>
+                          <div className="font-bold">{t(selectedTimetableModal.language)}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions in Modal */}
+                    <div className="space-y-2.5 pt-2">
+                      <button
+                        onClick={() => handleCopyInfo(selectedTimetableModal)}
+                        className={`w-full py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                          copiedModalItem 
+                            ? 'bg-emerald-600 text-white shadow-md' 
+                            : 'bg-primary text-white hover:bg-primary-dark shadow-md'
+                        }`}
+                      >
+                        {copiedModalItem ? (
+                          <>
+                            <CheckCircle size={16} />
+                            <span>{lang === 'zh' ? '已复制聚会详情到剪贴板！' : 'Copied Details to Clipboard!'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={16} />
+                            <span>{lang === 'zh' ? '复制聚会时间与地点信息' : 'Copy Gathering Details'}</span>
+                          </>
+                        )}
+                      </button>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedTimetableModal(null);
+                            setActiveTab('about');
+                            window.scrollTo(0, 0);
+                          }}
+                          className="flex-1 py-2.5 rounded-xl border border-gray-250 text-gray-700 text-xs font-bold hover:bg-gray-50 transition-all text-center"
+                        >
+                          {lang === 'zh' ? '联系教会/负责人' : 'Contact Pastoral Team'}
+                        </button>
+                        <button
+                          onClick={() => setSelectedTimetableModal(null)}
+                          className="py-2.5 px-4 rounded-xl border border-gray-200 text-gray-500 text-xs font-bold hover:bg-gray-100 transition-all"
+                        >
+                          {lang === 'zh' ? '关闭' : 'Close'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Notice Footer Card */}
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 rounded-2xl p-6 border border-amber-200/80 flex flex-col sm:flex-row items-start gap-4 shadow-xs">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                  <Info size={20} />
+                </div>
+                <div className="space-y-2 flex-1">
+                  <h4 className="font-extrabold text-amber-900 text-sm">
+                    {lang === 'zh' ? '新朋友与聚会温馨提示' : 'Kind Notice for Visitors & Holidays'}
+                  </h4>
+                  <p className="text-xs text-amber-900/80 leading-relaxed">
+                    {lang === 'zh'
+                      ? '由于部分聚会（如祷告会、特别讲座等）在公共假期可能调整时间或举行联合崇拜，新朋友在第一次参加前欢迎先致电咨询，或通过网站后台联系牧者同工，以便我们安排最热情的接待。'
+                      : 'Some special or prayer gatherings may merge or adjust timing on public holidays. First-time visitors are warmly welcome to contact our team in advance for directions and hospitality.'}
+                  </p>
+                  <div className="pt-1 flex items-center gap-3">
+                    <button
+                      onClick={() => { setActiveTab('about'); window.scrollTo(0, 0); }}
+                      className="text-xs font-bold text-amber-900 hover:text-amber-700 underline flex items-center gap-1"
+                    >
+                      <span>{lang === 'zh' ? '前往联系牧者与寻找交通路线' : 'Contact Pastors & View Directions'}</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ==================== PAGE: EVENTS ==================== */}
         {activeTab === 'events' && (
