@@ -130,6 +130,10 @@ export default function App() {
   });
   const [autoSaveStatus, setAutoSaveStatus] = useState(''); // 'saving', 'success', 'error'
   const [autoSaveMessage, setAutoSaveMessage] = useState('');
+  const [backupReauthOpen, setBackupReauthOpen] = useState(false);
+  const [backupAccessGranted, setBackupAccessGranted] = useState(false);
+  const [backupPasswordInput, setBackupPasswordInput] = useState('');
+  const [backupLoginError, setBackupLoginError] = useState('');
 
   // Apply theme color
   useEffect(() => {
@@ -292,6 +296,44 @@ export default function App() {
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
     setActiveTab('home');
+    setBackupAccessGranted(false);
+    setBackupReauthOpen(false);
+    setBackupPasswordInput('');
+    setBackupLoginError('');
+  };
+
+  const resetAdminEditors = () => {
+    setEditingSlide(null);
+    setEditingTimetable(null);
+    setEditingEvent(null);
+    setEditingMinistry(null);
+    setEditingBulletin(null);
+    setEditingCellGroup(null);
+    setEditingLeader(null);
+    setEditingSermon(null);
+    setEditingOfferingMethod(null);
+    setEditingGuideSection(null);
+  };
+
+  const requestBackupAccess = () => {
+    resetAdminEditors();
+    setBackupAccessGranted(false);
+    setBackupPasswordInput('');
+    setBackupLoginError('');
+    setBackupReauthOpen(true);
+  };
+
+  const handleBackupReauth = (e) => {
+    e.preventDefault();
+    if (backupPasswordInput === data.settings.adminPassword) {
+      setBackupAccessGranted(true);
+      setBackupReauthOpen(false);
+      setBackupLoginError('');
+      setBackupPasswordInput('');
+      setAdminActiveSection('backup');
+    } else {
+      setBackupLoginError(lang === 'zh' ? '密码不正确，请重新验证' : 'Incorrect password, please verify again');
+    }
   };
 
   // 1. Settings Update
@@ -2090,17 +2132,13 @@ export default function App() {
                         <button
                           key={sec.id}
                           onClick={() => {
+                            if (sec.id === 'backup') {
+                              requestBackupAccess();
+                              return;
+                            }
                             setAdminActiveSection(sec.id);
-                            setEditingSlide(null);
-                            setEditingTimetable(null);
-                            setEditingEvent(null);
-                            setEditingMinistry(null);
-                            setEditingBulletin(null);
-                            setEditingCellGroup(null);
-                            setEditingLeader(null);
-                            setEditingSermon(null);
-                            setEditingOfferingMethod(null);
-                            setEditingGuideSection(null);
+                            setBackupAccessGranted(false);
+                            resetAdminEditors();
                           }}
                           className={`w-full text-left px-3.5 py-3 rounded-lg text-xs font-semibold flex items-center gap-2.5 transition-all ${
                             adminActiveSection === sec.id
@@ -2132,6 +2170,102 @@ export default function App() {
                     <div className="bg-emerald-50 text-emerald-800 p-3.5 rounded-xl border border-emerald-200 text-xs font-semibold flex items-center gap-2 animate-fade-in">
                       <CheckCircle size={16} className="shrink-0" />
                       <span>{adminSuccessMessage}</span>
+                    </div>
+                  )}
+
+                  {backupReauthOpen && (
+                    <div className="fixed inset-0 z-50 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+                      <div className="w-full max-w-md bg-white rounded-2xl border border-amber-200 shadow-2xl p-6 space-y-5 animate-fade-in">
+                        <div className="text-center space-y-3">
+                          <div className="inline-flex p-3 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100">
+                            <Lock size={28} />
+                          </div>
+                          <h2 className="text-lg font-extrabold text-gray-900">
+                            {lang === 'zh' ? '请再次验证管理员身份' : 'Re-enter Admin Login'}
+                          </h2>
+                          <p className="text-xs text-gray-500 leading-relaxed">
+                            {lang === 'zh'
+                              ? '备份与恢复包含 GitHub Token、同步开关、导入和重置等高风险设置。请重新输入管理员密码后才可进入。'
+                              : 'Backup & Restore contains sensitive GitHub token, sync toggle, import, and reset controls. Please re-enter the admin password to continue.'}
+                          </p>
+                        </div>
+
+                        <form onSubmit={handleBackupReauth} className="space-y-4">
+                          <div>
+                            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
+                              {lang === 'zh' ? '管理员密码' : 'Admin Password'}
+                            </label>
+                            <input
+                              type="password"
+                              value={backupPasswordInput}
+                              onChange={(e) => setBackupPasswordInput(e.target.value)}
+                              placeholder="••••••••"
+                              autoFocus
+                              required
+                              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm transition-all"
+                            />
+                          </div>
+
+                          {backupLoginError && (
+                            <div className="text-xs text-red-600 bg-red-50 p-2.5 rounded border border-red-100 flex items-center gap-1.5">
+                              <AlertTriangle size={14} className="shrink-0" />
+                              <span>{backupLoginError}</span>
+                            </div>
+                          )}
+
+                          <div className="flex gap-3">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBackupReauthOpen(false);
+                                setBackupPasswordInput('');
+                                setBackupLoginError('');
+                              }}
+                              className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-semibold transition-all"
+                            >
+                              {lang === 'zh' ? '取消' : 'Cancel'}
+                            </button>
+                            <button
+                              type="submit"
+                              className="flex-1 py-2.5 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-1.5"
+                            >
+                              <Shield size={14} />
+                              <span>{lang === 'zh' ? '验证并进入' : 'Verify & Open'}</span>
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  )}
+
+                  {adminActiveSection !== 'backup' && (
+                    <div className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${autoSaveStatus === 'saving'
+                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                      : autoSaveStatus === 'success'
+                      ? 'bg-green-50 text-green-700 border-green-200'
+                      : autoSaveStatus === 'error'
+                      ? 'bg-red-50 text-red-700 border-red-200'
+                      : autoSaveToGithub && githubPat && githubRepo
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-gray-50 text-gray-500 border-gray-200'
+                    }`}>
+                      {autoSaveStatus === 'saving' ? (
+                        <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                      ) : autoSaveStatus === 'success' ? (
+                        <CheckCircle size={15} className="shrink-0" />
+                      ) : autoSaveStatus === 'error' ? (
+                        <AlertTriangle size={15} className="shrink-0" />
+                      ) : (
+                        <Download size={15} className="shrink-0" />
+                      )}
+                      <span>
+                        {autoSaveMessage || (autoSaveToGithub && githubPat && githubRepo
+                          ? (lang === 'zh' ? 'GitHub 自动同步已启用。保存内容时会自动同步。' : 'GitHub auto-sync is enabled. Saves will sync automatically.')
+                          : (lang === 'zh' ? 'GitHub 自动同步未启用；设置仅在“备份与恢复”中管理。' : 'GitHub auto-sync is not enabled; settings are managed only in Backup & Restore.'))}
+                      </span>
                     </div>
                   )}
 
@@ -2586,141 +2720,6 @@ export default function App() {
                       </div>
                     </div>
                   )}
-
-                        {/* ===== Auto-Save to GitHub ===== */}
-                        <div className="md:col-span-2 pt-6 mt-4 border-t-2 border-primary/20">
-                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <Download size={14} className="text-primary" />
-                            {lang === 'zh' ? '自动保存到 GitHub' : 'Auto-Save to GitHub'}
-                          </h3>
-                          <p className="text-[10px] text-gray-500 mb-4">
-                            {lang === 'zh'
-                              ? '开启后，每次在后台保存修改时，浏览器会直接通过 GitHub API 将数据提交到仓库的 initialData.js 文件。需要 GitHub Personal Access Token。'
-                              : 'When enabled, every admin save commits directly to initialData.js on GitHub via the GitHub API. A GitHub Personal Access Token is required.'}
-                          </p>
-
-                          <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <label className="text-xs font-bold text-gray-700">
-                                  {lang === 'zh' ? '启用自动同步' : 'Enable Auto-Sync'}
-                                </label>
-                                <p className="text-[10px] text-gray-400 mt-0.5">
-                                  {lang === 'zh' ? '修改保存后自动推送到 GitHub' : 'Auto-push to GitHub after each save'}
-                                </p>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  const next = !autoSaveToGithub;
-                                  setAutoSaveToGithub(next);
-                                  localStorage.setItem('bmbcc_autosave_github', String(next));
-                                }}
-                                className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${autoSaveToGithub ? 'bg-primary' : 'bg-gray-300'}`}
-                              >
-                                <span
-                                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${autoSaveToGithub ? 'translate-x-5' : 'translate-x-0'}`}
-                                />
-                              </button>
-                            </div>
-
-                            {autoSaveToGithub && (
-                              <>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                                    {lang === 'zh' ? 'GitHub Personal Access Token' : 'GitHub Personal Access Token'}
-                                  </label>
-                                  <input
-                                    type="password"
-                                    value={githubPat}
-                                    onChange={(e) => {
-                                      setGithubPat(e.target.value);
-                                      localStorage.setItem('bmbcc_github_pat', e.target.value);
-                                    }}
-                                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                                    className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
-                                  />
-                                  <p className="text-[10px] text-gray-400 mt-1">
-                                    {lang === 'zh'
-                                      ? 'Token 仅保存在此浏览器的 localStorage 中，不会上传到任何服务器。'
-                                      : 'Token is only stored in this browsers localStorage — never sent to any server except GitHub.'}
-                                  </p>
-                                </div>
-
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                                    {lang === 'zh' ? 'GitHub 仓库' : 'GitHub Repository'}
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={githubRepo}
-                                    onChange={(e) => {
-                                      setGithubRepo(e.target.value);
-                                      localStorage.setItem('bmbcc_github_repo', e.target.value);
-                                    }}
-                                    placeholder="fongway94/BMBCCWebpage"
-                                    className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
-                                  />
-                                </div>
-
-                                {autoSaveStatus && (
-                                  <div
-                                    className={`text-xs p-2.5 rounded-lg flex items-center gap-2 ${autoSaveStatus === 'saving'
-                                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                        : autoSaveStatus === 'success'
-                                        ? 'bg-green-50 text-green-700 border border-green-200'
-                                        : 'bg-red-50 text-red-700 border border-red-200'
-                                      }`}
-                                  >
-                                    {autoSaveStatus === 'saving' && (
-                                      <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                      </svg>
-                                    )}
-                                    <span>{autoSaveMessage}</span>
-                                  </div>
-                                )}
-
-                                <details className="text-[10px] text-gray-500 mt-2">
-                                  <summary className="cursor-pointer font-semibold text-gray-600 hover:text-gray-800">
-                                    {lang === 'zh' ? '📖 如何设置？只需3步！' : '📖 How to set up? Only 3 steps!'}
-                                  </summary>
-                                  <div className="mt-2 space-y-2 pl-1 leading-relaxed">
-                                    <p className="font-bold text-gray-700">
-                                      {lang === 'zh' ? '步骤：' : 'Steps:'}
-                                    </p>
-                                    <ol className="list-decimal pl-4 space-y-1.5">
-                                      <li>
-                                        {lang === 'zh'
-                                          ? '在 GitHub 创建 Personal Access Token：Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token'
-                                          : 'Create a PAT on GitHub: Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token'}
-                                        <ul className="pl-3 mt-1 space-y-0.5 text-[9px]">
-                                          <li>{lang === 'zh' ? '• Repository access: Only select repositories → BMBCCWebpage' : '• Repository access: Only select repositories → BMBCCWebpage'}</li>
-                                          <li>{lang === 'zh' ? '• Permissions: Contents → Read and write' : '• Permissions: Contents → Read and write'}</li>
-                                        </ul>
-                                      </li>
-                                      <li>
-                                        {lang === 'zh'
-                                          ? '将生成的 Token（以 ghp_ 开头）粘贴到上面的输入框中'
-                                          : 'Paste the generated token (starts with ghp_) into the input field above'}
-                                      </li>
-                                      <li>
-                                        {lang === 'zh'
-                                          ? '确认仓库名为 fongway94/BMBCCWebpage，然后开启开关 — 以后每次保存就会自动提交到 GitHub！不需要任何服务器。'
-                                          : 'Confirm the repo name is fongway94/BMBCCWebpage, then flip the switch — every save will auto-commit to GitHub! No server needed at all.'}
-                                      </li>
-                                    </ol>
-                                    <p className="text-[9px] text-amber-600 mt-2">
-                                      {lang === 'zh'
-                                        ? '⚠️ 注意：Token 存储在浏览器的 localStorage，仅通过 HTTPS 发送到 api.github.com。建议使用 Fine-grained token 并设置过期时间。'
-                                        : '⚠️ Note: Token stored in browser localStorage, sent only to api.github.com over HTTPS. Use a fine-grained token with expiry for best security.'}
-                                    </p>
-                                  </div>
-                                </details>
-                              </>
-                            )}
-                          </div>
-                        </div>
 
                   {/* SECTION 2: CAROUSEL SLIDES */}
                   {adminActiveSection === 'carousel' && (
@@ -4372,7 +4371,7 @@ export default function App() {
                   )}
 
                   {/* SECTION 6: BACKUP & DATA TRANSFERS */}
-                  {adminActiveSection === 'backup' && (
+                  {adminActiveSection === 'backup' && backupAccessGranted && (
                     <div className="space-y-6">
                       <div>
                         <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '数据备份、本地恢复与重置' : 'Backup, Import & Factory Reset'}</h2>
@@ -4381,6 +4380,141 @@ export default function App() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-gray-100">
                         
+                        {/* ===== Auto-Save to GitHub ===== */}
+                        <div className="md:col-span-2 pt-6 mt-4 border-t-2 border-primary/20">
+                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <Download size={14} className="text-primary" />
+                            {lang === 'zh' ? '自动保存到 GitHub' : 'Auto-Save to GitHub'}
+                          </h3>
+                          <p className="text-[10px] text-gray-500 mb-4">
+                            {lang === 'zh'
+                              ? '开启后，每次在后台保存修改时，浏览器会直接通过 GitHub API 将数据提交到仓库的 initialData.js 文件。需要 GitHub Personal Access Token。'
+                              : 'When enabled, every admin save commits directly to initialData.js on GitHub via the GitHub API. A GitHub Personal Access Token is required.'}
+                          </p>
+
+                          <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <label className="text-xs font-bold text-gray-700">
+                                  {lang === 'zh' ? '启用自动同步' : 'Enable Auto-Sync'}
+                                </label>
+                                <p className="text-[10px] text-gray-400 mt-0.5">
+                                  {lang === 'zh' ? '修改保存后自动推送到 GitHub' : 'Auto-push to GitHub after each save'}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  const next = !autoSaveToGithub;
+                                  setAutoSaveToGithub(next);
+                                  localStorage.setItem('bmbcc_autosave_github', String(next));
+                                }}
+                                className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${autoSaveToGithub ? 'bg-primary' : 'bg-gray-300'}`}
+                              >
+                                <span
+                                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${autoSaveToGithub ? 'translate-x-5' : 'translate-x-0'}`}
+                                />
+                              </button>
+                            </div>
+
+                            {autoSaveToGithub && (
+                              <>
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                                    {lang === 'zh' ? 'GitHub Personal Access Token' : 'GitHub Personal Access Token'}
+                                  </label>
+                                  <input
+                                    type="password"
+                                    value={githubPat}
+                                    onChange={(e) => {
+                                      setGithubPat(e.target.value);
+                                      localStorage.setItem('bmbcc_github_pat', e.target.value);
+                                    }}
+                                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                                    className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                                  />
+                                  <p className="text-[10px] text-gray-400 mt-1">
+                                    {lang === 'zh'
+                                      ? 'Token 仅保存在此浏览器的 localStorage 中，不会上传到任何服务器。'
+                                      : 'Token is only stored in this browsers localStorage — never sent to any server except GitHub.'}
+                                  </p>
+                                </div>
+
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                                    {lang === 'zh' ? 'GitHub 仓库' : 'GitHub Repository'}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={githubRepo}
+                                    onChange={(e) => {
+                                      setGithubRepo(e.target.value);
+                                      localStorage.setItem('bmbcc_github_repo', e.target.value);
+                                    }}
+                                    placeholder="fongway94/BMBCCWebpage"
+                                    className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                                  />
+                                </div>
+
+                                {autoSaveStatus && (
+                                  <div
+                                    className={`text-xs p-2.5 rounded-lg flex items-center gap-2 ${autoSaveStatus === 'saving'
+                                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                        : autoSaveStatus === 'success'
+                                        ? 'bg-green-50 text-green-700 border border-green-200'
+                                        : 'bg-red-50 text-red-700 border border-red-200'
+                                      }`}
+                                  >
+                                    {autoSaveStatus === 'saving' && (
+                                      <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                      </svg>
+                                    )}
+                                    <span>{autoSaveMessage}</span>
+                                  </div>
+                                )}
+
+                                <details className="text-[10px] text-gray-500 mt-2">
+                                  <summary className="cursor-pointer font-semibold text-gray-600 hover:text-gray-800">
+                                    {lang === 'zh' ? '📖 如何设置？只需3步！' : '📖 How to set up? Only 3 steps!'}
+                                  </summary>
+                                  <div className="mt-2 space-y-2 pl-1 leading-relaxed">
+                                    <p className="font-bold text-gray-700">
+                                      {lang === 'zh' ? '步骤：' : 'Steps:'}
+                                    </p>
+                                    <ol className="list-decimal pl-4 space-y-1.5">
+                                      <li>
+                                        {lang === 'zh'
+                                          ? '在 GitHub 创建 Personal Access Token：Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token'
+                                          : 'Create a PAT on GitHub: Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token'}
+                                        <ul className="pl-3 mt-1 space-y-0.5 text-[9px]">
+                                          <li>{lang === 'zh' ? '• Repository access: Only select repositories → BMBCCWebpage' : '• Repository access: Only select repositories → BMBCCWebpage'}</li>
+                                          <li>{lang === 'zh' ? '• Permissions: Contents → Read and write' : '• Permissions: Contents → Read and write'}</li>
+                                        </ul>
+                                      </li>
+                                      <li>
+                                        {lang === 'zh'
+                                          ? '将生成的 Token（以 ghp_ 开头）粘贴到上面的输入框中'
+                                          : 'Paste the generated token (starts with ghp_) into the input field above'}
+                                      </li>
+                                      <li>
+                                        {lang === 'zh'
+                                          ? '确认仓库名为 fongway94/BMBCCWebpage，然后开启开关 — 以后每次保存就会自动提交到 GitHub！不需要任何服务器。'
+                                          : 'Confirm the repo name is fongway94/BMBCCWebpage, then flip the switch — every save will auto-commit to GitHub! No server needed at all.'}
+                                      </li>
+                                    </ol>
+                                    <p className="text-[9px] text-amber-600 mt-2">
+                                      {lang === 'zh'
+                                        ? '⚠️ 注意：Token 存储在浏览器的 localStorage，仅通过 HTTPS 发送到 api.github.com。建议使用 Fine-grained token 并设置过期时间。'
+                                        : '⚠️ Note: Token stored in browser localStorage, sent only to api.github.com over HTTPS. Use a fine-grained token with expiry for best security.'}
+                                    </p>
+                                  </div>
+                                </details>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
                         {/* Export block */}
                         <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4">
                           <div className="flex items-center gap-2 text-primary">
