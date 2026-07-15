@@ -53,56 +53,15 @@ import {
 } from 'lucide-react';
 import { initialData } from './data/initialData';
 
-// Helper functions for Timetable styling
+// Helper functions for Timetable styling - standardized to primary emerald theme
 const getDayBadgeStyle = (dayStr) => {
-  const str = String(dayStr || '').toLowerCase();
-  if (str.includes('日') || str.includes('sun')) {
-    return {
-      bg: 'bg-indigo-50/80 hover:bg-indigo-100/90',
-      text: 'text-indigo-700',
-      border: 'border-indigo-200/80',
-      gradient: 'from-indigo-600 to-violet-600',
-      pill: 'bg-indigo-100 text-indigo-800 font-semibold',
-      dot: 'bg-indigo-500'
-    };
-  }
-  if (str.includes('六') || str.includes('sat')) {
-    return {
-      bg: 'bg-sky-50/80 hover:bg-sky-100/90',
-      text: 'text-sky-700',
-      border: 'border-sky-200/80',
-      gradient: 'from-sky-500 to-blue-600',
-      pill: 'bg-sky-100 text-sky-800 font-semibold',
-      dot: 'bg-sky-500'
-    };
-  }
-  if (str.includes('五') || str.includes('fri')) {
-    return {
-      bg: 'bg-emerald-50/80 hover:bg-emerald-100/90',
-      text: 'text-emerald-700',
-      border: 'border-emerald-200/80',
-      gradient: 'from-emerald-500 to-teal-600',
-      pill: 'bg-emerald-100 text-emerald-800 font-semibold',
-      dot: 'bg-emerald-500'
-    };
-  }
-  if (str.includes('四') || str.includes('thu')) {
-    return {
-      bg: 'bg-amber-50/80 hover:bg-amber-100/90',
-      text: 'text-amber-700',
-      border: 'border-amber-200/80',
-      gradient: 'from-amber-500 to-orange-600',
-      pill: 'bg-amber-100 text-amber-800 font-semibold',
-      dot: 'bg-amber-500'
-    };
-  }
   return {
-    bg: 'bg-purple-50/80 hover:bg-purple-100/90',
-    text: 'text-purple-700',
-    border: 'border-purple-200/80',
-    gradient: 'from-purple-500 to-indigo-600',
-    pill: 'bg-purple-100 text-purple-800 font-semibold',
-    dot: 'bg-purple-500'
+    bg: 'bg-emerald-50/80 hover:bg-emerald-100/90',
+    text: 'text-emerald-700',
+    border: 'border-emerald-200/80',
+    gradient: 'from-primary to-primary-dark',
+    pill: 'bg-emerald-100 text-emerald-800 font-semibold',
+    dot: 'bg-primary'
   };
 };
 
@@ -1004,7 +963,7 @@ export default function App() {
                     <img 
                       src={data.carousel[currentSlide].image} 
                       alt="Banner Image" 
-                      className="w-full h-full object-cover opacity-90"
+                      className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-black/25 to-black/20" />
                   </div>
@@ -1496,44 +1455,20 @@ export default function App() {
           };
 
           return (
-            <div className="animate-fade-in py-10 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto space-y-10">
-              {/* Header Hero Banner */}
-              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-gray-900 via-primary-dark to-gray-900 text-white p-8 sm:p-12 shadow-xl border border-white/10">
-                <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-80 h-80 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
-
-                <div className="relative z-10 max-w-3xl space-y-4">
-                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold uppercase tracking-wider text-primary-light">
-                    <Sparkles size={14} className="text-amber-300 animate-pulse" />
-                    <span>{lang === 'zh' ? '与我们一同朝见神与相聚' : 'Fellowship & Grow Together'}</span>
-                  </div>
-
-                  <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white leading-tight">
-                    {lang === 'zh' ? '周聚会与崇拜时间表' : 'Weekly Services & Timetable'}
-                  </h1>
-
-                  <p className="text-gray-200 text-base md:text-lg font-light leading-relaxed">
-                    {lang === 'zh' 
-                      ? '我们诚挚地邀请您和您的家人参与我们的周聚会，共同在敬拜、祷告、真理和爱心团契里，经历生命的翻转与复兴。' 
-                      : 'We warmly invite you and your family to join our weekly gatherings for worship, prayer, truth, and genuine community.'}
-                  </p>
-
-                  {/* Stat Highlights Pills */}
-                  <div className="pt-4 flex flex-wrap gap-3 text-xs md:text-sm font-medium">
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-white shadow-sm">
-                      <CalendarCheck size={18} className="text-emerald-400" />
-                      <span><strong>{data.timetable.length}</strong> {lang === 'zh' ? '场每周聚会' : 'Weekly Gatherings'}</span>
-                    </div>
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-white shadow-sm">
-                      <Globe size={18} className="text-sky-400" />
-                      <span><strong>{uniqueLangs.length}</strong> {lang === 'zh' ? '种媒介语言' : 'Languages Offered'}</span>
-                    </div>
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-white shadow-sm">
-                      <MapPin size={18} className="text-amber-400" />
-                      <span>{lang === 'zh' ? '主堂、分堂与各社区据点' : 'Multiple Worship Sanctuaries'}</span>
-                    </div>
-                  </div>
-                </div>
+            <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
+              {/* Header - standardized to match other pages */}
+              <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+                <span className="text-primary font-bold uppercase tracking-wider text-xs">
+                  {lang === 'zh' ? '与我们一同朝见神与相聚' : 'Fellowship & Grow Together'}
+                </span>
+                <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+                  {lang === 'zh' ? '周聚会与崇拜时间表' : 'Weekly Services & Timetable'}
+                </h1>
+                <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
+                  {lang === 'zh' 
+                    ? '我们诚挚地邀请您和您的家人参与我们的周聚会，共同在敬拜、祷告、真理和爱心团契里，经历生命的翻转与复兴。' 
+                    : 'We warmly invite you and your family to join our weekly gatherings for worship, prayer, truth, and genuine community.'}
+                </p>
               </div>
 
               {/* Filters & Control Toolbar */}
