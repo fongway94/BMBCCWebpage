@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
+// vite.config.js
 export default defineConfig({
   plugins: [react()],
-  base: '/BMBCCWebpage/', // Specifies the correct subdirectory for GitHub Pages
+  base: '/',  // ← Change this to root
 })
