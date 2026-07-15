@@ -1,8 +1,8 @@
-# Cloudflare Pages Redirects for SPA
-# Place in public/ folder to be copied to dist/
-
-# API routes - ensure they're not caught by SPA fallback
-/functions/auth*  /functions/auth*  200
-
-# SPA fallback - all other routes serve index.html
-/*  /index.html  200
+# Cloudflare Pages SPA routing
+#
+# Cloudflare Pages serves index.html for not-found static routes when no 404.html
+# is present, which supports direct visits such as /admin. Keeping the old
+# Netlify-style rule `/* /index.html 200` causes current Wrangler/Cloudflare
+# validation to report an infinite loop, so no explicit wildcard rewrite is used.
+#
+# Pages Functions routes such as /functions/auth are handled separately.

@@ -54,6 +54,8 @@ import {
 } from 'lucide-react';
 import { initialData } from './data/initialData';
 
+const AUTH_ENDPOINT = '/functions/auth';
+
 // Helper functions for Timetable styling - standardized to primary emerald theme
 const getDayBadgeStyle = (dayStr) => {
   return {
@@ -87,6 +89,19 @@ const getLangBadgeStyle = (langStr) => {
 };
 
 // Theme color map for CSS variable injection
+
+const stripSensitiveData = (siteData) => {
+  const sanitized = {
+    ...siteData,
+    settings: { ...(siteData?.settings || {}) }
+  };
+
+  // Older localStorage/backups may contain a client-side adminPassword field.
+  // Never keep it in state, exports, localStorage, or GitHub auto-save commits.
+  delete sanitized.settings.adminPassword;
+  return sanitized;
+};
+
 const colorsMap = {
   emerald: { primary: '16 185 129', dark: '5 150 105', light: '209 250 229', name: 'Emerald / 翡翠绿' },
   indigo: { primary: '99 102 241', dark: '79 70 229', light: '224 231 255', name: 'Indigo / 靛青蓝' },
@@ -115,13 +130,14 @@ export default function App() {
         };
         const settingsKeys = ['churchName','slogan','description','themeYear','aboutIntro','aboutVision','aboutMission','homeVisionPara1','homeVisionPara2','yearlyVisionLabel','yearlyVisionTitle','yearlyVisionBadge','yearlyVisionScripture','yearlyVisionRef','ctaTitle','ctaDescription'];
         const mergedSettings = { ...initialData.settings, ...(parsed.settings || {}) };
+        delete mergedSettings.adminPassword;
         settingsKeys.forEach(k => {
           if (initialData.settings[k]) {
             mergedSettings[k] = mergeBilingual(initialData.settings[k], parsed.settings?.[k]);
           }
         });
         // Ensure standard structure is present
-        return { ...initialData, ...parsed, settings: mergedSettings };
+        return stripSensitiveData({ ...initialData, ...parsed, settings: mergedSettings });
       } catch (e) {
         console.error("Error parsing localstorage data, using defaults", e);
         return initialData;
@@ -147,7 +163,7 @@ export default function App() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch('/functions/auth', { 
+        const res = await fetch(AUTH_ENDPOINT, {
           method: 'GET', 
           credentials: 'include' 
         });
@@ -194,7 +210,7 @@ export default function App() {
   const [copiedModalItem, setCopiedModalItem] = useState(false);
 
   // Build-time GitHub config (injected by Vite from env vars)
-  const GITHUB_PAT_DEFAULT = import.meta.env?.VITE_GITHUB_PAT || '';
+  const GITHUB_PAT_DEFAULT = ''; // Never inject GitHub tokens at build time; enter them in the admin UI only.
   const GITHUB_REPO_DEFAULT = import.meta.env?.VITE_GITHUB_REPO || 'fongway94/BMBCCWebpage';
   const AUTO_SAVE_GITHUB_DEFAULT = import.meta.env?.VITE_AUTO_SAVE_GITHUB === 'true';
 
@@ -228,8 +244,9 @@ export default function App() {
 
   // Save helper
   const saveAllData = (newData) => {
-    setData(newData);
-    localStorage.setItem('bmbcc_site_data', JSON.stringify(newData));
+    const sanitizedData = stripSensitiveData(newData);
+    setData(sanitizedData);
+    localStorage.setItem('bmbcc_site_data', JSON.stringify(sanitizedData));
     triggerAdminSuccess("修改已成功保存并即时生效！Changes saved successfully!");
 
     // Auto-save to GitHub if enabled (direct GitHub API, no server needed)
@@ -250,7 +267,7 @@ export default function App() {
         .then((res) => res.ok ? res.json() : Promise.resolve({ sha: null }))
         .then((fileInfo) => {
           const sha = fileInfo.sha || null;
-          const jsContent = 'export const initialData = ' + JSON.stringify(newData, null, 2) + ';\n';
+          const jsContent = 'export const initialData = ' + JSON.stringify(sanitizedData, null, 2) + ';\n';
           const base64Content = btoa(unescape(encodeURIComponent(jsContent)));
 
           const body = {
@@ -378,7 +395,7 @@ export default function App() {
     }
 
     try {
-      const res = await fetch('/functions/auth', {
+      const res = await fetch(AUTH_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // Critical: sends HttpOnly cookie
@@ -401,7 +418,7 @@ export default function App() {
 
   const handleAdminLogout = async () => {
     try {
-      await fetch('/functions/auth', { 
+      await fetch(AUTH_ENDPOINT, {
         method: 'DELETE', 
         credentials: 'include' 
       });
@@ -437,16 +454,30 @@ export default function App() {
     setBackupReauthOpen(true);
   };
 
-  const handleBackupReauth = (e) => {
+  const handleBackupReauth = async (e) => {
     e.preventDefault();
-    if (backupPasswordInput === data.settings.adminPassword) {
-      setBackupAccessGranted(true);
-      setBackupReauthOpen(false);
-      setBackupLoginError('');
-      setBackupPasswordInput('');
-      setAdminActiveSection('backup');
-    } else {
-      setBackupLoginError(lang === 'zh' ? '密码不正确，请重新验证' : 'Incorrect password, please verify again');
+
+    try {
+      const res = await fetch(AUTH_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ password: backupPasswordInput })
+      });
+      const result = await res.json();
+
+      if (result.ok) {
+        setBackupAccessGranted(true);
+        setBackupReauthOpen(false);
+        setBackupLoginError('');
+        setBackupPasswordInput('');
+        setAdminActiveSection('backup');
+      } else {
+        setBackupLoginError(result.error || (lang === 'zh' ? '密码不正确，请重新验证' : 'Incorrect password, please verify again'));
+      }
+    } catch (err) {
+      console.error('Backup re-auth error:', err);
+      setBackupLoginError(lang === 'zh' ? '网络错误，请重试' : 'Network error, please try again');
     }
   };
 
@@ -738,7 +769,7 @@ export default function App() {
 
   // 6. Backup Actions
   const handleExportData = () => {
-    const jsonStr = JSON.stringify(data, null, 2);
+    const jsonStr = JSON.stringify(stripSensitiveData(data), null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -3208,7 +3239,7 @@ export default function App() {
 
                 <div className="pt-2 border-t border-gray-100 text-center">
                   <span className="text-[10px] text-gray-400 font-mono">
-                    {lang === 'zh' ? '密码在构建时通过环境变量设置' : 'Password set via build-time env var'}
+                    {lang === 'zh' ? '密码由 Cloudflare Secret 安全验证' : 'Password verified securely by Cloudflare Secret'}
                   </span>
                 </div>
               </div>
@@ -3719,17 +3750,8 @@ export default function App() {
                           />
                         </div>
 
-                        {/* Change Password */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">修改后台管理密码 / Admin Password</label>
-                          <input 
-                            type="text"
-                            value={data.settings.adminPassword}
-                            onChange={(e) => updateSetting('adminPassword', null, e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-amber-300 bg-amber-50/30 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
+                        {/* Admin password change setting temporarily hidden.
+                            Password rotation is handled in Cloudflare Pages secrets. */}
                                                 {/* SHOW LOGIN BUTTON TOGGLE */}
                         <div className="md:col-span-2">
                           <label className="block text-xs font-bold text-gray-700 mb-1">

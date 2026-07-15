@@ -1,18 +1,14 @@
 # Cloudflare Pages Headers
-# Place in public/ folder to be copied to dist/
+# Copied to dist/ by Vite during npm run build.
 
 /*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.github.com; frame-src https://www.google.com https://maps.google.com https://www.youtube.com https://youtube.com; media-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   X-XSS-Protection: 1; mode=block
 
+# Function responses also set same-origin credential headers in functions/auth.ts.
 /functions/auth*
-  Access-Control-Allow-Origin: *
-  Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS
-  Access-Control-Allow-Headers: Content-Type
-  Access-Control-Allow-Credentials: true
-
-# SPA fallback - handled by Cloudflare Pages automatically
-# But ensure clean URLs work
+  Cache-Control: no-store

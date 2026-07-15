@@ -1,27 +1,7 @@
-// Build-time configuration injected by Vite from environment variables
-// SECURITY: Admin password is NOT hardcoded - it comes from VITE_ADMIN_PASSWORD env var at build time
-// For GitHub Pages: Set VITE_ADMIN_PASSWORD in repository Settings > Secrets > Actions > Environment variables
-// or in your deployment workflow
-
-const ADMIN_PASSWORD = (() => {
-  const pwd = import.meta.env?.VITE_ADMIN_PASSWORD;
-  if (!pwd) {
-    // This will fail the build if no password is configured
-    throw new Error(
-      '[SECURITY ERROR] VITE_ADMIN_PASSWORD environment variable is required!\n' +
-      'Set it in your .env.local (local) or GitHub repository secrets (production).\n' +
-      'Generate a strong password: openssl rand -base64 18'
-    );
-  }
-  if (pwd.length < 12) {
-    throw new Error('[SECURITY ERROR] VITE_ADMIN_PASSWORD must be at least 12 characters long');
-  }
-  return pwd;
-})();
-
-const GITHUB_PAT = import.meta.env?.VITE_GITHUB_PAT || '';
-const GITHUB_REPO = import.meta.env?.VITE_GITHUB_REPO || 'fongway94/BMBCCWebpage';
-const AUTO_SAVE_GITHUB = import.meta.env?.VITE_AUTO_SAVE_GITHUB === 'true';
+// Initial public site content.
+// SECURITY: Admin credentials are not stored in this client-side data file.
+// Cloudflare Pages Functions read ADMIN_PASSWORD and JWT_SECRET from encrypted
+// Cloudflare environment secrets at request time.
 
 export const initialData = {
   "settings": {
@@ -95,7 +75,6 @@ export const initialData = {
       "zh": "无论您是在寻找生命的意义、属灵的港湾，还是社区的陪伴，这里的大门始终为您敞开。让我们一起在主爱里生活，彼此扶持！",
       "en": "Whether you seek the meaning of life, a spiritual home, or community fellowship, our doors are always open. Let's grow and support each other in His grace!"
     },
-    "adminPassword": ADMIN_PASSWORD,
     "showLoginButton": false
   },
   "carousel": [
