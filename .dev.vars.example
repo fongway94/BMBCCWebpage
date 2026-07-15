@@ -1,0 +1,5 @@
+# Local Cloudflare Pages Functions secrets for Wrangler.
+# Copy to .dev.vars for local edge-function testing. .dev.vars is gitignored.
+
+ADMIN_PASSWORD=replace-with-local-admin-password
+JWT_SECRET=replace-with-local-jwt-secret

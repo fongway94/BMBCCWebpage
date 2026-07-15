@@ -17,7 +17,7 @@ Complete migration from GitHub Pages to Cloudflare Pages with edge authenticatio
 Run these commands locally to generate strong secrets:
 
 ```bash
-# Admin password (use SAME value in both places)
+# Admin password (server-side Cloudflare secret only)
 openssl rand -base64 18
 # Example output: jBbNtc+Vc0DLMcJj4UYvG7xW
 
@@ -26,7 +26,7 @@ openssl rand -base64 32
 # Example output: a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8s9T0u1V2w3X4y5Z6
 ```
 
-**Save both values!** You'll need them in Cloudflare dashboard.
+**Save both values securely.** You'll need them in the Cloudflare dashboard. They must not be committed or put in `VITE_*` variables.
 
 ---
 
@@ -47,7 +47,7 @@ openssl rand -base64 32
 | **Root directory** | *(leave empty)* |
 | **Node.js version** | `18` (or `20`) |
 
-4. Click **Save and Deploy** (first deploy will fail without env vars - that's OK)
+4. Click **Save and Deploy**
 
 ### 2.2 Add Environment Variables
 
@@ -103,7 +103,11 @@ After adding env vars, go to **Deployments** → **Retry deployment** (or push a
 
 ```bash
 cp .env.example .env.local
-# Edit .env.local with your VITE_ADMIN_PASSWORD (same as ADMIN_PASSWORD)
+# Optional: edit only public Vite defaults such as VITE_GITHUB_REPO.
+# Do not put passwords or tokens in VITE_* variables.
+
+cp .dev.vars.example .dev.vars
+# Edit .dev.vars with local ADMIN_PASSWORD and JWT_SECRET for Wrangler.
 ```
 
 ### 5.2 Run Dev Server
@@ -113,11 +117,11 @@ npm run dev
 # Opens http://localhost:5173
 ```
 
-**Note:** Local dev uses localStorage auth (no edge function). For full local testing with edge auth, use **Wrangler**:
+**Note:** `npm run dev` serves only the Vite app; Cloudflare Pages Functions are not available there. For admin login and full edge-auth testing, build and run with **Wrangler**:
 
 ```bash
-npm install -g wrangler
-wrangler pages dev dist --port 8788
+npm run build
+npx wrangler pages dev dist --port 8788
 # Opens http://localhost:8788 with edge functions
 ```
 
@@ -163,18 +167,20 @@ git push origin main
 
 | Error | Solution |
 |-------|----------|
-| `ADMIN_PASSWORD not set` | Add env var in Cloudflare Pages Settings |
-| `JWT_SECRET not set` | Add env var in Cloudflare Pages Settings |
-| `Module not found: functions/auth` | Ensure `functions/auth.ts` exists in repo root |
+| Blank page / assets 404 | Confirm `vite.config.js` has `base: '/'` and redeploy current `main` |
+| Auth says not configured | Add `ADMIN_PASSWORD` and `JWT_SECRET` secrets in Cloudflare Pages Settings |
+| Build fails | Run `npm ci` then `npm run build`; no admin password is required at build time |
+| Function route 404 | Ensure `functions/functions/auth.ts` exists for `/functions/auth` and `functions/auth.ts` exists for `/auth` compatibility |
 
 ### Auth Not Working
 
 | Symptom | Check |
 |---------|-------|
 | Login returns 401 | Verify `ADMIN_PASSWORD` matches exactly |
-| Cookie not set | Check browser allows 3rd party cookies / not in incognito |
-| Session lost on refresh | Verify `JWT_SECRET` is set and consistent |
-| CORS errors | Check `_headers` has `Access-Control-Allow-Credentials: true` |
+| Login returns 429 | Too many failed attempts; wait for the rate-limit window |
+| Cookie not set | Check the site is served over HTTPS and browser cookies are allowed |
+| Session lost on refresh | Verify `JWT_SECRET` is set and unchanged between deployments |
+| Auth endpoint 404 | Test `/functions/auth`; the wrapper in `functions/functions/auth.ts` must be deployed |
 
 ### Debug Commands
 
@@ -196,15 +202,18 @@ wrangler pages dev dist --port 8788
 ```
 BMBCCWebpage/
 ├── functions/
-│   └── auth.ts              # Edge authentication handler
+│   ├── auth.ts              # Shared edge authentication handler (/auth)
+│   └── functions/
+│       └── auth.ts          # /functions/auth route wrapper
 ├── public/
 │   ├── _headers             # Security headers + CORS
-│   └── _redirects           # SPA routing + API passthrough
+│   └── _redirects           # Notes: Pages built-in SPA fallback; no wildcard loop
 ├── src/
 │   └── App.jsx              # Updated to use /functions/auth
 ├── wrangler.toml            # Cloudflare Pages config
 ├── .env.example             # Template for local dev
-├── .env.local               # Your local secrets (gitignored)
+├── .env.local               # Optional public Vite defaults (gitignored)
+├── .dev.vars                # Local Wrangler secrets (gitignored)
 ├── CLOUDFLARE_DEPLOYMENT.md # This guide
 └── SECURITY_FEATURES.md     # Security documentation
 ```
@@ -215,12 +224,12 @@ BMBCCWebpage/
 
 | Feature | Implementation |
 |---------|----------------|
-| **Password storage** | Only in Cloudflare encrypted env vars (never in repo) |
+| **Password storage** | Only in Cloudflare encrypted env vars / `.dev.vars` locally (never in repo or browser bundle) |
 | **Session** | HttpOnly, Secure, SameSite=Lax cookie (24hr) |
 | **JWT signing** | HS256 with `JWT_SECRET` (edge runtime) |
 | **Rate limiting** | Server-side in `auth.ts` (5 attempts → 15min lockout) |
 | **Headers** | CSP-ready, X-Frame-Options, XSS protection |
-| **GitHub PAT** | Still client-side in localStorage (optional feature) |
+| **GitHub PAT** | Optional; entered in admin UI and stored only in that browser's localStorage. Never commit or set as `VITE_GITHUB_PAT`. |
 
 ---
 
