@@ -115,7 +115,7 @@ export const initialData = {
     {
       "id": 1,
       "name": {
-        "zh": "主日崇拜",
+        "zh": "主日崇拜!",
         "en": "Sunday Service"
       },
       "day": {
