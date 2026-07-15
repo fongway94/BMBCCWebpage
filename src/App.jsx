@@ -253,17 +253,30 @@ export default function App() {
     }
   };
 
-  const handleMoveSlide = (index, direction) => {
+  // Generic reorder helper: move array items up/down without delete+re-add
+  // Supports top-level keys (e.g. 'timetable') and nested paths (e.g. 'offerings.methods')
+  const handleMoveItem = (path, index, direction) => {
     const updated = { ...data };
-    const arr = [...updated.carousel];
+    const keys = path.split('.');
+    let parent = updated;
+    for (let i = 0; i < keys.length - 1; i++) {
+      parent[keys[i]] = { ...parent[keys[i]] };
+      parent = parent[keys[i]];
+    }
+    const lastKey = keys[keys.length - 1];
+    const arr = [...(parent[lastKey] || [])];
     if (direction === 'up' && index > 0) {
       [arr[index], arr[index - 1]] = [arr[index - 1], arr[index]];
     } else if (direction === 'down' && index < arr.length - 1) {
       [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+    } else {
+      return;
     }
-    updated.carousel = arr;
+    parent[lastKey] = arr;
     saveAllData(updated);
   };
+
+  const handleMoveSlide = (index, direction) => handleMoveItem('carousel', index, direction);
 
   // 3. Timetable Actions
   const handleSaveTimetable = (item) => {
@@ -2837,7 +2850,7 @@ export default function App() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                              {data.timetable.map((item) => (
+                              {data.timetable.map((item, idx) => (
                                 <tr key={item.id} className="hover:bg-gray-50 text-gray-700">
                                   <td className="p-3 font-bold text-gray-900">{item.name.zh} / {item.name.en}</td>
                                   <td className="p-3">
@@ -2847,6 +2860,22 @@ export default function App() {
                                   <td className="p-3 text-gray-500">{item.location.zh}</td>
                                   <td className="p-3">
                                     <div className="flex gap-1.5 justify-end">
+                                      <button
+                                        onClick={() => handleMoveItem('timetable', idx, 'up')}
+                                        disabled={idx === 0}
+                                        title={lang === 'zh' ? '上移' : 'Move up'}
+                                        className="p-1 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
+                                      >
+                                        <ArrowUp size={13} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleMoveItem('timetable', idx, 'down')}
+                                        disabled={idx === data.timetable.length - 1}
+                                        title={lang === 'zh' ? '下移' : 'Move down'}
+                                        className="p-1 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
+                                      >
+                                        <ArrowDown size={13} />
+                                      </button>
                                       <button
                                         onClick={() => setEditingTimetable(item)}
                                         className="p-1 rounded border border-blue-250 text-blue-600 hover:bg-blue-50"
@@ -2984,9 +3013,10 @@ export default function App() {
                       ) : (
                         /* Ministry list */
                         <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {data.ministries.map((min) => (
+                          {data.ministries.map((min, idx) => (
                             <div key={min.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
                               <div className="flex gap-4 items-center w-full sm:w-3/4">
+                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
                                 <img src={min.image} alt="Preview" className="w-16 h-16 object-cover rounded-lg shrink-0 border border-gray-200" />
                                 <div className="space-y-1">
                                   <h4 className="font-bold text-sm text-gray-900">{min.name.zh} / {min.name.en}</h4>
@@ -2994,6 +3024,22 @@ export default function App() {
                                 </div>
                               </div>
                               <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                <button
+                                  onClick={() => handleMoveItem('ministries', idx, 'up')}
+                                  disabled={idx === 0}
+                                  title={lang === 'zh' ? '上移' : 'Move up'}
+                                  className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
+                                >
+                                  <ArrowUp size={14} />
+                                </button>
+                                <button
+                                  onClick={() => handleMoveItem('ministries', idx, 'down')}
+                                  disabled={idx === data.ministries.length - 1}
+                                  title={lang === 'zh' ? '下移' : 'Move down'}
+                                  className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
+                                >
+                                  <ArrowDown size={14} />
+                                </button>
                                 <button
                                   onClick={() => setEditingMinistry(min)}
                                   className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
@@ -3177,9 +3223,10 @@ export default function App() {
                       ) : (
                         /* Event list for edit */
                         <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {data.events.map((evt) => (
+                          {data.events.map((evt, idx) => (
                             <div key={evt.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
                               <div className="flex gap-4 items-center w-full sm:w-3/4">
+                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
                                 <img src={evt.image} alt="Preview" className="w-16 h-16 object-cover rounded-lg shrink-0 border border-gray-200" />
                                 <div className="space-y-1">
                                   <h4 className="font-bold text-sm text-gray-900">{evt.title.zh} / {evt.title.en}</h4>
@@ -3191,6 +3238,22 @@ export default function App() {
                                 </div>
                               </div>
                               <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                <button
+                                  onClick={() => handleMoveItem('events', idx, 'up')}
+                                  disabled={idx === 0}
+                                  title={lang === 'zh' ? '上移' : 'Move up'}
+                                  className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
+                                >
+                                  <ArrowUp size={14} />
+                                </button>
+                                <button
+                                  onClick={() => handleMoveItem('events', idx, 'down')}
+                                  disabled={idx === data.events.length - 1}
+                                  title={lang === 'zh' ? '下移' : 'Move down'}
+                                  className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
+                                >
+                                  <ArrowDown size={14} />
+                                </button>
                                 <button
                                   onClick={() => setEditingEvent(evt)}
                                   className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
@@ -3279,9 +3342,10 @@ export default function App() {
                         </div>
                       ) : (
                         <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {(data.leadership || []).map((leader) => (
+                          {(data.leadership || []).map((leader, idx) => (
                             <div key={leader.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
                               <div className="flex gap-4 items-center w-full sm:w-3/4">
+                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
                                 <img src={leader.image} alt="Preview" className="w-14 h-14 object-cover rounded-lg shrink-0 border border-gray-200" />
                                 <div className="space-y-1">
                                   <h4 className="font-bold text-sm text-gray-900">{leader.name.zh} / {leader.name.en}</h4>
@@ -3290,6 +3354,8 @@ export default function App() {
                                 </div>
                               </div>
                               <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                <button onClick={() => handleMoveItem('leadership', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
+                                <button onClick={() => handleMoveItem('leadership', idx, 'down')} disabled={idx === (data.leadership || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
                                 <button onClick={() => setEditingLeader(leader)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
                                 <button onClick={() => handleDeleteLeader(leader.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
                               </div>
@@ -3410,6 +3476,7 @@ export default function App() {
                               {(data.offerings?.methods || []).map((method, idx) => (
                                 <div key={method.id || idx} className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex flex-col sm:flex-row gap-3 items-center justify-between">
                                   <div className="flex gap-3 items-center w-full sm:w-3/4">
+                                    <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
                                     <div className="p-2 rounded bg-primary/10 text-primary shrink-0">
                                       {method.icon === 'heart' && <HandHeart size={16} />}
                                       {method.icon === 'building' && <Building size={16} />}
@@ -3422,6 +3489,8 @@ export default function App() {
                                     </div>
                                   </div>
                                   <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                    <button onClick={() => handleMoveItem('offerings.methods', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
+                                    <button onClick={() => handleMoveItem('offerings.methods', idx, 'down')} disabled={idx === (data.offerings?.methods || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
                                     <button onClick={() => setEditingOfferingMethod({ ...method, index: idx })} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
                                     <button onClick={() => handleDeleteOfferingMethod(idx)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
                                   </div>
@@ -3526,9 +3595,10 @@ export default function App() {
                         </div>
                       ) : (
                         <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {(data.bulletins || []).map((bulletin) => (
+                          {(data.bulletins || []).map((bulletin, idx) => (
                             <div key={bulletin.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
                               <div className="flex gap-3 items-center w-full sm:w-3/4">
+                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
                                 <FileText className="text-primary shrink-0" size={20} />
                                 <div className="space-y-1">
                                   <h4 className="font-bold text-sm text-gray-900">{bulletin.title.zh} / {bulletin.title.en}</h4>
@@ -3547,6 +3617,8 @@ export default function App() {
                                 </div>
                               </div>
                               <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                <button onClick={() => handleMoveItem('bulletins', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
+                                <button onClick={() => handleMoveItem('bulletins', idx, 'down')} disabled={idx === (data.bulletins || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
                                 {bulletin.fileUrl && bulletin.fileUrl !== '#' && (
                                   <a href={bulletin.fileUrl} target="_blank" rel="noopener noreferrer" title={lang === 'zh' ? '打开/下载周报' : 'Open/Download Bulletin'} className="p-1.5 rounded border border-green-200 text-green-600 hover:bg-green-50">
                                     <Download size={14} />
@@ -3650,9 +3722,10 @@ export default function App() {
                         </div>
                       ) : (
                         <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {(data.sermons || []).map((sermon) => (
+                          {(data.sermons || []).map((sermon, idx) => (
                             <div key={sermon.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
                               <div className="flex gap-3 items-center w-full sm:w-3/4">
+                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
                                 <div className="w-16 h-12 bg-gray-200 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
                                   {sermon.videoUrl ? (
                                     <BookOpen className="text-gray-400" size={20} />
@@ -3666,6 +3739,8 @@ export default function App() {
                                 </div>
                               </div>
                               <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                <button onClick={() => handleMoveItem('sermons', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
+                                <button onClick={() => handleMoveItem('sermons', idx, 'down')} disabled={idx === (data.sermons || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
                                 <button onClick={() => setEditingSermon(sermon)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
                                 <button onClick={() => handleDeleteSermon(sermon.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
                               </div>
@@ -3770,9 +3845,10 @@ export default function App() {
                         </div>
                       ) : (
                         <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {(data.cellGroups || []).map((group) => (
+                          {(data.cellGroups || []).map((group, idx) => (
                             <div key={group.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
                               <div className="flex gap-3 items-center w-full sm:w-3/4">
+                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
                                 <img src={group.image} alt="Preview" className="w-12 h-12 object-cover rounded-lg shrink-0 border border-gray-200" />
                                 <div className="space-y-1">
                                   <h4 className="font-bold text-sm text-gray-900">{group.name.zh} / {group.name.en}</h4>
@@ -3780,6 +3856,8 @@ export default function App() {
                                 </div>
                               </div>
                               <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                <button onClick={() => handleMoveItem('cellGroups', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
+                                <button onClick={() => handleMoveItem('cellGroups', idx, 'down')} disabled={idx === (data.cellGroups || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
                                 <button onClick={() => setEditingCellGroup(group)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
                                 <button onClick={() => handleDeleteCellGroup(group.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
                               </div>
@@ -3866,6 +3944,8 @@ export default function App() {
                                       </div>
                                     </div>
                                     <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                      <button onClick={() => handleMoveItem('newFriendGuide.sections', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
+                                      <button onClick={() => handleMoveItem('newFriendGuide.sections', idx, 'down')} disabled={idx === (data.newFriendGuide?.sections || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
                                       <button onClick={() => setEditingGuideSection({ ...section, index: idx })} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
                                       <button onClick={() => handleDeleteGuideSection(idx)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50 shrink-0"><Trash2 size={14} /></button>
                                     </div>
@@ -3922,18 +4002,36 @@ export default function App() {
                               <h3 className="font-extrabold text-sm text-gray-900">
                                 {lang === 'zh' ? `地点 ${idx + 1}: ` : `Location ${idx + 1}: `} {t(church.name)}
                               </h3>
-                              <button
-                                onClick={() => {
-                                  if (window.confirm(lang === 'zh' ? '确定要删除此聚会点吗？' : 'Are you sure you want to delete this location?')) {
-                                    const updated = { ...data };
-                                    updated.maps = updated.maps.filter((_, i) => i !== idx);
-                                    saveAllData(updated);
-                                  }
-                                }}
-                                className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={() => handleMoveItem('maps', idx, 'up')}
+                                  disabled={idx === 0}
+                                  title={lang === 'zh' ? '上移' : 'Move up'}
+                                  className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
+                                >
+                                  <ArrowUp size={14} />
+                                </button>
+                                <button
+                                  onClick={() => handleMoveItem('maps', idx, 'down')}
+                                  disabled={idx === (data.maps || []).length - 1}
+                                  title={lang === 'zh' ? '下移' : 'Move down'}
+                                  className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
+                                >
+                                  <ArrowDown size={14} />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(lang === 'zh' ? '确定要删除此聚会点吗？' : 'Are you sure you want to delete this location?')) {
+                                      const updated = { ...data };
+                                      updated.maps = updated.maps.filter((_, i) => i !== idx);
+                                      saveAllData(updated);
+                                    }
+                                  }}
+                                  className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
                             </div>
 
                             <div className="space-y-4">
