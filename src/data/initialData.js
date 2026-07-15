@@ -1,3 +1,12 @@
+/**
+ * Helper: convert live site data back to the initialData.js file format.
+ * Used by the auto-save API endpoint and the export feature.
+ */
+export const serializeToInitialDataJs = (data) => {
+  const clean = JSON.parse(JSON.stringify(data));
+  return 'export const initialData = ' + JSON.stringify(clean, null, 2) + ';\n';
+};
+
 export const initialData = {
   "settings": {
     "churchName": {
