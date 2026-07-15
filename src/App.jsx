@@ -49,7 +49,8 @@ import {
   Copy,
   Globe,
   Filter,
-  Layers
+  Layers,
+  PlayCircle
 } from 'lucide-react';
 import { initialData } from './data/initialData';
 
@@ -155,6 +156,14 @@ export default function App() {
   const [editingGuideSection, setEditingGuideSection] = useState(null);
   const [sermonFilter, setSermonFilter] = useState('all');
   const [bulletinsTab, setBulletinsTab] = useState('bulletins');
+  // Bulletins & Sermons search & view states
+  const [bulletinSearchQuery, setBulletinSearchQuery] = useState('');
+  const [bulletinViewMode, setBulletinViewMode] = useState('cards'); // 'cards' | 'table'
+  const [bulletinCategoryFilter, setBulletinCategoryFilter] = useState('all');
+  const [sermonSearchQuery, setSermonSearchQuery] = useState('');
+  const [sermonViewMode, setSermonViewMode] = useState('cards'); // 'cards' | 'table'
+  const [selectedBulletinModal, setSelectedBulletinModal] = useState(null);
+  const [selectedSermonModal, setSelectedSermonModal] = useState(null);
   const [importJsonText, setImportJsonText] = useState('');
   const [importError, setImportError] = useState('');
 
@@ -955,73 +964,84 @@ export default function App() {
         {activeTab === 'home' && (
           <div className="animate-fade-in">
             {/* HERO CAROUSEL BANNER */}
-            <div className="relative h-[480px] md:h-[620px] bg-gray-900 overflow-hidden group">
+            <div className="relative h-[520px] sm:h-[580px] md:h-[650px] bg-gray-950 overflow-hidden group">
               {data.carousel.length > 0 ? (
                 <>
-                  {/* Current Slide */}
+                  {/* Current Slide Image & Subtle Bottom Gradient (Keeps top 75% completely clear) */}
                   <div className="absolute inset-0 transition-all duration-1000 ease-out transform scale-100">
                     <img 
                       src={data.carousel[currentSlide].image} 
                       alt="Banner Image" 
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover object-center"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-black/25 to-black/20" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-gray-950/95 via-black/50 via-35% to-transparent" />
                   </div>
 
-                  {/* Slide Text Content with localized contrast scrim card for strong visibility */}
-                  <div className="absolute inset-0 flex items-center justify-center text-center px-4 py-8">
-                    <div className="max-w-4xl mx-auto p-6 sm:p-10 rounded-3xl bg-black/40 backdrop-blur-md border border-white/15 shadow-2xl space-y-5 transform transition-all">
-                      <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-primary/30 text-white border border-primary/40 text-xs uppercase tracking-wider font-extrabold shadow-sm">
-                        <Sparkles size={14} className="text-amber-300" />
-                        {lang === 'zh' ? '欢迎莅临大山脚浸信教会' : 'Welcome to BMBCC'}
-                      </span>
-                      <h1 className="text-3xl sm:text-4xl md:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
-                        {t(data.carousel[currentSlide].title)}
-                      </h1>
-                      <p className="text-base sm:text-lg md:text-xl text-white/95 font-medium max-w-2xl mx-auto leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-                        {t(data.carousel[currentSlide].subtitle)}
-                      </p>
+                  {/* Floating Bottom Strip Card (Sits at the bottom just above indicator dots) */}
+                  <div className="absolute bottom-11 sm:bottom-12 md:bottom-14 inset-x-3 sm:inset-x-6 md:inset-x-12 z-10 flex justify-center pointer-events-none">
+                    <div className="w-full max-w-6xl p-4 sm:p-6 md:p-7 rounded-2xl md:rounded-3xl bg-black/60 sm:bg-black/55 backdrop-blur-md border border-white/15 shadow-2xl transition-all pointer-events-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-8">
                       
-                      <div className="pt-3 flex flex-wrap justify-center gap-3.5">
+                      {/* Left: Title & Subtitle */}
+                      <div className="flex-1 space-y-2 text-left">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/30 text-white border border-primary/40 text-[11px] sm:text-xs uppercase tracking-wider font-extrabold shadow-sm">
+                            <Sparkles size={13} className="text-amber-300 shrink-0" />
+                            {lang === 'zh' ? '欢迎莅临大山脚浸信教会' : 'Welcome to BMBCC'}
+                          </span>
+                        </div>
+                        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white leading-tight tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                          {t(data.carousel[currentSlide].title)}
+                        </h1>
+                        <p className="text-xs sm:text-sm md:text-base text-white/90 font-medium max-w-3xl leading-relaxed drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] line-clamp-2">
+                          {t(data.carousel[currentSlide].subtitle)}
+                        </p>
+                      </div>
+
+                      {/* Right: Action Buttons */}
+                      <div className="flex flex-wrap sm:flex-nowrap shrink-0 items-center gap-2.5 sm:gap-3 w-full md:w-auto pt-1 md:pt-0">
                         <button 
                           onClick={() => setActiveTab('timetable')}
-                          className="px-6 py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold transition-all shadow-lg shadow-primary/30 flex items-center gap-2 transform hover:-translate-y-0.5"
+                          className="flex-1 md:flex-initial px-5 py-2.5 sm:py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2 transform hover:-translate-y-0.5 text-xs sm:text-sm md:text-base whitespace-nowrap"
                         >
-                          <Clock size={18} />
+                          <Clock size={16} className="shrink-0" />
                           <span>{lang === 'zh' ? '聚会时间表' : 'Join Our Services'}</span>
                         </button>
                         <button 
                           onClick={() => setActiveTab('about')}
-                          className="px-6 py-3 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold border border-white/30 backdrop-blur-md transition-all flex items-center gap-2 transform hover:-translate-y-0.5 shadow-md"
+                          className="flex-1 md:flex-initial px-5 py-2.5 sm:py-3 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold border border-white/30 backdrop-blur-md transition-all flex items-center justify-center gap-2 transform hover:-translate-y-0.5 shadow-md text-xs sm:text-sm md:text-base whitespace-nowrap"
                         >
-                          <Info size={18} />
+                          <Info size={16} className="shrink-0" />
                           <span>{lang === 'zh' ? '关于我们' : 'Learn More'}</span>
                         </button>
                       </div>
+
                     </div>
                   </div>
 
                   {/* Manual Controls */}
                   <button 
                     onClick={() => setCurrentSlide((prev) => (prev - 1 + data.carousel.length) % data.carousel.length)}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100"
+                    className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 p-2 sm:p-2.5 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 z-20 shadow-lg border border-white/10"
+                    aria-label="Previous Slide"
                   >
-                    <ChevronLeft size={24} />
+                    <ChevronLeft size={22} />
                   </button>
                   <button 
                     onClick={() => setCurrentSlide((prev) => (prev + 1) % data.carousel.length)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100"
+                    className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-2 sm:p-2.5 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 z-20 shadow-lg border border-white/10"
+                    aria-label="Next Slide"
                   >
-                    <ChevronRight size={24} />
+                    <ChevronRight size={22} />
                   </button>
 
                   {/* Indicator Dots */}
-                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+                  <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
                     {data.carousel.map((_, idx) => (
                       <button
                         key={idx}
                         onClick={() => setCurrentSlide(idx)}
-                        className={`h-2.5 rounded-full transition-all ${idx === currentSlide ? 'w-8 bg-primary' : 'w-2.5 bg-white/40 hover:bg-white/70'}`}
+                        aria-label={`Slide ${idx + 1}`}
+                        className={`h-2.5 rounded-full transition-all ${idx === currentSlide ? 'w-8 bg-primary shadow-sm' : 'w-2.5 bg-white/50 hover:bg-white/80'}`}
                       />
                     ))}
                   </div>
@@ -1472,7 +1492,7 @@ export default function App() {
               </div>
 
               {/* Filters & Control Toolbar */}
-              <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm space-y-4">
+              <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm space-y-4 mb-8">
                 <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
                   {/* Search Bar */}
                   <div className="relative flex-1 max-w-md">
@@ -1955,7 +1975,7 @@ export default function App() {
               )}
 
               {/* Notice Footer Card */}
-              <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 rounded-2xl p-6 border border-amber-200/80 flex flex-col sm:flex-row items-start gap-4 shadow-xs">
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 rounded-2xl p-6 border border-amber-200/80 flex flex-col sm:flex-row items-start gap-4 shadow-xs mt-8 sm:mt-10 mb-6">
                 <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
                   <Info size={20} />
                 </div>
@@ -2119,12 +2139,36 @@ export default function App() {
 
         {/* ==================== PAGE: BULLETINS & SERMONS ==================== */}
         {activeTab === 'bulletins' && (() => {
+          const bulletins = data.bulletins || [];
+          const allBulletinCategories = [...new Set(bulletins.map(b => t(b.category)))];
+          const filteredBulletins = bulletins.filter(b => {
+            const matchesCategory = bulletinCategoryFilter === 'all' || t(b.category) === bulletinCategoryFilter;
+            const q = bulletinSearchQuery.toLowerCase().trim();
+            const matchesSearch = !q ||
+              t(b.title).toLowerCase().includes(q) ||
+              t(b.category).toLowerCase().includes(q) ||
+              (b.date && b.date.toLowerCase().includes(q)) ||
+              (b.summary && t(b.summary).toLowerCase().includes(q)) ||
+              (b.highlights && t(b.highlights).toLowerCase().includes(q));
+            return matchesCategory && matchesSearch;
+          });
+
           const sermons = data.sermons || [];
           const allPreachers = [...new Set(sermons.map(s => t(s.preacher)))];
           const allSeries = [...new Set(sermons.map(s => t(s.series)))];
           
-          const filteredSermons = sermonFilter === 'all' ? sermons :
-            sermons.filter(s => t(s.preacher) === sermonFilter || t(s.series) === sermonFilter);
+          const filteredSermons = sermons.filter(s => {
+            const matchesFilter = sermonFilter === 'all' || t(s.preacher) === sermonFilter || t(s.series) === sermonFilter;
+            const q = sermonSearchQuery.toLowerCase().trim();
+            const matchesSearch = !q ||
+              t(s.title).toLowerCase().includes(q) ||
+              t(s.preacher).toLowerCase().includes(q) ||
+              t(s.series).toLowerCase().includes(q) ||
+              (s.scripture && s.scripture.toLowerCase().includes(q)) ||
+              (s.date && s.date.toLowerCase().includes(q)) ||
+              (s.description && t(s.description).toLowerCase().includes(q));
+            return matchesFilter && matchesSearch;
+          });
           
           // Helper to extract YouTube video ID
           const getYoutubeEmbedUrl = (url) => {
@@ -2150,39 +2194,156 @@ export default function App() {
               </div>
 
               {/* Tab Switcher */}
-              <div className="flex justify-center mb-10">
-                <div className="inline-flex bg-gray-100 rounded-xl p-1 gap-1">
+              <div className="flex justify-center mb-8">
+                <div className="inline-flex bg-gray-100 rounded-xl p-1 gap-1 border border-gray-200/60 shadow-xs">
                   <button
                     onClick={() => setBulletinsTab('bulletins')}
                     className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
                       bulletinsTab === 'bulletins'
-                        ? 'bg-white text-primary shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'bg-white text-primary shadow-sm font-bold'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
                     }`}
                   >
                     <FileText size={16} />
                     <span>{lang === 'zh' ? '周报下载' : 'Weekly Bulletins'}</span>
+                    <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-bold">
+                      {bulletins.length}
+                    </span>
                   </button>
                   <button
                     onClick={() => setBulletinsTab('sermons')}
                     className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
                       bulletinsTab === 'sermons'
-                        ? 'bg-white text-primary shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'bg-white text-primary shadow-sm font-bold'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
                     }`}
                   >
                     <BookOpen size={16} />
                     <span>{lang === 'zh' ? '讲道库' : 'Sermon Library'}</span>
+                    <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-bold">
+                      {sermons.length}
+                    </span>
                   </button>
                 </div>
               </div>
 
               {/* Bulletins Tab */}
               {bulletinsTab === 'bulletins' && (
-                <div>
-                  {(data.bulletins || []).length > 0 ? (
+                <div className="space-y-8">
+                  {/* Bulletins Filters & Control Toolbar */}
+                  <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm space-y-4 mb-8">
+                    <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+                      {/* Search Bar */}
+                      <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <input 
+                          type="text"
+                          value={bulletinSearchQuery}
+                          onChange={(e) => setBulletinSearchQuery(e.target.value)}
+                          placeholder={lang === 'zh' ? '搜索周报标题、类别、日期或摘要...' : 'Search bulletin title, category, date, or summary...'}
+                          className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-250 bg-gray-50/50 text-sm font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-white transition-all"
+                        />
+                        {bulletinSearchQuery && (
+                          <button 
+                            onClick={() => setBulletinSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full hover:bg-gray-200/60"
+                          >
+                            <X size={15} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* View Mode Switcher */}
+                      <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl self-start lg:self-auto border border-gray-200/60">
+                        <button
+                          onClick={() => setBulletinViewMode('cards')}
+                          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                            bulletinViewMode === 'cards' 
+                              ? 'bg-white text-primary shadow-sm' 
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                          }`}
+                          title={lang === 'zh' ? '卡片视图' : 'Cards View'}
+                        >
+                          <LayoutGrid size={16} />
+                          <span>{lang === 'zh' ? '卡片模式' : 'Cards'}</span>
+                        </button>
+                        <button
+                          onClick={() => setBulletinViewMode('table')}
+                          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                            bulletinViewMode === 'table' 
+                              ? 'bg-white text-primary shadow-sm' 
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                          }`}
+                          title={lang === 'zh' ? '表格视图' : 'Table View'}
+                        >
+                          <ListFilter size={16} />
+                          <span>{lang === 'zh' ? '列表表格' : 'Table'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Category Filter Pills */}
+                    {allBulletinCategories.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-100">
+                        <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1">
+                          <Filter size={12} />
+                          {lang === 'zh' ? '按类别:' : 'Category:'}
+                        </span>
+                        <button
+                          onClick={() => setBulletinCategoryFilter('all')}
+                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                            bulletinCategoryFilter === 'all'
+                              ? 'bg-gray-900 text-white shadow-xs'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {lang === 'zh' ? '全部类别' : 'All Categories'}
+                        </button>
+                        {allBulletinCategories.map(cat => (
+                          <button
+                            key={cat}
+                            onClick={() => setBulletinCategoryFilter(cat)}
+                            className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                              bulletinCategoryFilter === cat
+                                ? 'bg-primary text-white shadow-xs'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Empty state if search/filter matches 0 items */}
+                  {filteredBulletins.length === 0 ? (
+                    <div className="bg-white rounded-3xl p-12 text-center border border-gray-200 shadow-sm max-w-lg mx-auto space-y-4">
+                      <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center gap-2 justify-center mx-auto border border-amber-200">
+                        <FileText size={32} />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900">
+                        {lang === 'zh' ? '未找到相关周报' : 'No Matching Bulletins Found'}
+                      </h3>
+                      <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                        {lang === 'zh'
+                          ? '您可以尝试清除搜索关键词或重置类别筛选条件。'
+                          : 'Try clearing your search query or resetting the category filter.'}
+                      </p>
+                      <button
+                        onClick={() => {
+                          setBulletinSearchQuery('');
+                          setBulletinCategoryFilter('all');
+                        }}
+                        className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-md hover:bg-primary-dark transition-all"
+                      >
+                        {lang === 'zh' ? '重置筛选条件' : 'Reset All Filters'}
+                      </button>
+                    </div>
+                  ) : bulletinViewMode === 'cards' ? (
+                    /* Cards View Mode */
                     <div className="space-y-6">
-                      {data.bulletins.map((bulletin) => (
+                      {filteredBulletins.map((bulletin) => (
                         <div key={bulletin.id} className="bg-white rounded-2xl border border-gray-150 shadow-sm hover:shadow-md transition-all overflow-hidden">
                           <div className="flex flex-col md:flex-row">
                             <div className="md:w-16 bg-primary/5 flex items-center justify-center p-4 md:p-0 shrink-0">
@@ -2190,8 +2351,8 @@ export default function App() {
                             </div>
                             <div className="flex-grow p-6">
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                                <div>
-                                  <h3 className="font-extrabold text-lg text-gray-900">{t(bulletin.title)}</h3>
+                                <div onClick={() => setSelectedBulletinModal(bulletin)} className="cursor-pointer group">
+                                  <h3 className="font-extrabold text-lg text-gray-900 group-hover:text-primary transition-colors">{t(bulletin.title)}</h3>
                                   <div className="flex items-center gap-2 mt-1">
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 text-primary text-[11px] font-bold">
                                       <Calendar size={11} />
@@ -2202,13 +2363,22 @@ export default function App() {
                                     </span>
                                   </div>
                                 </div>
-                                {bulletin.fileUrl && bulletin.fileUrl !== '#' && (
-                                  <a href={bulletin.fileUrl} target="_blank" rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all shrink-0">
-                                    <Download size={14} />
-                                    <span>{lang === 'zh' ? '下载周报' : 'Download PDF'}</span>
-                                  </a>
-                                )}
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => setSelectedBulletinModal(bulletin)}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition-all shrink-0"
+                                  >
+                                    <Info size={14} />
+                                    <span>{lang === 'zh' ? '查看详情' : 'Details'}</span>
+                                  </button>
+                                  {bulletin.fileUrl && bulletin.fileUrl !== '#' && (
+                                    <a href={bulletin.fileUrl} target="_blank" rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all shrink-0">
+                                      <Download size={14} />
+                                      <span>{lang === 'zh' ? '下载周报' : 'Download PDF'}</span>
+                                    </a>
+                                  )}
+                                </div>
                               </div>
                               <p className="text-gray-600 text-sm font-light leading-relaxed mb-3">{t(bulletin.summary)}</p>
                               {bulletin.highlights && (
@@ -2222,9 +2392,80 @@ export default function App() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-                      <FileText className="mx-auto text-gray-400 mb-3" size={48} />
-                      <p className="text-gray-500 font-light">{lang === 'zh' ? '目前暂无周报发布。' : 'No bulletins available at the moment.'}</p>
+                    /* Table View Mode */
+                    <div className="bg-white rounded-3xl border border-gray-200/80 shadow-sm overflow-hidden">
+                      <div className="p-4 sm:p-6 bg-primary/5 border-b border-gray-200/80 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FileText className="text-primary shrink-0" size={22} />
+                          <span className="text-base font-extrabold text-gray-900">
+                            {lang === 'zh' ? '教会周报与月刊列表' : 'Church Bulletins & Newsletters Overview'}
+                          </span>
+                        </div>
+                        <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
+                          {filteredBulletins.length} {lang === 'zh' ? '份资源' : 'Items'}
+                        </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-gray-50/90 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                              <th className="py-4 px-6">{lang === 'zh' ? '周报标题' : 'Bulletin Title'}</th>
+                              <th className="py-4 px-6">{lang === 'zh' ? '发布日期' : 'Date'}</th>
+                              <th className="py-4 px-6">{lang === 'zh' ? '类别' : 'Category'}</th>
+                              <th className="py-4 px-6">{lang === 'zh' ? '摘要概览' : 'Summary'}</th>
+                              <th className="py-4 px-6 text-right">{lang === 'zh' ? '操作' : 'Action'}</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-150">
+                            {filteredBulletins.map((bulletin) => (
+                              <tr key={bulletin.id} className="hover:bg-primary/5 transition-colors text-sm text-gray-700 group">
+                                <td 
+                                  onClick={() => setSelectedBulletinModal(bulletin)}
+                                  className="py-4.5 px-6 font-extrabold text-gray-900 group-hover:text-primary transition-colors cursor-pointer"
+                                >
+                                  {t(bulletin.title)}
+                                </td>
+                                <td className="py-4.5 px-6">
+                                  <span className="px-2.5 py-1 rounded-full text-xs bg-primary/10 text-primary font-bold inline-flex items-center gap-1">
+                                    <Calendar size={12} />
+                                    <span>{bulletin.date}</span>
+                                  </span>
+                                </td>
+                                <td className="py-4.5 px-6">
+                                  <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-gray-100 text-gray-700 border-gray-200">
+                                    {t(bulletin.category)}
+                                  </span>
+                                </td>
+                                <td className="py-4.5 px-6 text-gray-600 font-medium text-xs max-w-xs truncate">
+                                  {t(bulletin.summary)}
+                                </td>
+                                <td className="py-4.5 px-6 text-right whitespace-nowrap">
+                                  <button
+                                    onClick={() => setSelectedBulletinModal(bulletin)}
+                                    className="inline-flex items-center gap-1 text-xs font-bold text-gray-700 hover:text-primary mr-3 hover:underline"
+                                  >
+                                    <span>{lang === 'zh' ? '查看详情' : 'Details'}</span>
+                                  </button>
+                                  {bulletin.fileUrl && bulletin.fileUrl !== '#' ? (
+                                    <a
+                                      href={bulletin.fileUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-dark shadow-2xs transition-all"
+                                    >
+                                      <Download size={13} />
+                                      <span>{lang === 'zh' ? '下载' : 'PDF'}</span>
+                                    </a>
+                                  ) : (
+                                    <span className="text-xs text-gray-400 font-medium">{lang === 'zh' ? '无文件' : 'N/A'}</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2232,60 +2473,142 @@ export default function App() {
 
               {/* Sermons Tab */}
               {bulletinsTab === 'sermons' && (
-                <div>
-                  {/* Filters */}
-                  {(allPreachers.length > 0 || allSeries.length > 0) && (
-                    <div className="flex flex-wrap items-center gap-3 mb-8 justify-center">
-                      <button
-                        onClick={() => setSermonFilter('all')}
-                        className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                          sermonFilter === 'all'
-                            ? 'bg-primary text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {lang === 'zh' ? '全部' : 'All'}
-                      </button>
-                      {allSeries.map((series) => (
-                        <button
-                          key={series}
-                          onClick={() => setSermonFilter(series)}
-                          className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                            sermonFilter === series
-                              ? 'bg-primary text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {series}
-                        </button>
-                      ))}
-                      {allPreachers.map((preacher) => (
-                        <button
-                          key={preacher}
-                          onClick={() => setSermonFilter(preacher)}
-                          className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                            sermonFilter === preacher
-                              ? 'bg-primary text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {preacher}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                <div className="space-y-8">
+                  {/* Sermons Filters & Control Toolbar */}
+                  <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm space-y-4 mb-8">
+                    <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+                      {/* Search Bar */}
+                      <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <input 
+                          type="text"
+                          value={sermonSearchQuery}
+                          onChange={(e) => setSermonSearchQuery(e.target.value)}
+                          placeholder={lang === 'zh' ? '搜索讲题、讲员、系列、经文或日期...' : 'Search sermon title, preacher, series, scripture, or date...'}
+                          className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-250 bg-gray-50/50 text-sm font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-white transition-all"
+                        />
+                        {sermonSearchQuery && (
+                          <button 
+                            onClick={() => setSermonSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full hover:bg-gray-200/60"
+                          >
+                            <X size={15} />
+                          </button>
+                        )}
+                      </div>
 
-                  {filteredSermons.length > 0 ? (
+                      {/* View Mode Switcher */}
+                      <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl self-start lg:self-auto border border-gray-200/60">
+                        <button
+                          onClick={() => setSermonViewMode('cards')}
+                          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                            sermonViewMode === 'cards' 
+                              ? 'bg-white text-primary shadow-sm' 
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                          }`}
+                          title={lang === 'zh' ? '卡片网格视图' : 'Grid View'}
+                        >
+                          <LayoutGrid size={16} />
+                          <span>{lang === 'zh' ? '卡片模式' : 'Grid'}</span>
+                        </button>
+                        <button
+                          onClick={() => setSermonViewMode('table')}
+                          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                            sermonViewMode === 'table' 
+                              ? 'bg-white text-primary shadow-sm' 
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                          }`}
+                          title={lang === 'zh' ? '表格视图' : 'Table View'}
+                        >
+                          <ListFilter size={16} />
+                          <span>{lang === 'zh' ? '列表表格' : 'Table'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Filter Pills (Series & Preachers) */}
+                    {(allSeries.length > 0 || allPreachers.length > 0) && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-100">
+                        <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1">
+                          <Filter size={12} />
+                          {lang === 'zh' ? '分类筛选:' : 'Filter by:'}
+                        </span>
+                        <button
+                          onClick={() => setSermonFilter('all')}
+                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                            sermonFilter === 'all'
+                              ? 'bg-gray-900 text-white shadow-xs'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {lang === 'zh' ? '全部系列与讲员' : 'All Sermons'}
+                        </button>
+                        {allSeries.map(series => (
+                          <button
+                            key={series}
+                            onClick={() => setSermonFilter(series)}
+                            className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                              sermonFilter === series
+                                ? 'bg-primary text-white shadow-xs'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            📌 {series}
+                          </button>
+                        ))}
+                        {allPreachers.map(preacher => (
+                          <button
+                            key={preacher}
+                            onClick={() => setSermonFilter(preacher)}
+                            className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                              sermonFilter === preacher
+                                ? 'bg-primary text-white shadow-xs'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            🎙️ {preacher}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Empty state if search/filter matches 0 items */}
+                  {filteredSermons.length === 0 ? (
+                    <div className="bg-white rounded-3xl p-12 text-center border border-gray-200 shadow-sm max-w-lg mx-auto space-y-4">
+                      <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center gap-2 justify-center mx-auto border border-amber-200">
+                        <BookOpen size={32} />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900">
+                        {lang === 'zh' ? '未找到相关讲道' : 'No Matching Sermons Found'}
+                      </h3>
+                      <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                        {lang === 'zh'
+                          ? '您可以尝试清除搜索关键词或重置讲员/系列筛选条件。'
+                          : 'Try clearing your search query or resetting the preacher/series filter.'}
+                      </p>
+                      <button
+                        onClick={() => {
+                          setSermonSearchQuery('');
+                          setSermonFilter('all');
+                        }}
+                        className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-md hover:bg-primary-dark transition-all"
+                      >
+                        {lang === 'zh' ? '重置筛选条件' : 'Reset All Filters'}
+                      </button>
+                    </div>
+                  ) : sermonViewMode === 'cards' ? (
+                    /* Cards View Mode */
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                       {filteredSermons.map((sermon) => (
-                        <div key={sermon.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col">
+                        <div key={sermon.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col group">
                           {/* Video Thumbnail / Embed */}
-                          <div className="relative aspect-video bg-gray-900">
+                          <div className="relative aspect-video bg-gray-900 cursor-pointer" onClick={() => setSelectedSermonModal(sermon)}>
                             {sermon.videoUrl && getYoutubeEmbedUrl(sermon.videoUrl) ? (
                               <iframe
                                 src={getYoutubeEmbedUrl(sermon.videoUrl)}
                                 title={t(sermon.title)}
-                                className="absolute inset-0 w-full h-full"
+                                className="absolute inset-0 w-full h-full pointer-events-auto"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
                               />
@@ -2297,25 +2620,34 @@ export default function App() {
                           </div>
                           <div className="p-5 flex-grow flex flex-col justify-between space-y-3">
                             <div>
-                              <div className="flex items-center gap-2 mb-2">
+                              <div className="flex items-center gap-2 mb-2 justify-between">
                                 <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-bold">
                                   {t(sermon.series)}
                                 </span>
-                                <span className="inline-flex items-center gap-1 text-gray-400 text-[10px]">
+                                <span className="inline-flex items-center gap-1 text-gray-400 text-[10px] font-medium">
                                   <Calendar size={10} />
                                   {sermon.date}
                                 </span>
                               </div>
-                              <h3 className="font-extrabold text-sm text-gray-900 leading-tight">{t(sermon.title)}</h3>
+                              <h3 onClick={() => setSelectedSermonModal(sermon)} className="font-extrabold text-sm text-gray-900 leading-tight group-hover:text-primary transition-colors cursor-pointer">{t(sermon.title)}</h3>
                               {sermon.scripture && (
                                 <p className="text-xs text-primary font-medium mt-1 italic">📖 {sermon.scripture}</p>
                               )}
                             </div>
                             <div>
                               <p className="text-gray-600 text-xs font-light leading-relaxed line-clamp-2">{t(sermon.description)}</p>
-                              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-                                <Users size={12} className="text-gray-400" />
-                                <span className="text-xs text-gray-500">{t(sermon.preacher)}</span>
+                              <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                                <div className="flex items-center gap-1.5">
+                                  <Users size={12} className="text-gray-400" />
+                                  <span className="text-xs font-bold text-gray-700">{t(sermon.preacher)}</span>
+                                </div>
+                                <button
+                                  onClick={() => setSelectedSermonModal(sermon)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+                                >
+                                  <span>{lang === 'zh' ? '观看/详情' : 'Watch Video'}</span>
+                                  <ChevronRight size={13} />
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -2323,13 +2655,206 @@ export default function App() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-                      <BookOpen className="mx-auto text-gray-400 mb-3" size={48} />
-                      <p className="text-gray-500 font-light">{lang === 'zh' ? '目前暂无讲道信息。' : 'No sermons available at the moment.'}</p>
+                    /* Table View Mode */
+                    <div className="bg-white rounded-3xl border border-gray-200/80 shadow-sm overflow-hidden">
+                      <div className="p-4 sm:p-6 bg-primary/5 border-b border-gray-200/80 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="text-primary shrink-0" size={22} />
+                          <span className="text-base font-extrabold text-gray-900">
+                            {lang === 'zh' ? '在线讲道与证道视频总览' : 'Sermon Library Overview'}
+                          </span>
+                        </div>
+                        <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
+                          {filteredSermons.length} {lang === 'zh' ? '场证道' : 'Sermons'}
+                        </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-gray-50/90 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                              <th className="py-4 px-6">{lang === 'zh' ? '讲题与经文' : 'Sermon Title & Scripture'}</th>
+                              <th className="py-4 px-6">{lang === 'zh' ? '讲道系列' : 'Series'}</th>
+                              <th className="py-4 px-6">{lang === 'zh' ? '主讲人 / 牧者' : 'Preacher'}</th>
+                              <th className="py-4 px-6">{lang === 'zh' ? '聚会日期' : 'Date'}</th>
+                              <th className="py-4 px-6 text-right">{lang === 'zh' ? '操作' : 'Action'}</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-150">
+                            {filteredSermons.map((sermon) => (
+                              <tr key={sermon.id} className="hover:bg-primary/5 transition-colors text-sm text-gray-700 group">
+                                <td 
+                                  onClick={() => setSelectedSermonModal(sermon)}
+                                  className="py-4.5 px-6 font-extrabold text-gray-900 group-hover:text-primary transition-colors cursor-pointer"
+                                >
+                                  <div>{t(sermon.title)}</div>
+                                  {sermon.scripture && (
+                                    <div className="text-xs text-primary font-medium mt-0.5 italic">📖 {sermon.scripture}</div>
+                                  )}
+                                </td>
+                                <td className="py-4.5 px-6">
+                                  <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-primary/10 text-primary border border-primary/20">
+                                    {t(sermon.series)}
+                                  </span>
+                                </td>
+                                <td className="py-4.5 px-6 font-bold text-gray-800">
+                                  <div className="flex items-center gap-1.5">
+                                    <Users size={14} className="text-gray-400" />
+                                    <span>{t(sermon.preacher)}</span>
+                                  </div>
+                                </td>
+                                <td className="py-4.5 px-6 font-medium text-gray-600 text-xs">
+                                  {sermon.date}
+                                </td>
+                                <td className="py-4.5 px-6 text-right whitespace-nowrap">
+                                  <button
+                                    onClick={() => setSelectedSermonModal(sermon)}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-all shadow-2xs"
+                                  >
+                                    <PlayCircle size={14} />
+                                    <span>{lang === 'zh' ? '观看视频' : 'Watch Video'}</span>
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
                 </div>
               )}
+
+              {/* Detailed Bulletin Modal Dialog */}
+              {selectedBulletinModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+                  <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-100 space-y-6 p-6 sm:p-8 relative">
+                    <button 
+                      onClick={() => setSelectedBulletinModal(null)}
+                      className="absolute top-5 right-5 p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      <X size={20} />
+                    </button>
+                    <div className="space-y-2 pr-6">
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary">
+                          {selectedBulletinModal.date}
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+                          {t(selectedBulletinModal.category)}
+                        </span>
+                      </div>
+                      <h2 className="text-2xl font-black text-gray-900 leading-tight">
+                        {t(selectedBulletinModal.title)}
+                      </h2>
+                    </div>
+                    <div className="space-y-4 text-sm">
+                      <p className="text-gray-700 font-medium leading-relaxed">{t(selectedBulletinModal.summary)}</p>
+                      {selectedBulletinModal.highlights && (
+                        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200/80">
+                          <div className="text-xs font-bold text-gray-500 uppercase mb-2">{lang === 'zh' ? '要点与代祷事项' : 'Highlights & Prayer Items'}</div>
+                          <p className="text-gray-800 text-xs font-medium leading-relaxed whitespace-pre-line">{t(selectedBulletinModal.highlights)}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="pt-2 flex gap-3">
+                      {selectedBulletinModal.fileUrl && selectedBulletinModal.fileUrl !== '#' && (
+                        <a
+                          href={selectedBulletinModal.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 py-3 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-md"
+                        >
+                          <Download size={16} />
+                          <span>{lang === 'zh' ? '下载周报 (PDF)' : 'Download PDF'}</span>
+                        </a>
+                      )}
+                      <button
+                        onClick={() => setSelectedBulletinModal(null)}
+                        className="py-3 px-6 rounded-xl border border-gray-200 text-gray-600 text-xs font-bold hover:bg-gray-100 transition-all"
+                      >
+                        {lang === 'zh' ? '关闭' : 'Close'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Detailed Sermon Video Modal Dialog */}
+              {selectedSermonModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
+                  <div className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-gray-100 space-y-5 p-6 sm:p-8 relative">
+                    <button 
+                      onClick={() => setSelectedSermonModal(null)}
+                      className="absolute top-5 right-5 p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors z-10"
+                    >
+                      <X size={20} />
+                    </button>
+                    <div className="space-y-1.5 pr-6">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">
+                          {t(selectedSermonModal.series)}
+                        </span>
+                        <span className="text-xs text-gray-500 font-medium">
+                          {selectedSermonModal.date} • {t(selectedSermonModal.preacher)}
+                        </span>
+                      </div>
+                      <h2 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">
+                        {t(selectedSermonModal.title)}
+                      </h2>
+                      {selectedSermonModal.scripture && (
+                        <p className="text-xs text-primary font-bold italic">📖 {selectedSermonModal.scripture}</p>
+                      )}
+                    </div>
+                    
+                    {/* Video Player */}
+                    <div className="relative aspect-video bg-black rounded-2xl overflow-hidden shadow-md">
+                      {selectedSermonModal.videoUrl && getYoutubeEmbedUrl(selectedSermonModal.videoUrl) ? (
+                        <iframe
+                          src={getYoutubeEmbedUrl(selectedSermonModal.videoUrl)}
+                          title={t(selectedSermonModal.title)}
+                          className="absolute inset-0 w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4 text-center">
+                          <BookOpen size={48} className="opacity-40 mb-2" />
+                          <p className="text-sm">{lang === 'zh' ? '无法嵌入视频，或未提供视频链接。' : 'No embeddable video URL provided.'}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-xs sm:text-sm text-gray-600 font-normal leading-relaxed">{t(selectedSermonModal.description)}</p>
+
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        onClick={() => setSelectedSermonModal(null)}
+                        className="py-2.5 px-6 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition-all"
+                      >
+                        {lang === 'zh' ? '关闭' : 'Close'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Notice Footer Card (with proper top spacing just like timetable) */}
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 rounded-2xl p-6 border border-amber-200/80 flex flex-col sm:flex-row items-start gap-4 shadow-xs mt-8 sm:mt-10 mb-6">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                  <Info size={20} />
+                </div>
+                <div className="space-y-2 flex-1">
+                  <h4 className="font-extrabold text-amber-900 text-sm">
+                    {lang === 'zh' ? '周报与讲道资源温馨提示' : 'Resource Center Notice & Support'}
+                  </h4>
+                  <p className="text-xs text-amber-900/80 leading-relaxed">
+                    {lang === 'zh'
+                      ? '每周周报通常于每周五或六完成上传；若您在下载 PDF 档案或观看讲道视频时遇到任何问题，或需获取过往月份之内部资料，欢迎随时联系教会行政同工查询。'
+                      : 'Weekly bulletins are updated usually on Friday or Saturday. If you experience issues downloading files or viewing sermon videos, or need archived materials from previous months, please feel free to contact our administrative office.'}
+                  </p>
+                </div>
+              </div>
             </div>
           );
         })()}
