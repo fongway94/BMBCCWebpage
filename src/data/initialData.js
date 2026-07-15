@@ -79,7 +79,7 @@ export const initialData = {
       "image": "https://images.unsplash.com/photo-1557401622-cfc0aa5d146c?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8Zmx5aW5nJTIwZWFnbGV8ZW58MHx8MHx8fDA%3D",
       "title": {
         "zh": "展翅高飞，广传福音",
-        "en": "Soar High, Spread the Gospel!"
+        "en": "Soar High, Spread the Gospel"
       },
       "subtitle": {
         "zh": "神爱世人，甚至把他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。—— 約翰福音 3:16",
