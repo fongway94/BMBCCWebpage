@@ -14,9 +14,9 @@ pages_build_output_dir = "dist"
 #   KV namespace: select the GITHUB_SETTINGS namespace you created
 #
 # If you prefer wrangler.toml over dashboard, uncomment below and paste the real ID:
-# [[kv_namespaces]]
-# binding = "GITHUB_SETTINGS"
-# id = "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
+[[kv_namespaces]]
+binding = "GITHUB_SETTINGS"
+id = "18a69c2611fa49d4aafd594e0d06e58d"
 
 # Custom domain (optional, configure in dashboard)
 # routes = [
