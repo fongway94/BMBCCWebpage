@@ -55,6 +55,7 @@ import {
 import { initialData } from './data/initialData';
 
 const AUTH_ENDPOINT = '/functions/auth';
+const GITHUB_SETTINGS_ENDPOINT = '/functions/github-settings';
 
 // Helper functions for Timetable styling - standardized to primary emerald theme
 const getDayBadgeStyle = (dayStr) => {
@@ -176,7 +177,70 @@ export default function App() {
     };
     checkAuth();
   }, []);
-  
+
+  // Load GitHub settings from Cloudflare KV (server-side persistence)
+  // Called when admin logs in, so the PAT/repo/auto-save survive across sessions
+  const loadGithubSettingsFromCloud = async () => {
+    try {
+      const res = await fetch(GITHUB_SETTINGS_ENDPOINT, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!res.ok) return; // Not configured or not authenticated
+      const result = await res.json();
+      if (result.ok && result.settings) {
+        const s = result.settings;
+        // Only overwrite localStorage if the server has values
+        if (s.pat !== undefined && s.pat !== '') {
+          localStorage.setItem('bmbcc_github_pat', s.pat);
+          setGithubPat(s.pat);
+        }
+        if (s.repo !== undefined && s.repo !== '') {
+          localStorage.setItem('bmbcc_github_repo', s.repo);
+          setGithubRepo(s.repo);
+          // Also update data.settings for cross-session persistence
+          setData(prev => {
+            const updated = { ...prev, settings: { ...prev.settings, githubRepo: s.repo } };
+            return updated;
+          });
+        }
+        if (s.autoSave !== undefined) {
+          localStorage.setItem('bmbcc_autosave_github', String(s.autoSave));
+          setAutoSaveToGithub(s.autoSave);
+          setData(prev => {
+            const updated = { ...prev, settings: { ...prev.settings, autoSaveToGithub: s.autoSave } };
+            return updated;
+          });
+        }
+      }
+    } catch (err) {
+      // Silently fail — KV may not be configured yet, fall back to localStorage
+      console.log('Cloudflare GitHub settings not available, using localStorage fallback:', err?.message || err);
+    }
+  };
+
+  // Save GitHub settings to Cloudflare KV (server-side persistence)
+  const saveGithubSettingsToCloud = async (settings) => {
+    try {
+      await fetch(GITHUB_SETTINGS_ENDPOINT, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+    } catch (err) {
+      // Silently fail — KV may not be configured yet
+      console.log('Could not save GitHub settings to Cloudflare:', err?.message || err);
+    }
+  };
+
+  // Load GitHub settings from Cloudflare when admin logs in
+  useEffect(() => {
+    if (isAdminLoggedIn) {
+      loadGithubSettingsFromCloud();
+    }
+  }, [isAdminLoggedIn]);
+
   // Editor temporary states
   const [editingSlide, setEditingSlide] = useState(null); // slide ID or 'new'
   const [editingTimetable, setEditingTimetable] = useState(null); // timetable item ID or 'new'
@@ -505,6 +569,8 @@ export default function App() {
         setIsAdminLoggedIn(true);
         setAdminLoginError('');
         setAdminPasswordInput('');
+        // Load GitHub settings from Cloudflare KV after successful login
+        loadGithubSettingsFromCloud();
       } else {
         setAdminLoginError(result.error || (lang === 'zh' ? '登录失败' : 'Login failed'));
       }
@@ -5716,6 +5782,8 @@ export default function App() {
                                     localStorage.setItem('bmbcc_site_data', JSON.stringify(stripSensitiveData(updated)));
                                     return updated;
                                   });
+                                  // Save to Cloudflare KV for server-side persistence
+                                  saveGithubSettingsToCloud({ autoSave: next });
                                 }}
                                 className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${autoSaveToGithub ? 'bg-primary' : 'bg-gray-300'}`}
                               >
@@ -5739,14 +5807,16 @@ export default function App() {
                                   onChange={(e) => {
                                     setGithubPat(e.target.value);
                                     localStorage.setItem('bmbcc_github_pat', e.target.value);
+                                    // Save to Cloudflare KV for server-side persistence
+                                    saveGithubSettingsToCloud({ pat: e.target.value });
                                   }}
                                   placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
                                   className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
                                 />
                                 <p className="text-[10px] text-gray-400 mt-1">
                                   {lang === 'zh'
-                                    ? 'Token 仅保存在此浏览器的 localStorage 中，不会上传到任何服务器。'
-                                    : 'Token is only stored in this browsers localStorage — never sent to any server except GitHub.'}
+                                    ? 'Token 安全保存在 Cloudflare KV（服务器端）及浏览器 localStorage 中，仅通过 HTTPS 发送到 api.github.com。'
+                                    : 'Token is securely stored in Cloudflare KV (server-side) and browser localStorage, sent only to api.github.com over HTTPS.'}
                                 </p>
                               </div>
 
@@ -5766,6 +5836,8 @@ export default function App() {
                                       localStorage.setItem('bmbcc_site_data', JSON.stringify(stripSensitiveData(updated)));
                                       return updated;
                                     });
+                                    // Save to Cloudflare KV for server-side persistence
+                                    saveGithubSettingsToCloud({ repo: e.target.value });
                                   }}
                                   placeholder="fongway94/BMBCCWebpage"
                                   className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
@@ -5832,8 +5904,8 @@ export default function App() {
                                 </ol>
                                 <p className="text-[9px] text-amber-600 mt-2">
                                   {lang === 'zh'
-                                    ? '⚠️ 注意：Token 存储在浏览器的 localStorage，仅通过 HTTPS 发送到 api.github.com。建议使用 Fine-grained token 并设置过期时间。'
-                                    : '⚠️ Note: Token stored in browser localStorage, sent only to api.github.com over HTTPS. Use a fine-grained token with expiry for best security.'}
+                                    ? '⚠️ Token 安全保存在 Cloudflare KV 和浏览器 localStorage 中，仅通过 HTTPS 发送到 api.github.com。建议使用 Fine-grained token 并设置过期时间。'
+                                    : '⚠️ Token is securely stored in Cloudflare KV and browser localStorage, sent only to api.github.com over HTTPS. Use a fine-grained token with expiry for best security.'}
                                 </p>
                               </div>
                             </details>

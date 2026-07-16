@@ -7,6 +7,14 @@ pages_build_output_dir = "dist"
 # ADMIN_PASSWORD = "your-strong-password"  # Set in dashboard
 # JWT_SECRET = "your-jwt-secret"          # Set in dashboard
 
+# KV namespace for storing GitHub settings (PAT, repo, auto-save toggle).
+# Create the namespace first with: wrangler kv namespace create GITHUB_SETTINGS
+# Then paste the generated id below.
+[[kv_namespaces]]
+binding = "GITHUB_SETTINGS"
+id = "PLACEHOLDER_KV_NAMESPACE_ID"
+# preview_id = "PLACEHOLDER_PREVIEW_KV_NAMESPACE_ID"  # For wrangler dev
+
 # Custom domain (optional, configure in dashboard)
 # routes = [
 #   { pattern = "bmbcc.example.com/*", zone_name = "example.com" }
