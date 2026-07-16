@@ -218,13 +218,36 @@ export default function App() {
   const [autoSaveToGithub, setAutoSaveToGithub] = useState(() => {
     const saved = localStorage.getItem('bmbcc_autosave_github');
     if (saved !== null) return saved === 'true';
+    // Fallback: check if autoSaveToGithub is stored in site data settings
+    // (helps when the dedicated localStorage key is cleared but data was previously auto-saved)
+    try {
+      const siteData = localStorage.getItem('bmbcc_site_data');
+      if (siteData) {
+        const parsed = JSON.parse(siteData);
+        if (parsed?.settings?.autoSaveToGithub !== undefined) {
+          return !!parsed.settings.autoSaveToGithub;
+        }
+      }
+    } catch (e) {}
     return AUTO_SAVE_GITHUB_DEFAULT;
   });
   const [githubPat, setGithubPat] = useState(() => {
     return localStorage.getItem('bmbcc_github_pat') || GITHUB_PAT_DEFAULT;
   });
   const [githubRepo, setGithubRepo] = useState(() => {
-    return localStorage.getItem('bmbcc_github_repo') || GITHUB_REPO_DEFAULT;
+    const saved = localStorage.getItem('bmbcc_github_repo');
+    if (saved) return saved;
+    // Fallback: check if githubRepo is stored in site data settings
+    try {
+      const siteData = localStorage.getItem('bmbcc_site_data');
+      if (siteData) {
+        const parsed = JSON.parse(siteData);
+        if (parsed?.settings?.githubRepo) {
+          return parsed.settings.githubRepo;
+        }
+      }
+    } catch (e) {}
+    return GITHUB_REPO_DEFAULT;
   });
   const [autoSaveStatus, setAutoSaveStatus] = useState(''); // 'saving', 'success', 'error'
   const [autoSaveMessage, setAutoSaveMessage] = useState('');
@@ -232,6 +255,21 @@ export default function App() {
   const [backupAccessGranted, setBackupAccessGranted] = useState(false);
   const [backupPasswordInput, setBackupPasswordInput] = useState('');
   const [backupLoginError, setBackupLoginError] = useState('');
+
+  // GitHub auto-save: SHA cache, push lock, debounce, and latest data ref
+  const lastKnownShaRef = React.useRef(null);
+  const isPushingRef = React.useRef(false);
+  const autoSaveTimeoutRef = React.useRef(null);
+  const latestDataRef = React.useRef(null);
+
+  // Cleanup auto-save timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Apply theme color
   useEffect(() => {
@@ -251,65 +289,125 @@ export default function App() {
 
     // Auto-save to GitHub if enabled (direct GitHub API, no server needed)
     if (autoSaveToGithub && githubPat && githubRepo) {
+      // Store latest data for debounced push
+      latestDataRef.current = sanitizedData;
+
+      // Debounce: cancel any pending push and schedule a new one
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+
       setAutoSaveStatus('saving');
       setAutoSaveMessage(lang === 'zh' ? '正在同步到 GitHub...' : 'Syncing to GitHub...');
 
-      const filePath = 'src/data/initialData.js';
-      const apiUrl = 'https://api.github.com/repos/' + githubRepo + '/contents/' + filePath;
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        const doGithubPush = async () => {
+          const dataToPush = latestDataRef.current;
+          if (!dataToPush) return;
 
-      // Step 1: GET current file SHA (required for update)
-      fetch(apiUrl, {
-        headers: {
-          Authorization: 'Bearer ' + githubPat,
-          Accept: 'application/vnd.github.v3+json',
-        },
-      })
-        .then((res) => res.ok ? res.json() : Promise.resolve({ sha: null }))
-        .then((fileInfo) => {
-          const sha = fileInfo.sha || null;
-          const jsContent = 'export const initialData = ' + JSON.stringify(sanitizedData, null, 2) + ';\n';
+          // Prevent concurrent pushes
+          if (isPushingRef.current) {
+            // Schedule a retry after a short delay
+            autoSaveTimeoutRef.current = setTimeout(() => {
+              setAutoSaveStatus('saving');
+              setAutoSaveMessage(lang === 'zh' ? '正在同步到 GitHub...' : 'Syncing to GitHub...');
+              doGithubPush();
+            }, 3000);
+            return;
+          }
+
+          isPushingRef.current = true;
+
+          const filePath = 'src/data/initialData.js';
+          const apiUrl = 'https://api.github.com/repos/' + githubRepo + '/contents/' + filePath;
+          const jsContent = 'export const initialData = ' + JSON.stringify(dataToPush, null, 2) + ';\n';
           const base64Content = btoa(unescape(encodeURIComponent(jsContent)));
 
-          const body = {
-            message: 'Auto-save: update site data [' + new Date().toISOString().slice(0, 19).replace('T', ' ') + ']',
-            content: base64Content,
-          };
-          if (sha) body.sha = sha;
+          const pushWithRetry = async (maxRetries = 3) => {
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+              try {
+                // Fetch SHA: use cache if available, otherwise fetch from GitHub
+                let sha = lastKnownShaRef.current;
+                if (!sha) {
+                  const shaRes = await fetch(apiUrl, {
+                    headers: {
+                      Authorization: 'Bearer ' + githubPat,
+                      Accept: 'application/vnd.github.v3+json',
+                    },
+                  });
+                  if (shaRes.ok) {
+                    const shaInfo = await shaRes.json();
+                    sha = shaInfo.sha;
+                  }
+                }
 
-          return fetch(apiUrl, {
-            method: 'PUT',
-            headers: {
-              Authorization: 'Bearer ' + githubPat,
-              Accept: 'application/vnd.github.v3+json',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body),
-          });
-        })
-        .then(async (response) => {
-          const result = await response.json().catch(() => ({}));
-          if (response.ok) {
-            setAutoSaveStatus('success');
-            setAutoSaveMessage(lang === 'zh'
-              ? '\u2705 已自动同步到 GitHub！'
-              : '\u2705 Auto-saved to GitHub!');
-          } else {
-            throw new Error(result.message || 'HTTP ' + response.status);
-          }
-        })
-        .catch((err) => {
-          console.error('Auto-save to GitHub failed:', err);
-          setAutoSaveStatus('error');
-          setAutoSaveMessage(lang === 'zh'
-            ? '\u26a0\ufe0f GitHub 同步失败: ' + err.message
-            : '\u26a0\ufe0f GitHub sync failed: ' + err.message);
-        })
-        .finally(() => {
-          setTimeout(() => {
-            setAutoSaveStatus('');
-            setAutoSaveMessage('');
-          }, 6000);
-        });
+                // Push the file
+                const body = {
+                  message: 'Auto-save: update site data [' + new Date().toISOString().slice(0, 19).replace('T', ' ') + ']',
+                  content: base64Content,
+                };
+                if (sha) body.sha = sha;
+
+                const pushRes = await fetch(apiUrl, {
+                  method: 'PUT',
+                  headers: {
+                    Authorization: 'Bearer ' + githubPat,
+                    Accept: 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(body),
+                });
+
+                const result = await pushRes.json().catch(() => ({}));
+
+                if (pushRes.ok) {
+                  // Cache the new SHA for next push
+                  lastKnownShaRef.current = result.content?.sha || null;
+                  setAutoSaveStatus('success');
+                  setAutoSaveMessage(lang === 'zh'
+                    ? '\u2705 已自动同步到 GitHub！'
+                    : '\u2705 Auto-saved to GitHub!');
+                  return; // Success!
+                }
+
+                if ((pushRes.status === 409 || pushRes.status === 422) && attempt < maxRetries) {
+                  // SHA mismatch - invalidate cache and retry with fresh SHA
+                  lastKnownShaRef.current = null;
+                  console.log('Auto-save: SHA mismatch, retrying (' + (attempt + 1) + '/' + maxRetries + ')...');
+                  // Small delay before retry
+                  await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+                  continue;
+                }
+
+                throw new Error(result.message || 'HTTP ' + pushRes.status);
+              } catch (err) {
+                if (attempt === maxRetries) {
+                  throw err;
+                }
+                await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+              }
+            }
+          };
+
+          pushWithRetry()
+            .catch((err) => {
+              console.error('Auto-save to GitHub failed:', err);
+              setAutoSaveStatus('error');
+              setAutoSaveMessage(lang === 'zh'
+                ? '\u26a0\ufe0f GitHub 同步失败: ' + err.message
+                : '\u26a0\ufe0f GitHub sync failed: ' + err.message);
+            })
+            .finally(() => {
+              isPushingRef.current = false;
+              setTimeout(() => {
+                setAutoSaveStatus('');
+                setAutoSaveMessage('');
+              }, 6000);
+            });
+        };
+
+        doGithubPush();
+      }, 1500);
     }
   };
 
@@ -5612,6 +5710,12 @@ export default function App() {
                                   const next = !autoSaveToGithub;
                                   setAutoSaveToGithub(next);
                                   localStorage.setItem('bmbcc_autosave_github', String(next));
+                                  // Also persist in data.settings so it survives across deployments and browser changes
+                                  setData(prev => {
+                                    const updated = { ...prev, settings: { ...prev.settings, autoSaveToGithub: next } };
+                                    localStorage.setItem('bmbcc_site_data', JSON.stringify(stripSensitiveData(updated)));
+                                    return updated;
+                                  });
                                 }}
                                 className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${autoSaveToGithub ? 'bg-primary' : 'bg-gray-300'}`}
                               >
@@ -5654,6 +5758,12 @@ export default function App() {
                                     onChange={(e) => {
                                       setGithubRepo(e.target.value);
                                       localStorage.setItem('bmbcc_github_repo', e.target.value);
+                                      // Also persist in data.settings for cross-session persistence
+                                      setData(prev => {
+                                        const updated = { ...prev, settings: { ...prev.settings, githubRepo: e.target.value } };
+                                        localStorage.setItem('bmbcc_site_data', JSON.stringify(stripSensitiveData(updated)));
+                                        return updated;
+                                      });
                                     }}
                                     placeholder="fongway94/BMBCCWebpage"
                                     className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
