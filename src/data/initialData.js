@@ -81,7 +81,7 @@ export const initialData = {
     },
     "footerTagline": {
       "zh": "❤︎",
-      "en": "Free Open-Source Website • No Subscription Fees • Instant Admin Console"
+      "en": "❤︎"
     }
   },
   "carousel": [
