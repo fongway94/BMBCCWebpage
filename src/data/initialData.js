@@ -1,7 +1,7 @@
 export const initialData = {
   "settings": {
     "churchName": {
-      "zh": "大山脚浸信教会 ",
+      "zh": "大山脚浸信教会",
       "en": "Bukit Mertajam Baptist Church Chinese"
     },
     "churchAbbreviation": "BMBCC",
