@@ -80,8 +80,8 @@ export const initialData = {
       "en": "All rights reserved."
     },
     "footerTagline": {
-      "zh": "❤︎",
-      "en": "❤︎"
+      "zh": "❤︎❤︎",
+      "en": "❤︎❤︎"
     },
     "autoSaveToGithub": true
   },
