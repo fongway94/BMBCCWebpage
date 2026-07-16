@@ -80,7 +80,7 @@ export const initialData = {
       "en": "All rights reserved."
     },
     "footerTagline": {
-      "zh": "免费开源网站 · 零订阅费 · 极速自管理后台",
+      "zh": "<3",
       "en": "Free Open-Source Website • No Subscription Fees • Instant Admin Console"
     }
   },
