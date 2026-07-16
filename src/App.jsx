@@ -55,6 +55,7 @@ import {
 import { initialData } from './data/initialData';
 
 const AUTH_ENDPOINT = '/functions/auth';
+const GITHUB_SETTINGS_ENDPOINT = '/functions/github-settings';
 
 // Helper functions for Timetable styling - standardized to primary emerald theme
 const getDayBadgeStyle = (dayStr) => {
@@ -176,7 +177,70 @@ export default function App() {
     };
     checkAuth();
   }, []);
-  
+
+  // Load GitHub settings from Cloudflare KV (server-side persistence)
+  // Called when admin logs in, so the PAT/repo/auto-save survive across sessions
+  const loadGithubSettingsFromCloud = async () => {
+    try {
+      const res = await fetch(GITHUB_SETTINGS_ENDPOINT, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!res.ok) return; // Not configured or not authenticated
+      const result = await res.json();
+      if (result.ok && result.settings) {
+        const s = result.settings;
+        // Only overwrite localStorage if the server has values
+        if (s.pat !== undefined && s.pat !== '') {
+          localStorage.setItem('bmbcc_github_pat', s.pat);
+          setGithubPat(s.pat);
+        }
+        if (s.repo !== undefined && s.repo !== '') {
+          localStorage.setItem('bmbcc_github_repo', s.repo);
+          setGithubRepo(s.repo);
+          // Also update data.settings for cross-session persistence
+          setData(prev => {
+            const updated = { ...prev, settings: { ...prev.settings, githubRepo: s.repo } };
+            return updated;
+          });
+        }
+        if (s.autoSave !== undefined) {
+          localStorage.setItem('bmbcc_autosave_github', String(s.autoSave));
+          setAutoSaveToGithub(s.autoSave);
+          setData(prev => {
+            const updated = { ...prev, settings: { ...prev.settings, autoSaveToGithub: s.autoSave } };
+            return updated;
+          });
+        }
+      }
+    } catch (err) {
+      // Silently fail — KV may not be configured yet, fall back to localStorage
+      console.log('Cloudflare GitHub settings not available, using localStorage fallback:', err?.message || err);
+    }
+  };
+
+  // Save GitHub settings to Cloudflare KV (server-side persistence)
+  const saveGithubSettingsToCloud = async (settings) => {
+    try {
+      await fetch(GITHUB_SETTINGS_ENDPOINT, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+    } catch (err) {
+      // Silently fail — KV may not be configured yet
+      console.log('Could not save GitHub settings to Cloudflare:', err?.message || err);
+    }
+  };
+
+  // Load GitHub settings from Cloudflare when admin logs in
+  useEffect(() => {
+    if (isAdminLoggedIn) {
+      loadGithubSettingsFromCloud();
+    }
+  }, [isAdminLoggedIn]);
+
   // Editor temporary states
   const [editingSlide, setEditingSlide] = useState(null); // slide ID or 'new'
   const [editingTimetable, setEditingTimetable] = useState(null); // timetable item ID or 'new'
@@ -218,13 +282,36 @@ export default function App() {
   const [autoSaveToGithub, setAutoSaveToGithub] = useState(() => {
     const saved = localStorage.getItem('bmbcc_autosave_github');
     if (saved !== null) return saved === 'true';
+    // Fallback: check if autoSaveToGithub is stored in site data settings
+    // (helps when the dedicated localStorage key is cleared but data was previously auto-saved)
+    try {
+      const siteData = localStorage.getItem('bmbcc_site_data');
+      if (siteData) {
+        const parsed = JSON.parse(siteData);
+        if (parsed?.settings?.autoSaveToGithub !== undefined) {
+          return !!parsed.settings.autoSaveToGithub;
+        }
+      }
+    } catch (e) {}
     return AUTO_SAVE_GITHUB_DEFAULT;
   });
   const [githubPat, setGithubPat] = useState(() => {
     return localStorage.getItem('bmbcc_github_pat') || GITHUB_PAT_DEFAULT;
   });
   const [githubRepo, setGithubRepo] = useState(() => {
-    return localStorage.getItem('bmbcc_github_repo') || GITHUB_REPO_DEFAULT;
+    const saved = localStorage.getItem('bmbcc_github_repo');
+    if (saved) return saved;
+    // Fallback: check if githubRepo is stored in site data settings
+    try {
+      const siteData = localStorage.getItem('bmbcc_site_data');
+      if (siteData) {
+        const parsed = JSON.parse(siteData);
+        if (parsed?.settings?.githubRepo) {
+          return parsed.settings.githubRepo;
+        }
+      }
+    } catch (e) {}
+    return GITHUB_REPO_DEFAULT;
   });
   const [autoSaveStatus, setAutoSaveStatus] = useState(''); // 'saving', 'success', 'error'
   const [autoSaveMessage, setAutoSaveMessage] = useState('');
@@ -232,6 +319,21 @@ export default function App() {
   const [backupAccessGranted, setBackupAccessGranted] = useState(false);
   const [backupPasswordInput, setBackupPasswordInput] = useState('');
   const [backupLoginError, setBackupLoginError] = useState('');
+
+  // GitHub auto-save: SHA cache, push lock, debounce, and latest data ref
+  const lastKnownShaRef = React.useRef(null);
+  const isPushingRef = React.useRef(false);
+  const autoSaveTimeoutRef = React.useRef(null);
+  const latestDataRef = React.useRef(null);
+
+  // Cleanup auto-save timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Apply theme color
   useEffect(() => {
@@ -251,65 +353,125 @@ export default function App() {
 
     // Auto-save to GitHub if enabled (direct GitHub API, no server needed)
     if (autoSaveToGithub && githubPat && githubRepo) {
+      // Store latest data for debounced push
+      latestDataRef.current = sanitizedData;
+
+      // Debounce: cancel any pending push and schedule a new one
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+
       setAutoSaveStatus('saving');
       setAutoSaveMessage(lang === 'zh' ? '正在同步到 GitHub...' : 'Syncing to GitHub...');
 
-      const filePath = 'src/data/initialData.js';
-      const apiUrl = 'https://api.github.com/repos/' + githubRepo + '/contents/' + filePath;
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        const doGithubPush = async () => {
+          const dataToPush = latestDataRef.current;
+          if (!dataToPush) return;
 
-      // Step 1: GET current file SHA (required for update)
-      fetch(apiUrl, {
-        headers: {
-          Authorization: 'Bearer ' + githubPat,
-          Accept: 'application/vnd.github.v3+json',
-        },
-      })
-        .then((res) => res.ok ? res.json() : Promise.resolve({ sha: null }))
-        .then((fileInfo) => {
-          const sha = fileInfo.sha || null;
-          const jsContent = 'export const initialData = ' + JSON.stringify(sanitizedData, null, 2) + ';\n';
+          // Prevent concurrent pushes
+          if (isPushingRef.current) {
+            // Schedule a retry after a short delay
+            autoSaveTimeoutRef.current = setTimeout(() => {
+              setAutoSaveStatus('saving');
+              setAutoSaveMessage(lang === 'zh' ? '正在同步到 GitHub...' : 'Syncing to GitHub...');
+              doGithubPush();
+            }, 3000);
+            return;
+          }
+
+          isPushingRef.current = true;
+
+          const filePath = 'src/data/initialData.js';
+          const apiUrl = 'https://api.github.com/repos/' + githubRepo + '/contents/' + filePath;
+          const jsContent = 'export const initialData = ' + JSON.stringify(dataToPush, null, 2) + ';\n';
           const base64Content = btoa(unescape(encodeURIComponent(jsContent)));
 
-          const body = {
-            message: 'Auto-save: update site data [' + new Date().toISOString().slice(0, 19).replace('T', ' ') + ']',
-            content: base64Content,
-          };
-          if (sha) body.sha = sha;
+          const pushWithRetry = async (maxRetries = 3) => {
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+              try {
+                // Fetch SHA: use cache if available, otherwise fetch from GitHub
+                let sha = lastKnownShaRef.current;
+                if (!sha) {
+                  const shaRes = await fetch(apiUrl, {
+                    headers: {
+                      Authorization: 'Bearer ' + githubPat,
+                      Accept: 'application/vnd.github.v3+json',
+                    },
+                  });
+                  if (shaRes.ok) {
+                    const shaInfo = await shaRes.json();
+                    sha = shaInfo.sha;
+                  }
+                }
 
-          return fetch(apiUrl, {
-            method: 'PUT',
-            headers: {
-              Authorization: 'Bearer ' + githubPat,
-              Accept: 'application/vnd.github.v3+json',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body),
-          });
-        })
-        .then(async (response) => {
-          const result = await response.json().catch(() => ({}));
-          if (response.ok) {
-            setAutoSaveStatus('success');
-            setAutoSaveMessage(lang === 'zh'
-              ? '\u2705 已自动同步到 GitHub！'
-              : '\u2705 Auto-saved to GitHub!');
-          } else {
-            throw new Error(result.message || 'HTTP ' + response.status);
-          }
-        })
-        .catch((err) => {
-          console.error('Auto-save to GitHub failed:', err);
-          setAutoSaveStatus('error');
-          setAutoSaveMessage(lang === 'zh'
-            ? '\u26a0\ufe0f GitHub 同步失败: ' + err.message
-            : '\u26a0\ufe0f GitHub sync failed: ' + err.message);
-        })
-        .finally(() => {
-          setTimeout(() => {
-            setAutoSaveStatus('');
-            setAutoSaveMessage('');
-          }, 6000);
-        });
+                // Push the file
+                const body = {
+                  message: 'Auto-save: update site data [' + new Date().toISOString().slice(0, 19).replace('T', ' ') + ']',
+                  content: base64Content,
+                };
+                if (sha) body.sha = sha;
+
+                const pushRes = await fetch(apiUrl, {
+                  method: 'PUT',
+                  headers: {
+                    Authorization: 'Bearer ' + githubPat,
+                    Accept: 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(body),
+                });
+
+                const result = await pushRes.json().catch(() => ({}));
+
+                if (pushRes.ok) {
+                  // Cache the new SHA for next push
+                  lastKnownShaRef.current = result.content?.sha || null;
+                  setAutoSaveStatus('success');
+                  setAutoSaveMessage(lang === 'zh'
+                    ? '\u2705 已自动同步到 GitHub！'
+                    : '\u2705 Auto-saved to GitHub!');
+                  return; // Success!
+                }
+
+                if ((pushRes.status === 409 || pushRes.status === 422) && attempt < maxRetries) {
+                  // SHA mismatch - invalidate cache and retry with fresh SHA
+                  lastKnownShaRef.current = null;
+                  console.log('Auto-save: SHA mismatch, retrying (' + (attempt + 1) + '/' + maxRetries + ')...');
+                  // Small delay before retry
+                  await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+                  continue;
+                }
+
+                throw new Error(result.message || 'HTTP ' + pushRes.status);
+              } catch (err) {
+                if (attempt === maxRetries) {
+                  throw err;
+                }
+                await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+              }
+            }
+          };
+
+          pushWithRetry()
+            .catch((err) => {
+              console.error('Auto-save to GitHub failed:', err);
+              setAutoSaveStatus('error');
+              setAutoSaveMessage(lang === 'zh'
+                ? '\u26a0\ufe0f GitHub 同步失败: ' + err.message
+                : '\u26a0\ufe0f GitHub sync failed: ' + err.message);
+            })
+            .finally(() => {
+              isPushingRef.current = false;
+              setTimeout(() => {
+                setAutoSaveStatus('');
+                setAutoSaveMessage('');
+              }, 6000);
+            });
+        };
+
+        doGithubPush();
+      }, 1500);
     }
   };
 
@@ -407,6 +569,8 @@ export default function App() {
         setIsAdminLoggedIn(true);
         setAdminLoginError('');
         setAdminPasswordInput('');
+        // Load GitHub settings from Cloudflare KV after successful login
+        loadGithubSettingsFromCloud();
       } else {
         setAdminLoginError(result.error || (lang === 'zh' ? '登录失败' : 'Login failed'));
       }
@@ -5612,6 +5776,14 @@ export default function App() {
                                   const next = !autoSaveToGithub;
                                   setAutoSaveToGithub(next);
                                   localStorage.setItem('bmbcc_autosave_github', String(next));
+                                  // Also persist in data.settings so it survives across deployments and browser changes
+                                  setData(prev => {
+                                    const updated = { ...prev, settings: { ...prev.settings, autoSaveToGithub: next } };
+                                    localStorage.setItem('bmbcc_site_data', JSON.stringify(stripSensitiveData(updated)));
+                                    return updated;
+                                  });
+                                  // Save to Cloudflare KV for server-side persistence
+                                  saveGithubSettingsToCloud({ autoSave: next });
                                 }}
                                 className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${autoSaveToGithub ? 'bg-primary' : 'bg-gray-300'}`}
                               >
@@ -5621,102 +5793,122 @@ export default function App() {
                               </button>
                             </div>
 
-                            {autoSaveToGithub && (
-                              <>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                                    {lang === 'zh' ? 'GitHub Personal Access Token' : 'GitHub Personal Access Token'}
-                                  </label>
-                                  <input
-                                    type="password"
-                                    value={githubPat}
-                                    onChange={(e) => {
-                                      setGithubPat(e.target.value);
-                                      localStorage.setItem('bmbcc_github_pat', e.target.value);
-                                    }}
-                                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                                    className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
-                                  />
-                                  <p className="text-[10px] text-gray-400 mt-1">
-                                    {lang === 'zh'
-                                      ? 'Token 仅保存在此浏览器的 localStorage 中，不会上传到任何服务器。'
-                                      : 'Token is only stored in this browsers localStorage — never sent to any server except GitHub.'}
-                                  </p>
-                                </div>
+                            {/* PAT and repo fields are always visible so the token is never "lost"
+                                when auto-save is toggled off. They are editable regardless of toggle state,
+                                but visually dimmed when auto-save is off. */}
+                            <div className={autoSaveToGithub ? '' : 'opacity-60'}>
+                              <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1">
+                                  {lang === 'zh' ? 'GitHub Personal Access Token' : 'GitHub Personal Access Token'}
+                                </label>
+                                <input
+                                  type="password"
+                                  value={githubPat}
+                                  onChange={(e) => {
+                                    setGithubPat(e.target.value);
+                                    localStorage.setItem('bmbcc_github_pat', e.target.value);
+                                    // Save to Cloudflare KV for server-side persistence
+                                    saveGithubSettingsToCloud({ pat: e.target.value });
+                                  }}
+                                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                                />
+                                <p className="text-[10px] text-gray-400 mt-1">
+                                  {lang === 'zh'
+                                    ? 'Token 安全保存在 Cloudflare KV（服务器端）及浏览器 localStorage 中，仅通过 HTTPS 发送到 api.github.com。'
+                                    : 'Token is securely stored in Cloudflare KV (server-side) and browser localStorage, sent only to api.github.com over HTTPS.'}
+                                </p>
+                              </div>
 
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                                    {lang === 'zh' ? 'GitHub 仓库' : 'GitHub Repository'}
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={githubRepo}
-                                    onChange={(e) => {
-                                      setGithubRepo(e.target.value);
-                                      localStorage.setItem('bmbcc_github_repo', e.target.value);
-                                    }}
-                                    placeholder="fongway94/BMBCCWebpage"
-                                    className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
-                                  />
-                                </div>
+                              <div className="mt-4">
+                                <label className="block text-xs font-bold text-gray-700 mb-1">
+                                  {lang === 'zh' ? 'GitHub 仓库' : 'GitHub Repository'}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={githubRepo}
+                                  onChange={(e) => {
+                                    setGithubRepo(e.target.value);
+                                    localStorage.setItem('bmbcc_github_repo', e.target.value);
+                                    // Also persist in data.settings for cross-session persistence
+                                    setData(prev => {
+                                      const updated = { ...prev, settings: { ...prev.settings, githubRepo: e.target.value } };
+                                      localStorage.setItem('bmbcc_site_data', JSON.stringify(stripSensitiveData(updated)));
+                                      return updated;
+                                    });
+                                    // Save to Cloudflare KV for server-side persistence
+                                    saveGithubSettingsToCloud({ repo: e.target.value });
+                                  }}
+                                  placeholder="fongway94/BMBCCWebpage"
+                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                                />
+                              </div>
+                            </div>
 
-                                {autoSaveStatus && (
-                                  <div
-                                    className={`text-xs p-2.5 rounded-lg flex items-center gap-2 ${autoSaveStatus === 'saving'
-                                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                        : autoSaveStatus === 'success'
-                                        ? 'bg-green-50 text-green-700 border border-green-200'
-                                        : 'bg-red-50 text-red-700 border border-red-200'
-                                      }`}
-                                  >
-                                    {autoSaveStatus === 'saving' && (
-                                      <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                      </svg>
-                                    )}
-                                    <span>{autoSaveMessage}</span>
-                                  </div>
-                                )}
-
-                                <details className="text-[10px] text-gray-500 mt-2">
-                                  <summary className="cursor-pointer font-semibold text-gray-600 hover:text-gray-800">
-                                    {lang === 'zh' ? '📖 如何设置？只需3步！' : '📖 How to set up? Only 3 steps!'}
-                                  </summary>
-                                  <div className="mt-2 space-y-2 pl-1 leading-relaxed">
-                                    <p className="font-bold text-gray-700">
-                                      {lang === 'zh' ? '步骤：' : 'Steps:'}
-                                    </p>
-                                    <ol className="list-decimal pl-4 space-y-1.5">
-                                      <li>
-                                        {lang === 'zh'
-                                          ? '在 GitHub 创建 Personal Access Token：Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token'
-                                          : 'Create a PAT on GitHub: Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token'}
-                                        <ul className="pl-3 mt-1 space-y-0.5 text-[9px]">
-                                          <li>{lang === 'zh' ? '• Repository access: Only select repositories → BMBCCWebpage' : '• Repository access: Only select repositories → BMBCCWebpage'}</li>
-                                          <li>{lang === 'zh' ? '• Permissions: Contents → Read and write' : '• Permissions: Contents → Read and write'}</li>
-                                        </ul>
-                                      </li>
-                                      <li>
-                                        {lang === 'zh'
-                                          ? '将生成的 Token（以 ghp_ 开头）粘贴到上面的输入框中'
-                                          : 'Paste the generated token (starts with ghp_) into the input field above'}
-                                      </li>
-                                      <li>
-                                        {lang === 'zh'
-                                          ? '确认仓库名为 fongway94/BMBCCWebpage，然后开启开关 — 以后每次保存就会自动提交到 GitHub！不需要任何服务器。'
-                                          : 'Confirm the repo name is fongway94/BMBCCWebpage, then flip the switch — every save will auto-commit to GitHub! No server needed at all.'}
-                                      </li>
-                                    </ol>
-                                    <p className="text-[9px] text-amber-600 mt-2">
-                                      {lang === 'zh'
-                                        ? '⚠️ 注意：Token 存储在浏览器的 localStorage，仅通过 HTTPS 发送到 api.github.com。建议使用 Fine-grained token 并设置过期时间。'
-                                        : '⚠️ Note: Token stored in browser localStorage, sent only to api.github.com over HTTPS. Use a fine-grained token with expiry for best security.'}
-                                    </p>
-                                  </div>
-                                </details>
-                              </>
+                            {!autoSaveToGithub && (
+                              <p className="text-[10px] text-amber-600 mt-2 flex items-center gap-1">
+                                <AlertTriangle size={12} className="shrink-0" />
+                                {lang === 'zh'
+                                  ? '自动同步已关闭。Token 和仓库设置已保留，开启开关后即可继续使用。'
+                                  : 'Auto-sync is off. Your token and repo settings are preserved — flip the switch to resume.'}
+                              </p>
                             )}
+
+                            {autoSaveToGithub && autoSaveStatus && (
+                              <div
+                                className={`text-xs p-2.5 rounded-lg flex items-center gap-2 ${autoSaveStatus === 'saving'
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    : autoSaveStatus === 'success'
+                                    ? 'bg-green-50 text-green-700 border border-green-200'
+                                    : 'bg-red-50 text-red-700 border border-red-200'
+                                  }`}
+                              >
+                                {autoSaveStatus === 'saving' && (
+                                  <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                  </svg>
+                                )}
+                                <span>{autoSaveMessage}</span>
+                              </div>
+                            )}
+
+                            <details className="text-[10px] text-gray-500 mt-2">
+                              <summary className="cursor-pointer font-semibold text-gray-600 hover:text-gray-800">
+                                {lang === 'zh' ? '📖 如何设置？只需3步！' : '📖 How to set up? Only 3 steps!'}
+                              </summary>
+                              <div className="mt-2 space-y-2 pl-1 leading-relaxed">
+                                <p className="font-bold text-gray-700">
+                                  {lang === 'zh' ? '步骤：' : 'Steps:'}
+                                </p>
+                                <ol className="list-decimal pl-4 space-y-1.5">
+                                  <li>
+                                    {lang === 'zh'
+                                      ? '在 GitHub 创建 Personal Access Token：Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token'
+                                      : 'Create a PAT on GitHub: Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token'}
+                                    <ul className="pl-3 mt-1 space-y-0.5 text-[9px]">
+                                      <li>{lang === 'zh' ? '• Repository access: Only select repositories → BMBCCWebpage' : '• Repository access: Only select repositories → BMBCCWebpage'}</li>
+                                      <li>{lang === 'zh' ? '• Permissions: Contents → Read and write' : '• Permissions: Contents → Read and write'}</li>
+                                    </ul>
+                                  </li>
+                                  <li>
+                                    {lang === 'zh'
+                                      ? '将生成的 Token（以 ghp_ 开头）粘贴到上面的输入框中'
+                                      : 'Paste the generated token (starts with ghp_) into the input field above'}
+                                  </li>
+                                  <li>
+                                    {lang === 'zh'
+                                      ? '确认仓库名为 fongway94/BMBCCWebpage，然后开启开关 — 以后每次保存就会自动提交到 GitHub！不需要任何服务器。'
+                                      : 'Confirm the repo name is fongway94/BMBCCWebpage, then flip the switch — every save will auto-commit to GitHub! No server needed at all.'}
+                                  </li>
+                                </ol>
+                                <p className="text-[9px] text-amber-600 mt-2">
+                                  {lang === 'zh'
+                                    ? '⚠️ Token 安全保存在 Cloudflare KV 和浏览器 localStorage 中，仅通过 HTTPS 发送到 api.github.com。建议使用 Fine-grained token 并设置过期时间。'
+                                    : '⚠️ Token is securely stored in Cloudflare KV and browser localStorage, sent only to api.github.com over HTTPS. Use a fine-grained token with expiry for best security.'}
+                                </p>
+                              </div>
+                            </details>
                           </div>
                         </div>
 

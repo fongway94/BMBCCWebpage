@@ -7,6 +7,17 @@ pages_build_output_dir = "dist"
 # ADMIN_PASSWORD = "your-strong-password"  # Set in dashboard
 # JWT_SECRET = "your-jwt-secret"          # Set in dashboard
 
+# KV namespace for storing GitHub settings (PAT, repo, auto-save toggle).
+# Set this up in the Cloudflare Pages dashboard:
+#   Workers & Pages → bmbcc-webpage → Settings → Functions → KV namespace bindings
+#   Variable name: GITHUB_SETTINGS
+#   KV namespace: select the GITHUB_SETTINGS namespace you created
+#
+# If you prefer wrangler.toml over dashboard, uncomment below and paste the real ID:
+# [[kv_namespaces]]
+# binding = "GITHUB_SETTINGS"
+# id = "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
+
 # Custom domain (optional, configure in dashboard)
 # routes = [
 #   { pattern = "bmbcc.example.com/*", zone_name = "example.com" }
