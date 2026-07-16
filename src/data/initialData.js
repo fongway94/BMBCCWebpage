@@ -5,6 +5,10 @@ export const initialData = {
       "en": "Bukit Mertajam Baptist Church Chinese"
     },
     "churchAbbreviation": "BMBCC",
+    "churchTagline": {
+      "zh": "百利镇社区教会",
+      "en": "Taman Bukit Minyak Community"
+    },
     "slogan": {
       "zh": "一个名为 BMBCC 的家",
       "en": "A Home called BMBCC"
@@ -70,7 +74,15 @@ export const initialData = {
       "zh": "无论您是在寻找生命的意义、属灵的港湾，还是社区的陪伴，这里的大门始终为您敞开。让我们一起在主爱里生活，彼此扶持！",
       "en": "Whether you seek the meaning of life, a spiritual home, or community fellowship, our doors are always open. Let's grow and support each other in His grace!"
     },
-    "showLoginButton": false
+    "showLoginButton": false,
+    "footerCopyright": {
+      "zh": "保留所有权利。",
+      "en": "All rights reserved."
+    },
+    "footerTagline": {
+      "zh": "免费开源网站 · 零订阅费 · 极速自管理后台",
+      "en": "Free Open-Source Website • No Subscription Fees • Instant Admin Console"
+    }
   },
   "carousel": [
     {

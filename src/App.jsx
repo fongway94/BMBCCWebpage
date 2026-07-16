@@ -128,7 +128,7 @@ export default function App() {
           }
           return parsedObj;
         };
-        const settingsKeys = ['churchName','slogan','description','themeYear','aboutIntro','aboutVision','aboutMission','homeVisionPara1','homeVisionPara2','yearlyVisionLabel','yearlyVisionTitle','yearlyVisionBadge','yearlyVisionScripture','yearlyVisionRef','ctaTitle','ctaDescription'];
+        const settingsKeys = ['churchName','slogan','description','themeYear','aboutIntro','aboutVision','aboutMission','homeVisionPara1','homeVisionPara2','yearlyVisionLabel','yearlyVisionTitle','yearlyVisionBadge','yearlyVisionScripture','yearlyVisionRef','ctaTitle','ctaDescription','footerCopyright','footerTagline','churchTagline'];
         const mergedSettings = { ...initialData.settings, ...(parsed.settings || {}) };
         delete mergedSettings.adminPassword;
         settingsKeys.forEach(k => {
@@ -846,7 +846,7 @@ export default function App() {
                     {t(data.settings.churchName)}
                   </span>
                   <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">
-                    {data.settings.churchAbbreviation} • {lang === 'zh' ? '百利镇社区教会' : 'Taman Bukit Minyak Community'}
+                    {data.settings.churchAbbreviation} • {t(data.settings.churchTagline)}
                   </span>
                 </div>
               </div>
@@ -3449,13 +3449,34 @@ export default function App() {
                           />
                         </div>
 
-                        {/* Church Abbreviation */}
+{/* Church Abbreviation */}
                         <div>
                           <label className="block text-xs font-bold text-gray-700 mb-1">教会简称 / Abbreviation (e.g. BMBCC)</label>
-                          <input 
+                          <input
                             type="text"
                             value={data.settings.churchAbbreviation || ''}
                             onChange={(e) => updateSetting('churchAbbreviation', null, e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Church Tagline/Subtitle */}
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '教会副标题 (中文)' : 'Church Tagline (Chinese)'}</label>
+                          <input
+                            type="text"
+                            value={data.settings.churchTagline?.zh || ''}
+                            onChange={(e) => updateSetting('churchTagline', 'zh', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Church Tagline (English)</label>
+                          <input
+                            type="text"
+                            value={data.settings.churchTagline?.en || ''}
+                            onChange={(e) => updateSetting('churchTagline', 'en', e.target.value)}
                             className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
                           />
                         </div>
@@ -3856,6 +3877,51 @@ export default function App() {
                           </div>
                         </div>
 
+                        {/* ===== Footer Text Settings ===== */}
+                        <div className="md:col-span-2 pt-4 border-t border-gray-100">
+                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2"><Info size={14} className="text-primary" /> {lang === 'zh' ? '页脚版权与标语设置' : 'Footer Copyright & Tagline Settings'}</h3>
+                          <p className="text-[10px] text-gray-500 mb-3">{lang === 'zh' ? '编辑页脚底部的版权声明和网站标语' : 'Edit the copyright notice and tagline at the bottom of the footer'}</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '版权声明 (中文)' : 'Copyright Notice (Chinese)'}</label>
+                          <input
+                            type="text"
+                            value={data.settings.footerCopyright?.zh || ''}
+                            onChange={(e) => updateSetting('footerCopyright', 'zh', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Copyright Notice (English)</label>
+                          <input
+                            type="text"
+                            value={data.settings.footerCopyright?.en || ''}
+                            onChange={(e) => updateSetting('footerCopyright', 'en', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '网站标语 (中文)' : 'Website Tagline (Chinese)'}</label>
+                          <input
+                            type="text"
+                            value={data.settings.footerTagline?.zh || ''}
+                            onChange={(e) => updateSetting('footerTagline', 'zh', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Website Tagline (English)</label>
+                          <input
+                            type="text"
+                            value={data.settings.footerTagline?.en || ''}
+                            onChange={(e) => updateSetting('footerTagline', 'en', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -5835,13 +5901,11 @@ export default function App() {
 
         </div>
 
-        {/* Legal block */}
+{/* Legal block */}
         <div className="max-w-7xl mx-auto mt-10 pt-6 border-t border-gray-800 text-center flex flex-col sm:flex-row justify-between items-center gap-4 text-[11px] text-gray-500">
-          <p>© {new Date().getFullYear()} {t(data.settings.churchName)}. {lang === 'zh' ? '保留所有权利。' : 'All rights reserved.'}</p>
+          <p>© {new Date().getFullYear()} {t(data.settings.churchName)}. {t(data.settings.footerCopyright)}</p>
           <p className="font-light">
-            {lang === 'zh' 
-              ? '免费开源网站 · 零订阅费 · 极速自管理后台' 
-              : 'Free Open-Source Website • No Subscription Fees • Instant Admin Console'}
+            {t(data.settings.footerTagline)}
           </p>
         </div>
       </footer>
