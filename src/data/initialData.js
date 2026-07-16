@@ -80,7 +80,7 @@ export const initialData = {
       "en": "All rights reserved."
     },
     "footerTagline": {
-      "zh": "<3",
+      "zh": "❤︎",
       "en": "Free Open-Source Website • No Subscription Fees • Instant Admin Console"
     }
   },
