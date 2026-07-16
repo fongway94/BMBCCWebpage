@@ -7,7 +7,7 @@ export const initialData = {
     "churchAbbreviation": "BMBCC",
     "churchTagline": {
       "zh": "百利镇社区教会",
-      "en": "Taman Bukit Minyak Community"
+      "en": "Taman Kota Permai Community"
     },
     "slogan": {
       "zh": "一个名为 BMBCC 的家",
