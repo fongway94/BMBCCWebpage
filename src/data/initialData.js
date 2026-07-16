@@ -82,7 +82,8 @@ export const initialData = {
     "footerTagline": {
       "zh": "❤︎",
       "en": "❤︎"
-    }
+    },
+    "autoSaveToGithub": true
   },
   "carousel": [
     {
