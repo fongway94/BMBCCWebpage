@@ -591,13 +591,13 @@ export const initialData = {
           "en": "Bank Transfer"
         },
         "description": {
-          "zh": "您可通过银行转账将奉献汇入以下教会官方账户：",
+          "zh": "您可通过银行转账将奉献汇入以下教会官方账户：\n\nRHB Bank : 2071580051581 \nPertubuhan Penganut Kristian Baptist Bukit Mertajam",
           "en": "You may transfer your offering directly to the church's official bank account:"
         },
         "icon": "building",
         "details": {
-          "zh": "银行名称：Maybank (马来亚银行)\n户名：Bukit Mertajam Baptist Chinese Church\n账号：1234-5678-9012\n（转账后请截图或WhatsApp联系教会同工确认）",
-          "en": "Bank Name: Maybank\nAccount Name: Bukit Mertajam Baptist Chinese Church\nAccount No: 1234-5678-9012\n(Please screenshot or WhatsApp our staff after transfer for confirmation)"
+          "zh": "银行名称：RHB Bank\n户名：Pertubuhan Penganut Kristian Baptist Bukit Mertajam\n账号：2071580051581\n（转账后请截图或WhatsApp联系教会同工确认）",
+          "en": "Bank Name: RHB Bank\nAccount Name: Pertubuhan Penganut Kristian Baptist Bukit Mertajam\nAccount No: 2071580051581\n(Please screenshot or WhatsApp our staff after transfer for confirmation)"
         },
         "index": 1
       },
