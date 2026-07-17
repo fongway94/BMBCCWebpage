@@ -274,12 +274,13 @@ export default function App() {
   const [sermonViewMode, setSermonViewMode] = useState('cards'); // 'cards' | 'table'
   const [selectedBulletinModal, setSelectedBulletinModal] = useState(null);
   const [selectedSermonModal, setSelectedSermonModal] = useState(null);
-  // Service Library states
+  // Service Library states - now Services & Worships
   const [editingService, setEditingService] = useState(null);
   const [serviceFilter, setServiceFilter] = useState('all');
   const [serviceSearchQuery, setServiceSearchQuery] = useState('');
   const [serviceViewMode, setServiceViewMode] = useState('cards'); // 'cards' | 'table'
   const [selectedServiceModal, setSelectedServiceModal] = useState(null);
+  const [serviceMainTab, setServiceMainTab] = useState('all'); // 'all' | 'service' | 'worship'
   const [importJsonText, setImportJsonText] = useState('');
   const [importError, setImportError] = useState('');
 
@@ -583,6 +584,13 @@ export default function App() {
 
     const query = t(church?.address) || t(church?.name) || data.settings.contactAddress;
     return query ? `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed` : '';
+  };
+
+  // Global YouTube embed helper - used by Sermons and Services & Worships
+  const getYoutubeEmbedUrl = (url) => {
+    if (!url) return '';
+    const match = String(url).match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s]+)/);
+    return match ? `https://www.youtube.com/embed/${match[1]}` : '';
   };
 
   const handleAdminLogin = async (e) => {
@@ -1163,7 +1171,7 @@ export default function App() {
                     label: lang === 'zh' ? '资源' : 'Resources', 
                     items: [
                       vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '周报与讲道' : 'Bulletins & Sermons' },
-                      vis.services !== false && { id: 'services', label: lang === 'zh' ? '崇拜录影库' : 'Service Library' },
+                      vis.services !== false && { id: 'services', label: lang === 'zh' ? '崇拜与敬拜' : 'Services & Worships' },
                       vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide' }
                     ].filter(Boolean)
                   },
@@ -1232,27 +1240,54 @@ export default function App() {
                 <span className="font-medium text-xs uppercase tracking-wider">{lang === 'zh' ? 'EN' : '中文'}</span>
               </button>
 
-              {/* Admin Panel Access Button - Hidden by default for security */}
-              {(data.settings.showLoginButton) && (
-                <button
-                  onClick={() => { setActiveTab('admin'); window.scrollTo(0, 0); }}
-                  className={`p-2 rounded-lg flex items-center gap-1.5 transition-all text-sm ${
-                    activeTab === 'admin'
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'text-gray-500 hover:bg-amber-50 hover:text-amber-700'
-                  }`}
-                  title={lang === 'zh' ? '管理员后台' : 'Admin Panel'}
-                >
-                  <Shield size={17} />
-                  <span className="font-semibold text-xs uppercase tracking-wider">
-                    {isAdminLoggedIn ? (lang === 'zh' ? '后台' : 'Admin') : (lang === 'zh' ? '登录' : 'Login')}
-                  </span>
-                </button>
+              {/* Admin Mode Indicator - Only shows when in /admin */}
+              {activeTab === 'admin' ? (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 shadow-sm">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shadow-sm">
+                    <Shield size={14} />
+                  </div>
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-xs font-extrabold uppercase tracking-wider">
+                      {lang === 'zh' ? '后台管理模式' : 'Admin Mode'}
+                    </span>
+                    <span className="text-[10px] font-medium text-amber-700/80">
+                      {isAdminLoggedIn ? (lang === 'zh' ? '已登录 • 管理中' : 'Logged in • Managing') : (lang === 'zh' ? '未登录 • 访客视图' : 'Guest view')}
+                    </span>
+                  </div>
+                  {isAdminLoggedIn && (
+                    <button
+                      onClick={handleAdminLogout}
+                      className="ml-1 p-1.5 rounded-lg bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 transition-all"
+                      title={lang === 'zh' ? '退出登录' : 'Logout'}
+                    >
+                      <LogOut size={12} />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                data.settings.showLoginButton && (
+                  <button
+                    onClick={() => { setActiveTab('admin'); window.scrollTo(0, 0); }}
+                    className="p-2 rounded-lg flex items-center gap-1.5 transition-all text-sm text-gray-500 hover:bg-amber-50 hover:text-amber-700"
+                    title={lang === 'zh' ? '管理员后台' : 'Admin Panel'}
+                  >
+                    <Shield size={17} />
+                    <span className="font-semibold text-xs uppercase tracking-wider">
+                      {isAdminLoggedIn ? (lang === 'zh' ? '后台' : 'Admin') : (lang === 'zh' ? '登录' : 'Login')}
+                    </span>
+                  </button>
+                )
               )}
             </div>
 
             {/* Mobile menu button */}
             <div className="flex md:hidden items-center gap-2">
+              {activeTab === 'admin' && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
+                  <Shield size={12} className="text-amber-600" />
+                  <span className="text-[10px] font-bold uppercase">{lang === 'zh' ? '后台' : 'Admin'}</span>
+                </div>
+              )}
               <button
                 onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
                 className="p-2 rounded-lg bg-gray-100 text-gray-700 flex items-center gap-1 transition-all"
@@ -1289,10 +1324,10 @@ export default function App() {
                   vis.events !== false && { id: 'events', label: lang === 'zh' ? '  特别活动' : '  Events', sub: true },
                   { id: '__group_resources__', label: lang === 'zh' ? '▸ 资源 / Resources' : '▸ Resources', group: true, disabled: true },
                   vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '  周报与讲道' : '  Bulletins & Sermons', sub: true },
-                  vis.services !== false && { id: 'services', label: lang === 'zh' ? '  崇拜录影库' : '  Service Library', sub: true },
+                  vis.services !== false && { id: 'services', label: lang === 'zh' ? '  崇拜与敬拜' : '  Services & Worships', sub: true },
                   vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '  新朋友指南' : '  New Friend Guide', sub: true },
                   vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
-                  data.settings.showLoginButton && { id: 'admin', label: lang === 'zh' ? (isAdminLoggedIn ? '管理员控制台' : '后台管理登录') : (isAdminLoggedIn ? 'Admin Console' : 'Admin Login'), icon: Shield }
+                  (data.settings.showLoginButton || activeTab === 'admin') && { id: 'admin', label: lang === 'zh' ? (isAdminLoggedIn ? '管理员控制台' : '后台管理登录') : (isAdminLoggedIn ? 'Admin Console' : 'Admin Login'), icon: Shield }
                 ].filter(Boolean);
 
                 return allTabs.map((tab) => (
@@ -3231,30 +3266,89 @@ export default function App() {
           );
         })()}
 
-        {/* ==================== PAGE: SERVICE LIBRARY ==================== */}
+        {/* ==================== PAGE: SERVICES & WORSHIPS ==================== */}
         {activeTab === 'services' && (() => {
           const services = data.services || [];
-          const allSeries = [...new Set(services.map(s => t(s.series)))];
+          const getServiceType = (s) => (s.type || 'service');
+          // Count for tabs
+          const countAll = services.length;
+          const countService = services.filter(s => getServiceType(s) !== 'worship').length;
+          const countWorship = services.filter(s => getServiceType(s) === 'worship').length;
+          // Filter by main tab (service/worship) first to derive series list
+          const servicesByMainTab = services.filter(s => {
+            if (serviceMainTab === 'all') return true;
+            return getServiceType(s) === serviceMainTab;
+          });
+          const allSeries = [...new Set(servicesByMainTab.map(s => t(s.series)))];
           const filteredServices = services.filter(s => {
+            const matchesMainTab = serviceMainTab === 'all' || getServiceType(s) === serviceMainTab;
             const matchesFilter = serviceFilter === 'all' || t(s.series) === serviceFilter;
             const q = serviceSearchQuery.toLowerCase().trim();
             const matchesSearch = !q || t(s.title).toLowerCase().includes(q) || t(s.series).toLowerCase().includes(q) || s.date.includes(q) || t(s.description).toLowerCase().includes(q);
-            return matchesFilter && matchesSearch;
+            return matchesMainTab && matchesFilter && matchesSearch;
           });
           return (
             <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
               <div className="text-center max-w-3xl mx-auto space-y-4 mb-10">
                 <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                  {lang === 'zh' ? '崇拜录影 · 回顾主日' : 'Service Recordings · Sunday Replay'}
+                  {lang === 'zh' ? '崇拜与敬拜 · 完整回顾' : 'Services & Worships · Full Replay'}
                 </span>
                 <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                  {lang === 'zh' ? '崇拜录影库' : 'Service Library'}
+                  {lang === 'zh' ? '崇拜与敬拜' : 'Services & Worships'}
                 </h1>
                 <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
                   {lang === 'zh'
-                    ? '回顾完整主日崇拜录影，包括敬拜赞美、证道、祷告及教会报告事项。'
-                    : 'Revisit full Sunday worship service recordings, including praise, sermon, prayer, and church announcements.'}
+                    ? '回顾完整主日崇拜与敬拜赞美录影，包括敬拜、证道、祷告及教会报告事项。崇拜与敬拜分开标签，方便查找。'
+                    : 'Revisit full Sunday service & worship recordings, including praise, sermon, prayer, and announcements. Browse by Services and Worships tabs.'}
                 </p>
+              </div>
+
+              {/* Main Tabs: Services & Worships */}
+              <div className="flex justify-center mb-6">
+                <div className="inline-flex bg-gray-100 rounded-xl p-1 gap-1 border border-gray-200/60 shadow-xs">
+                  <button
+                    onClick={() => { setServiceMainTab('all'); setServiceFilter('all'); }}
+                    className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                      serviceMainTab === 'all'
+                        ? 'bg-white text-primary shadow-sm font-bold'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                    }`}
+                  >
+                    <Layers size={16} />
+                    <span>{lang === 'zh' ? '全部' : 'All'}</span>
+                    <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-bold">
+                      {countAll}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => { setServiceMainTab('service'); setServiceFilter('all'); }}
+                    className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                      serviceMainTab === 'service'
+                        ? 'bg-white text-primary shadow-sm font-bold'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                    }`}
+                  >
+                    <Video size={16} />
+                    <span>{lang === 'zh' ? '崇拜录影' : 'Services'}</span>
+                    <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-bold">
+                      {countService}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => { setServiceMainTab('worship'); setServiceFilter('all'); }}
+                    className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                      serviceMainTab === 'worship'
+                        ? 'bg-white text-primary shadow-sm font-bold'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                    }`}
+                  >
+                    <PlayCircle size={16} />
+                    <span>{lang === 'zh' ? '敬拜录影' : 'Worships'}</span>
+                    <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-bold">
+                      {countWorship}
+                    </span>
+                  </button>
+                </div>
               </div>
 
               {/* Filters & Control Toolbar */}
@@ -3350,17 +3444,20 @@ export default function App() {
                     <Video size={32} />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900">
-                    {lang === 'zh' ? '未找到相关崇拜录影' : 'No Matching Services Found'}
+                    {lang === 'zh'
+                      ? (serviceMainTab === 'worship' ? '未找到相关敬拜录影' : serviceMainTab === 'service' ? '未找到相关崇拜录影' : '未找到相关录影')
+                      : (serviceMainTab === 'worship' ? 'No Matching Worships Found' : serviceMainTab === 'service' ? 'No Matching Services Found' : 'No Matching Recordings Found')}
                   </h3>
                   <p className="text-xs text-gray-500 max-w-sm mx-auto">
                     {lang === 'zh'
-                      ? '您可以尝试清除搜索关键词或重置系列筛选条件。'
-                      : 'Try clearing your search query or resetting the series filter.'}
+                      ? '您可以尝试清除搜索关键词、重置系列筛选或切换崇拜/敬拜标签。'
+                      : 'Try clearing search, resetting series filter, or switching Services/Worships tabs.'}
                   </p>
                   <button
                     onClick={() => {
                       setServiceSearchQuery('');
                       setServiceFilter('all');
+                      setServiceMainTab('all');
                     }}
                     className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-md hover:bg-primary-dark transition-all"
                   >
@@ -3390,10 +3487,15 @@ export default function App() {
                       </div>
                       <div className="p-5 flex-grow flex flex-col justify-between space-y-3">
                         <div>
-                          <div className="flex items-center gap-2 mb-2 justify-between">
-                            <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-bold">
-                              {t(service.series)}
-                            </span>
+                          <div className="flex items-center gap-2 mb-2 justify-between flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getServiceType(service) === 'worship' ? 'bg-violet-100 text-violet-700' : 'bg-primary/10 text-primary'}`}>
+                                {getServiceType(service) === 'worship' ? (lang === 'zh' ? '敬拜' : 'Worship') : (lang === 'zh' ? '崇拜' : 'Service')}
+                              </span>
+                              <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-700 text-[10px] font-bold">
+                                {t(service.series)}
+                              </span>
+                            </div>
                             <span className="inline-flex items-center gap-1 text-gray-400 text-[10px] font-medium">
                               <Calendar size={10} />
                               {service.date}
@@ -3422,6 +3524,7 @@ export default function App() {
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-200">
                           <th className="px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">{lang === 'zh' ? '日期' : 'Date'}</th>
+                          <th className="px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">{lang === 'zh' ? '类型' : 'Type'}</th>
                           <th className="px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">{lang === 'zh' ? '标题' : 'Title'}</th>
                           <th className="px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">{lang === 'zh' ? '系列' : 'Series'}</th>
                           <th className="px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">{lang === 'zh' ? '操作' : 'Action'}</th>
@@ -3431,6 +3534,11 @@ export default function App() {
                         {filteredServices.map((service) => (
                           <tr key={service.id} className="hover:bg-gray-50/50 transition-colors">
                             <td className="px-5 py-3.5 text-xs text-gray-600 font-medium whitespace-nowrap">{service.date}</td>
+                            <td className="px-5 py-3.5">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getServiceType(service) === 'worship' ? 'bg-violet-100 text-violet-700' : 'bg-primary/10 text-primary'}`}>
+                                {getServiceType(service) === 'worship' ? (lang === 'zh' ? '敬拜' : 'Worship') : (lang === 'zh' ? '崇拜' : 'Service')}
+                              </span>
+                            </td>
                             <td className="px-5 py-3.5">
                               <span className="text-sm font-bold text-gray-900">{t(service.title)}</span>
                             </td>
@@ -3465,8 +3573,11 @@ export default function App() {
                       <X size={20} />
                     </button>
                     <div className="space-y-1.5 pr-6">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${ (selectedServiceModal.type || 'service') === 'worship' ? 'bg-violet-100 text-violet-700' : 'bg-primary/10 text-primary'}`}>
+                          {(selectedServiceModal.type || 'service') === 'worship' ? (lang === 'zh' ? '敬拜' : 'Worship') : (lang === 'zh' ? '崇拜' : 'Service')}
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
                           {t(selectedServiceModal.series)}
                         </span>
                         <span className="text-xs text-gray-500 font-medium">
@@ -3517,12 +3628,12 @@ export default function App() {
                 </div>
                 <div className="space-y-2 flex-1">
                   <h4 className="font-extrabold text-amber-900 text-sm">
-                    {lang === 'zh' ? '崇拜录影温馨提示' : 'Service Recording Notice'}
+                    {lang === 'zh' ? '崇拜与敬拜录影温馨提示' : 'Services & Worships Recording Notice'}
                   </h4>
                   <p className="text-xs text-amber-900/80 leading-relaxed">
                     {lang === 'zh'
-                      ? '崇拜录影通常于主日崇拜后一周内上传。若您在观看视频时遇到任何问题，欢迎随时联系教会行政同工查询。'
-                      : 'Service recordings are typically uploaded within one week after the Sunday service. If you experience issues viewing the videos, please contact our administrative office.'}
+                      ? '崇拜与敬拜录影通常于主日后一周内上传。若您在观看视频时遇到任何问题，欢迎随时联系教会行政同工查询。'
+                      : 'Services & worship recordings are typically uploaded within one week after Sunday. If you experience issues viewing the videos, please contact our administrative office.'}
                   </p>
                 </div>
               </div>
@@ -3855,7 +3966,7 @@ export default function App() {
                         { id: 'offerings', label: lang === 'zh' ? '奉献设置' : 'Offerings Settings', icon: HandHeart },
                         { id: 'bulletins', label: lang === 'zh' ? '周报管理' : 'Bulletins Manager', icon: FileText },
                         { id: 'sermons', label: lang === 'zh' ? '讲道库' : 'Sermon Library', icon: BookOpen },
-                        { id: 'services', label: lang === 'zh' ? '崇拜录影库' : 'Service Library', icon: Video },
+                        { id: 'services', label: lang === 'zh' ? '崇拜与敬拜管理' : 'Services & Worships Manager', icon: Video },
                         { id: 'cellgroups', label: lang === 'zh' ? '小组管理' : 'Cell Groups', icon: Compass },
                         { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide', icon: HelpCircle },
                         { id: 'maps', label: lang === 'zh' ? '地图设置' : 'Maps Settings', icon: MapIcon },
@@ -4441,7 +4552,7 @@ export default function App() {
                               { key: 'events', zh: '特别活动', en: 'Events' },
                               { key: 'offerings', zh: '奉献', en: 'Offerings' },
                               { key: 'bulletins', zh: '周报与讲道', en: 'Bulletins & Sermons' },
-                              { key: 'services', zh: '崇拜录影库', en: 'Service Library' },
+                              { key: 'services', zh: '崇拜与敬拜', en: 'Services & Worships' },
                               { key: 'cellgroups', zh: '小组', en: 'Cell Groups' },
                               { key: 'newfriend', zh: '新朋友指南', en: 'New Friend Guide' },
                               { key: 'maps', zh: '地图', en: 'Maps' }
@@ -5834,24 +5945,25 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* SECTION: SERVICE LIBRARY MANAGER */}
+                  {/* SECTION: SERVICE LIBRARY MANAGER - Now Services & Worships */}
                   {adminActiveSection === 'services' && (
                     <div className="space-y-6">
                       <div className="flex justify-between items-start gap-4">
                         <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '崇拜录影库管理' : 'Service Library Manager'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理完整崇拜录影、系列和日期' : 'Manage full service recordings, series, and dates'}</p>
+                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '崇拜与敬拜管理' : 'Services & Worships Manager'}</h2>
+                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理完整崇拜与敬拜录影、类型、系列和日期' : 'Manage full service & worship recordings, type, series, and dates'}</p>
                         </div>
                         {editingService === null && (
                           <button
                             onClick={() => setEditingService({
                               id: 'new',
-                              title: { zh: '新崇拜录影', en: 'New Service Recording' },
+                              title: { zh: '新崇拜/敬拜录影', en: 'New Service/Worship Recording' },
                               date: new Date().toISOString().slice(0, 10),
                               videoUrl: 'https://www.youtube.com/watch?v=',
                               series: { zh: '崇拜系列', en: 'Service Series' },
-                              description: { zh: '崇拜录影描述...', en: 'Service recording description...' },
-                              thumbnail: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80'
+                              description: { zh: '崇拜/敬拜录影描述...', en: 'Service/Worship recording description...' },
+                              thumbnail: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80',
+                              type: 'service'
                             })}
                             className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
                           >
@@ -5864,7 +5976,7 @@ export default function App() {
                       {editingService ? (
                         <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
                           <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingService.id === 'new' ? (lang === 'zh' ? '新增崇拜录影' : 'Add New Service') : (lang === 'zh' ? '编辑崇拜录影' : 'Edit Service')}
+                            {editingService.id === 'new' ? (lang === 'zh' ? '新增崇拜/敬拜录影' : 'Add New Service/Worship') : (lang === 'zh' ? '编辑崇拜/敬拜录影' : 'Edit Service/Worship')}
                           </h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -5874,6 +5986,14 @@ export default function App() {
                             <div>
                               <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Title (English)' : 'Title (English)'}</label>
                               <input type="text" value={editingService.title.en} onChange={(e) => setEditingService({ ...editingService, title: { ...editingService.title, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '类型' : 'Type'}</label>
+                              <select value={editingService.type || 'service'} onChange={(e) => setEditingService({ ...editingService, type: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none">
+                                <option value="service">{lang === 'zh' ? '崇拜录影 (Service)' : 'Service Recording'}</option>
+                                <option value="worship">{lang === 'zh' ? '敬拜录影 (Worship)' : 'Worship Video'}</option>
+                              </select>
+                              <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '选择此录影属于崇拜还是敬拜，决定在哪个标签显示' : 'Choose whether this is a Service or Worship video for tab filtering.'}</p>
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '日期' : 'Date'}</label>
@@ -5890,7 +6010,7 @@ export default function App() {
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'YouTube 视频链接' : 'YouTube Video URL'}</label>
                               <input type="text" value={editingService.videoUrl} onChange={(e) => setEditingService({ ...editingService, videoUrl: e.target.value })} placeholder="https://www.youtube.com/watch?v=..." className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                              <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '支持 YouTube 视频链接' : 'Supports YouTube video URLs'}</p>
+                              <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '支持 YouTube 视频链接，崇拜与敬拜通用' : 'Supports YouTube video URLs for both Service and Worship'}</p>
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '描述 (中文)' : 'Description (Chinese)'}</label>
@@ -5913,10 +6033,15 @@ export default function App() {
                               <div className="flex gap-3 items-center w-full sm:w-3/4">
                                 <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
                                 <div className="w-16 h-12 bg-gray-200 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-                                  <Video className="text-gray-400" size={20} />
+                                  {service.type === 'worship' ? <PlayCircle className="text-violet-500" size={20} /> : <Video className="text-gray-400" size={20} />}
                                 </div>
                                 <div className="space-y-1">
-                                  <h4 className="font-bold text-sm text-gray-900">{t(service.title)}</h4>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${service.type === 'worship' ? 'bg-violet-100 text-violet-700' : 'bg-primary/10 text-primary'}`}>
+                                      {service.type === 'worship' ? (lang === 'zh' ? '敬拜' : 'Worship') : (lang === 'zh' ? '崇拜' : 'Service')}
+                                    </span>
+                                    <h4 className="font-bold text-sm text-gray-900">{t(service.title)}</h4>
+                                  </div>
                                   <p className="text-xs text-gray-500">{service.date} • {t(service.series)}</p>
                                 </div>
                               </div>
@@ -5930,7 +6055,7 @@ export default function App() {
                           ))}
                           {(data.services || []).length === 0 && (
                             <div className="text-center py-8 text-gray-400 text-xs">
-                              {lang === 'zh' ? '暂无崇拜录影，点击上方按钮添加' : 'No service recordings yet. Click the button above to add one.'}
+                              {lang === 'zh' ? '暂无崇拜/敬拜录影，点击上方按钮添加' : 'No service/worship recordings yet. Click the button above to add one.'}
                             </div>
                           )}
                         </div>
@@ -6669,10 +6794,10 @@ export default function App() {
                   vis.cellgroups !== false && { id: 'cellgroups', label: lang === 'zh' ? '小组' : 'Cell Groups' },
                   vis.offerings !== false && { id: 'offerings', label: lang === 'zh' ? '奉献' : 'Offerings' },
                   vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '周报与讲道' : 'Bulletins & Sermons' },
-                  vis.services !== false && { id: 'services', label: lang === 'zh' ? '崇拜录影库' : 'Service Library' },
+                  vis.services !== false && { id: 'services', label: lang === 'zh' ? '崇拜与敬拜' : 'Services & Worships' },
                   vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '新朋友' : 'New Friend' },
                   vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
-                  data.settings.showLoginButton && { id: 'admin', label: lang === 'zh' ? '后台管理' : 'Admin Area' }
+                  (data.settings.showLoginButton || activeTab === 'admin') && { id: 'admin', label: lang === 'zh' ? '后台管理' : 'Admin Area' }
                 ].filter(Boolean).map((lnk) => (
                   <button
                     key={lnk.id}

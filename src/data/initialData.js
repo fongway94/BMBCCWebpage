@@ -669,7 +669,8 @@ export const initialData = {
         "zh": "2026年7月6日主日崇拜完整录影，包含敬拜赞美、祷告、证道及报告事项。",
         "en": "Full recording of the Sunday worship service on July 6, 2026, including praise and worship, prayer, sermon, and announcements."
       },
-      "thumbnail": "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80"
+      "thumbnail": "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80",
+      "type": "service"
     },
     {
       "id": 2,
@@ -687,7 +688,8 @@ export const initialData = {
         "zh": "2026年6月29日主日崇拜完整录影，包含敬拜赞美、祷告、证道及报告事项。",
         "en": "Full recording of the Sunday worship service on June 29, 2026, including praise and worship, prayer, sermon, and announcements."
       },
-      "thumbnail": "https://images.unsplash.com/photo-1455849318743-b2233052fcff?auto=format&fit=crop&w=800&q=80"
+      "thumbnail": "https://images.unsplash.com/photo-1455849318743-b2233052fcff?auto=format&fit=crop&w=800&q=80",
+      "type": "service"
     },
     {
       "id": 3,
@@ -705,7 +707,46 @@ export const initialData = {
         "zh": "双亲节感恩崇拜完整录影，孝敬父母，感恩相聚。",
         "en": "Full recording of the Parents' Day Thanksgiving Service, honoring parents and gathering in gratitude."
       },
-      "thumbnail": "https://images.unsplash.com/photo-1438232992991-995b705bafb1?auto=format&fit=crop&w=800&q=80"
+      "thumbnail": "https://images.unsplash.com/photo-1438232992991-995b705bafb1?auto=format&fit=crop&w=800&q=80",
+      "type": "service"
+    },
+    {
+      "id": 4,
+      "title": {
+        "zh": "2026年7月主日敬拜赞美 - 恩典时刻",
+        "en": "Sunday Worship Praise - Moment of Grace July 2026"
+      },
+      "date": "2026-07-06",
+      "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "series": {
+        "zh": "敬拜赞美",
+        "en": "Worship Praise"
+      },
+      "description": {
+        "zh": "2026年7月6日主日敬拜赞美精选，包含会众敬拜、诗歌与祷告。",
+        "en": "Curated worship praise from July 6, 2026 Sunday, including congregational worship, hymns and prayer."
+      },
+      "thumbnail": "https://images.unsplash.com/photo-1516450360452-9312abbf5f5e?auto=format&fit=crop&w=800&q=80",
+      "type": "worship"
+    },
+    {
+      "id": 5,
+      "title": {
+        "zh": "2026年6月敬拜夜 - 在主爱里敬拜",
+        "en": "Worship Night June 2026 - Worship in His Love"
+      },
+      "date": "2026-06-28",
+      "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "series": {
+        "zh": "敬拜之夜",
+        "en": "Worship Night"
+      },
+      "description": {
+        "zh": "6月敬拜之夜完整录影，现代敬拜与祷告。",
+        "en": "Full recording of June Worship Night, modern worship and prayer."
+      },
+      "thumbnail": "https://images.unsplash.com/photo-1493225457124-a5467605ff2fb?auto=format&fit=crop&w=800&q=80",
+      "type": "worship"
     }
   ],
   "pageVisibility": {
