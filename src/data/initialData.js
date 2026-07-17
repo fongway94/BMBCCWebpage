@@ -109,8 +109,8 @@ export const initialData = {
       "en": "Access weekly bulletins, prayer items, and past sermon messages."
     },
     "servicesBadge": {
-      "zh": "崇拜与敬拜 · 完整回顾",
-      "en": "Services & Worships · Full Replay"
+      "zh": "崇拜与敬拜 · 回顾",
+      "en": "Services & Worships · Replay"
     },
     "servicesTitle": {
       "zh": "崇拜与敬拜",
