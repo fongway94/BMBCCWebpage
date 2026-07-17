@@ -512,7 +512,7 @@ export const initialData = {
         "zh": "传道",
         "en": "Pastor"
       },
-      "image": "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=300&q=80",
+      "image": "https://drive.google.com/thumbnail?id=13WvLTpNl_omUTOsF5Z8bbhhO7vDCtkSh&sz=w2000",
       "bio": {
         "zh": "李玉章博士",
         "en": "Dr. Lee"
