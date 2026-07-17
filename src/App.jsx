@@ -279,7 +279,7 @@ export default function App() {
   const [editingOfferingMethod, setEditingOfferingMethod] = useState(null);
   const [editingGuideSection, setEditingGuideSection] = useState(null);
   const [sermonFilter, setSermonFilter] = useState('all');
-  const [bulletinsTab, setBulletinsTab] = useState('bulletins');
+  const [bulletinsTab, setBulletinsTab] = useState('bulletins'); // 'bulletins' | 'sermons'
   // Bulletins & Sermons search & view states
   const [bulletinSearchQuery, setBulletinSearchQuery] = useState('');
   const [bulletinViewMode, setBulletinViewMode] = useState('cards'); // 'cards' | 'table'
@@ -4050,15 +4050,14 @@ export default function App() {
 
                     <div className="space-y-1">
                       {[
-                        { id: 'settings', label: lang === 'zh' ? '基本设置 & 配色' : 'General & Colors', icon: SettingsIcon },
+                        { id: 'settings', label: lang === 'zh' ? '基本设置 & 配色' : 'General & Colors', icon: SettingsIcon, group: 'about' },
+                        { id: 'leadership', label: lang === 'zh' ? '牧者同工编辑' : 'Pastor/Leader Editor', icon: Users, group: 'about' },
                         { id: 'carousel', label: lang === 'zh' ? '横幅幻灯片' : 'Banner Slides', icon: Sparkles },
                         { id: 'timetable', label: lang === 'zh' ? '聚会时间表' : 'Timetable Services', icon: Calendar },
                         { id: 'ministries', label: lang === 'zh' ? '核心事工管理' : 'Ministries Content', icon: Heart },
                         { id: 'events', label: lang === 'zh' ? '活动内容发布' : 'Events Post', icon: CalendarCheck },
-                        { id: 'leadership', label: lang === 'zh' ? '牧者同工编辑' : 'Pastor/Leader Editor', icon: Users },
                         { id: 'offerings', label: lang === 'zh' ? '奉献设置' : 'Offerings Settings', icon: HandHeart },
-                        { id: 'bulletins', label: lang === 'zh' ? '周报管理' : 'Bulletins Manager', icon: FileText },
-                        { id: 'sermons', label: lang === 'zh' ? '讲道库' : 'Sermon Library', icon: BookOpen },
+                        { id: 'bulletins', label: lang === 'zh' ? '周报与讲道库' : 'Bulletins & Sermon Library', icon: BookOpen },
                         { id: 'services', label: lang === 'zh' ? '崇拜与敬拜管理' : 'Services & Worships Manager', icon: Video },
                         { id: 'cellgroups', label: lang === 'zh' ? '小组管理' : 'Cell Groups', icon: Compass },
                         { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide', icon: HelpCircle },
@@ -6013,15 +6012,15 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* SECTION: BULLETINS MANAGER */}
+                  {/* SECTION: BULLETINS & SERMONS MANAGER (Combined) */}
                   {adminActiveSection === 'bulletins' && (
                     <div className="space-y-6">
                       <div className="flex justify-between items-start gap-4">
                         <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '周报/月刊管理' : 'Bulletins Manager'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理教会周报和月刊的发布' : 'Manage church weekly bulletins and monthly newsletters'}</p>
+                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '周报与讲道库管理' : 'Bulletins & Sermon Library Manager'}</h2>
+                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理教会周报、月刊与讲道视频' : 'Manage church bulletins, newsletters, and sermon videos'}</p>
                         </div>
-                        {editingBulletin === null && (
+                        {bulletinsTab === 'bulletins' && editingBulletin === null && (
                           <button
                             onClick={() => setEditingBulletin({
                               id: 'new',
@@ -6038,6 +6037,51 @@ export default function App() {
                             <span>{lang === 'zh' ? '发布周报' : 'Publish Bulletin'}</span>
                           </button>
                         )}
+                        {bulletinsTab === 'sermons' && editingSermon === null && (
+                          <button
+                            onClick={() => setEditingSermon({
+                              id: 'new',
+                              title: { zh: '新讲道', en: 'New Sermon' },
+                              preacher: { zh: '讲员姓名', en: 'Preacher Name' },
+                              date: new Date().toISOString().slice(0, 10),
+                              videoUrl: 'https://www.youtube.com/watch?v=',
+                              series: { zh: '讲道系列', en: 'Sermon Series' },
+                              scripture: '',
+                              description: { zh: '讲道描述...', en: 'Sermon description...' },
+                              thumbnail: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80'
+                            })}
+                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                          >
+                            <Plus size={14} />
+                            <span>{lang === 'zh' ? '添加讲道' : 'Add Sermon'}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Tab Switcher */}
+                      <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200/60">
+                        <button
+                          onClick={() => setBulletinsTab('bulletins')}
+                          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                            bulletinsTab === 'bulletins'
+                              ? 'bg-white text-primary shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                          }`}
+                        >
+                          <FileText size={14} />
+                          <span>{lang === 'zh' ? '周报/月刊' : 'Bulletins'}</span>
+                        </button>
+                        <button
+                          onClick={() => setBulletinsTab('sermons')}
+                          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                            bulletinsTab === 'sermons'
+                              ? 'bg-white text-primary shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                          }`}
+                        >
+                          <BookOpen size={14} />
+                          <span>{lang === 'zh' ? '讲道库' : 'Sermons'}</span>
+                        </button>
                       </div>
 
                       {/* Bulletins Page Header Settings */}
@@ -6071,7 +6115,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      {editingBulletin ? (
+                      {bulletinsTab === 'bulletins' && editingBulletin ? (
                         <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
                           <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
                             {editingBulletin.id === 'new' ? (lang === 'zh' ? '发布新周报' : 'New Bulletin') : (lang === 'zh' ? '编辑周报' : 'Edit Bulletin')}
@@ -6136,7 +6180,9 @@ export default function App() {
                         </div>
                       ) : (
                         <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {(data.bulletins || []).map((bulletin, idx) => (
+                          {bulletinsTab === 'bulletins' && (
+                            <>
+                              {(data.bulletins || []).map((bulletin, idx) => (
                             <div key={bulletin.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
                               <div className="flex gap-3 items-center w-full sm:w-3/4">
                                 <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
@@ -6170,12 +6216,103 @@ export default function App() {
                               </div>
                             </div>
                           ))}
+                            </>
+                          )}
                         </div>
+                      )}
+
+                      {/* Sermons Tab Content */}
+                      {bulletinsTab === 'sermons' && (
+                        <>
+                          {editingSermon ? (
+                            <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
+                              <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
+                                {editingSermon.id === 'new' ? (lang === 'zh' ? '新增讲道' : 'Add New Sermon') : (lang === 'zh' ? '编辑讲道' : 'Edit Sermon')}
+                              </h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '标题 (中文)' : 'Title (Chinese)'}</label>
+                                  <input type="text" value={editingSermon.title.zh} onChange={(e) => setEditingSermon({ ...editingSermon, title: { ...editingSermon.title, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Title (English)' : 'Title (English)'}</label>
+                                  <input type="text" value={editingSermon.title.en} onChange={(e) => setEditingSermon({ ...editingSermon, title: { ...editingSermon.title, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '讲员 (中文)' : 'Preacher (Chinese)'}</label>
+                                  <input type="text" value={editingSermon.preacher.zh} onChange={(e) => setEditingSermon({ ...editingSermon, preacher: { ...editingSermon.preacher, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Preacher (English)' : 'Preacher (English)'}</label>
+                                  <input type="text" value={editingSermon.preacher.en} onChange={(e) => setEditingSermon({ ...editingSermon, preacher: { ...editingSermon.preacher, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '日期' : 'Date'}</label>
+                                  <input type="date" value={editingSermon.date} onChange={(e) => setEditingSermon({ ...editingSermon, date: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '经文引用' : 'Scripture Reference'}</label>
+                                  <input type="text" value={editingSermon.scripture || ''} onChange={(e) => setEditingSermon({ ...editingSermon, scripture: e.target.value })} placeholder="例: 约翰福音 3:16" className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '系列 (中文)' : 'Series (Chinese)'}</label>
+                                  <input type="text" value={editingSermon.series.zh} onChange={(e) => setEditingSermon({ ...editingSermon, series: { ...editingSermon.series, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Series (English)' : 'Series (English)'}</label>
+                                  <input type="text" value={editingSermon.series.en} onChange={(e) => setEditingSermon({ ...editingSermon, series: { ...editingSermon.series, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div className="md:col-span-2">
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'YouTube 视频链接' : 'YouTube Video URL'}</label>
+                                  <input type="text" value={editingSermon.videoUrl} onChange={(e) => setEditingSermon({ ...editingSermon, videoUrl: e.target.value })} placeholder="https://www.youtube.com/watch?v=..." className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                  <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '支持 YouTube 视频链接' : 'Supports YouTube video URLs'}</p>
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '描述 (中文)' : 'Description (Chinese)'}</label>
+                                  <textarea rows={3} value={editingSermon.description.zh} onChange={(e) => setEditingSermon({ ...editingSermon, description: { ...editingSermon.description, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Description (English)' : 'Description (English)'}</label>
+                                  <textarea rows={3} value={editingSermon.description.en} onChange={(e) => setEditingSermon({ ...editingSermon, description: { ...editingSermon.description, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
+                                <button onClick={() => setEditingSermon(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
+                                <button onClick={() => handleSaveSermon(editingSermon)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-4 pt-4 border-t border-gray-100">
+                              {(data.sermons || []).map((sermon, idx) => (
+                                <div key={sermon.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                                  <div className="flex gap-3 items-center w-full sm:w-3/4">
+                                    <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
+                                    <div className="w-16 h-12 bg-gray-200 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                                      {sermon.videoUrl ? (
+                                        <BookOpen className="text-gray-400" size={20} />
+                                      ) : (
+                                        <BookOpen className="text-gray-400" size={20} />
+                                      )}
+                                    </div>
+                                    <div className="space-y-1">
+                                      <h4 className="font-bold text-sm text-gray-900">{t(sermon.title)}</h4>
+                                      <p className="text-xs text-gray-500">{sermon.date} • {t(sermon.preacher)} • {t(sermon.series)}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                    <button onClick={() => handleMoveItem('sermons', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
+                                    <button onClick={() => handleMoveItem('sermons', idx, 'down')} disabled={idx === (data.sermons || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
+                                    <button onClick={() => setEditingSermon(sermon)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
+                                    <button onClick={() => handleDeleteSermon(sermon.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}
-
-                  {/* SECTION: SERMON LIBRARY MANAGER */}
                   {adminActiveSection === 'sermons' && (
                     <div className="space-y-6">
                       <div className="flex justify-between items-start gap-4">
