@@ -210,7 +210,7 @@ export const initialData = {
     },
     {
       "id": 2,
-      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTNP5Qfjo7uDKwSrfsaRAxZTmJV5_HUXfdgEPgdu6shMw&s=10",
+      "image": "https://drive.google.com/thumbnail?id=1mO8ZLZbbAjeWmP1jH16XrqzCYqyBP47T&sz=w2000",
       "title": {
         "zh": "一个充满爱的大家庭",
         "en": "A Big Family Filled with Love"
