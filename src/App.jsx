@@ -205,6 +205,9 @@ export default function App() {
   const [eventPopupSlide, setEventPopupSlide] = useState(0);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedMinistry, setSelectedMinistry] = useState(null);
+  const [selectedCellGroup, setSelectedCellGroup] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
   
   // Verify auth session on mount
   useEffect(() => {
@@ -1930,11 +1933,14 @@ export default function App() {
               {data.ministries.map((min, index) => (
                 <div 
                   key={min.id}
-                  className={`flex flex-col lg:flex-row gap-8 lg:gap-12 items-center bg-white p-6 md:p-8 rounded-2xl border border-gray-150 shadow-sm ${
+                  className={`flex flex-col lg:flex-row gap-8 lg:gap-12 items-center bg-white p-6 md:p-8 rounded-2xl border border-gray-150 shadow-sm hover:shadow-md transition-all ${
                     index % 2 === 1 ? 'lg:flex-row-reverse' : ''
                   }`}
                 >
-                  <div className="w-full lg:w-1/2 h-64 sm:h-80 md:h-96 relative overflow-hidden rounded-xl shrink-0">
+                  <div 
+                    className="w-full lg:w-1/2 h-64 sm:h-80 md:h-96 relative overflow-hidden rounded-xl shrink-0 cursor-zoom-in"
+                    onClick={() => setSelectedMinistry(min)}
+                  >
                     <img 
                       src={min.image} 
                       alt={t(min.name)} 
@@ -1945,26 +1951,30 @@ export default function App() {
                     <div className="inline-flex px-3 py-1 rounded bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider">
                       {lang === 'zh' ? `事工 ${index + 1}` : `Ministry ${index + 1}`}
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight leading-tight">
+                    <h2 
+                      className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight leading-tight cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => setSelectedMinistry(min)}
+                    >
                       {t(min.name)}
                     </h2>
                     <div className="w-16 h-1 bg-primary rounded" />
-                    <p className="text-gray-700 text-sm md:text-base font-light leading-relaxed whitespace-pre-line">
+                    <p className="text-gray-700 text-sm md:text-base font-light leading-relaxed whitespace-pre-line line-clamp-6">
                       {t(min.description)}
                     </p>
-                    <div className="pt-2 flex gap-3">
+                    <div className="pt-2 flex flex-wrap gap-3">
+                      <button 
+                        onClick={() => setSelectedMinistry(min)}
+                        className="px-5 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-black transition-all flex items-center gap-1.5 shadow-md"
+                      >
+                        <Info size={16} />
+                        <span>{lang === 'zh' ? '查看详情' : 'View Details'}</span>
+                      </button>
                       <button 
                         onClick={() => { setActiveTab('timetable'); window.scrollTo(0, 0); }}
                         className="px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-dark transition-all flex items-center gap-1.5 shadow-md shadow-primary/15"
                       >
                         <Clock size={16} />
                         <span>{lang === 'zh' ? '查看相关聚会时间' : 'View Timetable'}</span>
-                      </button>
-                      <button 
-                        onClick={() => { setActiveTab('about'); window.scrollTo(0, 0); }}
-                        className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-all"
-                      >
-                        {lang === 'zh' ? '联系负责人' : 'Contact Minister'}
                       </button>
                     </div>
                   </div>
@@ -2670,7 +2680,10 @@ export default function App() {
                         <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                           {lang === 'zh' ? '扫码奉献' : 'Scan to Give'}
                         </span>
-                        <div className="p-2 border border-gray-200 rounded-xl bg-white shadow-sm max-w-[160px]">
+                        <div 
+                          className="p-2 border border-gray-200 rounded-xl bg-white shadow-sm max-w-[160px] cursor-zoom-in hover:border-primary transition-colors"
+                          onClick={() => setSelectedImage({ url: method.qrCodeUrl, title: t(method.title) })}
+                        >
                           <img src={method.qrCodeUrl} alt="QR Code" className="w-full h-auto rounded-lg" onError={(e) => { e.target.style.display = 'none'; }} />
                         </div>
                       </div>
@@ -3805,8 +3818,11 @@ export default function App() {
             {(data.cellGroups || []).length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {data.cellGroups.map((group) => (
-                  <div key={group.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-lg transition-all duration-300">
-                    <div className="relative h-48 overflow-hidden">
+                  <div key={group.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col">
+                    <div 
+                      className="relative h-48 overflow-hidden cursor-zoom-in"
+                      onClick={() => setSelectedCellGroup(group)}
+                    >
                       <img src={group.image} alt={t(group.name)} className="w-full h-full object-cover hover:scale-105 transition-all duration-500" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                       <div className="absolute bottom-4 left-4 text-white">
@@ -3814,9 +3830,15 @@ export default function App() {
                         <span className="text-xs text-white/80 bg-primary/80 px-2 py-0.5 rounded mt-1 inline-block">{t(group.target)}</span>
                       </div>
                     </div>
-                    <div className="p-6 space-y-4">
-                      <p className="text-gray-600 text-sm font-light leading-relaxed">{t(group.description)}</p>
-                      <div className="space-y-2 text-xs text-gray-500 border-t border-gray-100 pt-4">
+                    <div className="p-6 space-y-4 flex-grow flex flex-col">
+                      <h3 
+                        className="font-extrabold text-lg text-gray-900 cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => setSelectedCellGroup(group)}
+                      >
+                        {t(group.name)}
+                      </h3>
+                      <p className="text-gray-600 text-sm font-light leading-relaxed line-clamp-3">{t(group.description)}</p>
+                      <div className="space-y-2 text-xs text-gray-500 border-t border-gray-100 pt-4 mt-auto">
                         <div className="flex items-center gap-2">
                           <Users size={14} className="text-primary shrink-0" />
                           <span className="font-medium text-gray-700">{lang === 'zh' ? '负责人：' : 'Leader: '}</span>
@@ -3827,11 +3849,15 @@ export default function App() {
                           <span className="font-medium text-gray-700">{lang === 'zh' ? '聚会时间：' : 'Schedule: '}</span>
                           <span>{t(group.schedule)}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin size={14} className="text-primary shrink-0" />
-                          <span className="font-medium text-gray-700">{lang === 'zh' ? '地点：' : 'Location: '}</span>
-                          <span>{t(group.location)}</span>
-                        </div>
+                      </div>
+                      <div className="pt-2">
+                        <button 
+                          onClick={() => setSelectedCellGroup(group)}
+                          className="w-full py-2.5 rounded-lg bg-gray-900 text-white text-xs font-bold hover:bg-black transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                        >
+                          <Info size={14} />
+                          <span>{lang === 'zh' ? '查看详情' : 'View Details'}</span>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -7433,6 +7459,136 @@ export default function App() {
         </div>
       )}
 
+      {/* Selected Ministry Details Modal */}
+      {selectedMinistry && (
+        <div 
+          className="fixed inset-0 z-[75] bg-gray-950/75 backdrop-blur-sm flex items-center justify-center p-4" 
+          role="dialog" 
+          aria-modal="true" 
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedMinistry(null); }}
+        >
+          <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl">
+            <button onClick={() => setSelectedMinistry(null)} className="absolute right-4 top-4 z-10 rounded-full bg-black/55 p-2 text-white hover:bg-black/75 transition-all"><X size={20} /></button>
+            <div className="flex flex-col lg:flex-row">
+              <div className="lg:w-1/2 h-64 sm:h-80 lg:h-auto relative bg-gray-100 shrink-0">
+                <img src={selectedMinistry.image} alt={t(selectedMinistry.name)} className="absolute inset-0 w-full h-full object-cover" />
+              </div>
+              <div className="lg:w-1/2 p-6 sm:p-8 space-y-6">
+                <div className="inline-flex px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
+                  {lang === 'zh' ? '事工详情' : 'Ministry Details'}
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-gray-900 leading-tight">{t(selectedMinistry.name)}</h2>
+                <div className="w-16 h-1.5 bg-primary rounded-full" />
+                <p className="text-gray-700 text-sm sm:text-base font-light leading-relaxed whitespace-pre-line">
+                  {t(selectedMinistry.description)}
+                </p>
+                <div className="pt-6 border-t border-gray-100 flex flex-wrap gap-3">
+                  <button 
+                    onClick={() => { setSelectedMinistry(null); setActiveTab('timetable'); window.scrollTo(0, 0); }}
+                    className="flex-1 px-5 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+                  >
+                    <Clock size={18} />
+                    <span>{lang === 'zh' ? '查看聚会时间' : 'View Timetable'}</span>
+                  </button>
+                  <button 
+                    onClick={() => { setSelectedMinistry(null); setActiveTab('about'); window.scrollTo(0, 0); }}
+                    className="px-5 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all"
+                  >
+                    {lang === 'zh' ? '联系教会' : 'Contact Us'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Selected Cell Group Details Modal */}
+      {selectedCellGroup && (
+        <div 
+          className="fixed inset-0 z-[75] bg-gray-950/75 backdrop-blur-sm flex items-center justify-center p-4" 
+          role="dialog" 
+          aria-modal="true" 
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedCellGroup(null); }}
+        >
+          <div className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl animate-fade-in-down">
+            <button onClick={() => setSelectedCellGroup(null)} className="absolute right-4 top-4 z-10 rounded-full bg-black/55 p-2 text-white hover:bg-black/75 transition-all"><X size={20} /></button>
+            <div className="h-56 sm:h-72 relative bg-gray-100">
+              <img src={selectedCellGroup.image} alt={t(selectedCellGroup.name)} className="absolute inset-0 w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <div className="absolute bottom-6 left-6 text-white">
+                <span className="bg-primary px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider mb-2 inline-block shadow-sm">
+                  {t(selectedCellGroup.target)}
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-black">{t(selectedCellGroup.name)}</h2>
+              </div>
+            </div>
+            <div className="p-6 sm:p-8 space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-1">
+                  <div className="flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-wider">
+                    <Users size={14} />
+                    <span>{lang === 'zh' ? '负责人' : 'Leader'}</span>
+                  </div>
+                  <p className="text-gray-900 font-bold">{t(selectedCellGroup.leader)}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-1">
+                  <div className="flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-wider">
+                    <Clock size={14} />
+                    <span>{lang === 'zh' ? '聚会时间' : 'Schedule'}</span>
+                  </div>
+                  <p className="text-gray-900 font-bold">{t(selectedCellGroup.schedule)}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-1 sm:col-span-2">
+                  <div className="flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-wider">
+                    <MapPin size={14} />
+                    <span>{lang === 'zh' ? '聚会地点' : 'Location'}</span>
+                  </div>
+                  <p className="text-gray-900 font-bold">{t(selectedCellGroup.location)}</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'zh' ? '小组简介' : 'About this group'}</h4>
+                <p className="text-gray-700 text-sm sm:text-base font-light leading-relaxed whitespace-pre-line">
+                  {t(selectedCellGroup.description)}
+                </p>
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button 
+                  onClick={() => { setSelectedCellGroup(null); setActiveTab('about'); window.scrollTo(0, 0); }}
+                  className="w-full py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
+                >
+                  {lang === 'zh' ? '联系加入小组' : 'Contact to Join'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enlarged QR Code / Image Modal */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 z-[80] bg-gray-950/90 backdrop-blur-md flex items-center justify-center p-4" 
+          role="dialog" 
+          aria-modal="true" 
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedImage(null); }}
+        >
+          <div className="relative max-w-2xl w-full flex flex-col items-center gap-6">
+            <button onClick={() => setSelectedImage(null)} className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white transition-colors"><X size={32} /></button>
+            <div className="bg-white p-4 sm:p-8 rounded-3xl shadow-2xl w-full max-w-sm sm:max-w-md">
+              <img src={selectedImage.url} alt="Enlarged" className="w-full h-auto rounded-xl shadow-inner" />
+            </div>
+            {selectedImage.title && (
+              <h3 className="text-white text-xl font-bold tracking-wide">{selectedImage.title}</h3>
+            )}
+            <p className="text-white/60 text-xs uppercase font-bold tracking-[0.2em]">
+              {lang === 'zh' ? '点击背景或关闭按钮退出' : 'Click background or close to exit'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {eventPopupOpen && (() => {
         const popupEvents = (data.events || []).filter(e => e.popupEnabled);
         if (popupEvents.length === 0 || activeTab === 'admin') return null;
@@ -7441,7 +7597,7 @@ export default function App() {
           <div className="fixed inset-0 z-[70] bg-gray-950/70 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={lang === 'zh' ? '活动通知' : 'Event alert'}>
             <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
               <button onClick={() => setEventPopupOpen(false)} aria-label="Close" className="absolute right-3 top-3 z-10 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"><X size={18} /></button>
-              <img src={popupEvent.image} alt={t(popupEvent.title)} className="h-48 w-full object-cover sm:h-64" />
+              <img src={popupEvent.image} alt={t(popupEvent.title)} className="w-full max-h-[70vh] object-contain bg-gray-100" />
               <div className="p-6 sm:p-8">
                 <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary"><Calendar size={15} /> {lang === 'zh' ? '活动通知' : 'Event alert'}</div>
                 <h2 className="text-2xl font-extrabold text-gray-900">{t(popupEvent.title)}</h2>
