@@ -952,7 +952,7 @@ export const initialData = {
         "en": "How to get here:\n\n🚗 By Car:\nFrom Jalan Bukit Tambun for about 5km, then turn into Taman Merak area.\n\n🅿️ Parking:\nFree parking available in front of the fellowship point, accommodating approximately 20 vehicles."
       },
       "landmarks": {
-        "zh": "附近地标：\n• Eco Bloom 商业中心 (200米)\n• My News 便利店 (100米)",
+        "zh": "附近地标：\n• Eco Bloom 公寓 (200米)\n• My News 便利店 (100米)",
         "en": "Nearby Landmarks:\n• Taman Alma Commercial Centre (200m)\n• SMK Alma School (300m)\n• My News Convenience Store (100m)"
       }
     }
