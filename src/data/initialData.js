@@ -929,7 +929,7 @@ export const initialData = {
       },
       "directions": {
         "zh": "如何到达：\n\n🚗 自驾车：\n从南北大道（PLUS Highway）大山脚出口下，沿Jalan Bukit Minyak行驶约3公里即可到达。教会建筑位于道路右侧，设有明显十字架标志。\n\n🅿️ 停车：\n教会前方及后方均设有免费停车场，可容纳约50辆车。",
-        "en": "How to get here:\n\n🚗 By Car:\nTake the Bukit Mertajam exit from PLUS Highway, drive along Jalan Bukit Minyak for about 3km. The church building is on the right side with a prominent cross sign.\n\n🚌 Public Transport:\nTake Rapid Penang Bus 701/702 to Taman Bukit Minyak stop, a 5-minute walk to the church.\n\n🅿️ Parking:\nFree parking available at the front and rear of the church, accommodating approximately 50 vehicles."
+        "en": "How to get here:\n\n🚗 By Car:\nTake the Bukit Mertajam exit from PLUS Highway, drive along Jalan Bukit Minyak for about 3km. The church building is on the right side with a prominent cross sign.\n\n🅿️ Parking:\nFree parking available at the front and rear of the church, accommodating approximately 50 vehicles."
       },
       "landmarks": {
         "zh": "附近地标：\n• Bukit Minyak 商业中心 (500米)\n• AEON Mall Bukit Mertajam (2公里)\n• SMK Bukit Minyak 学校 (300米)",
