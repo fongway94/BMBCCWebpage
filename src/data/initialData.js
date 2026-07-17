@@ -939,7 +939,7 @@ export const initialData = {
     {
       "id": 3,
       "name": {
-        "zh": "BMBCC 南区聚会点",
+        "zh": "BKBC ",
         "en": "BMBCC South District Fellowship Point"
       },
       "googleMapsEmbedUrl": "https://maps.google.com/maps?q=Taman%20Alma%2C%2014000%20Bukit%20Mertajam%2C%20Penang%2C%20Malaysia&output=embed",
