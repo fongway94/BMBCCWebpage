@@ -897,28 +897,28 @@ export const initialData = {
     {
       "id": 2,
       "name": {
-        "zh": "约书亚小组 (Living Water)",
+        "zh": "约书亚小组",
         "en": "Joshua Cell Group"
       },
       "leader": {
-        "zh": "陈家豪 弟兄",
-        "en": "Bro. Chen Jia Hao"
+        "zh": "邓婉龄组长 & 杨旎晨组长",
+        "en": "Ps. Teng & Sis. Yeoh Nee Chen"
       },
       "schedule": {
         "zh": "每周五晚上 8:30 PM - 10:00 PM",
         "en": "Every Friday 8:30 PM - 10:00 PM"
       },
       "location": {
-        "zh": "Alma Selatan 社区活动中心",
-        "en": "Alma Selatan Community Hall"
+        "zh": "百利镇区",
+        "en": "Kota Permai Area"
       },
       "target": {
-        "zh": "单身青年 (18-30岁)",
-        "en": "Single Youth (18-30 years old)"
+        "zh": "",
+        "en": ""
       },
       "description": {
-        "zh": "活水小组是一个充满活力的青年群体，专注于信仰探索、职场见证和彼此激励。我们结合圣经教导与现实生活议题，帮助青年在职场和生活中活出信仰。",
-        "en": "Living Water is a vibrant youth community focused on faith exploration, workplace testimony, and mutual encouragement. We combine biblical teaching with real-life issues, helping youth live out their faith in career and daily life."
+        "zh": "约书亚小组是一个充满活力的青年群体，活跃于百利镇区地区",
+        "en": "The Joshua Group is a vibrant youth group active in the Kota Permai area."
       },
       "image": "https://drive.google.com/thumbnail?id=1uu9BDNuYb3B3a_2Q1S4_GYw0NgRJo1hd&sz=w2000"
     },
