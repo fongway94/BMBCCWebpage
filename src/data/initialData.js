@@ -587,71 +587,7 @@ export const initialData = {
       "en": "For any questions regarding offerings, please contact the church office or WhatsApp: +60 12-345 6789"
     }
   },
-  "bulletins": [
-    {
-      "id": 1,
-      "title": {
-        "zh": "2026年7月13日 主日周报",
-        "en": "July 13, 2026 Sunday Bulletin"
-      },
-      "date": "2026-07-13",
-      "category": {
-        "zh": "周报",
-        "en": "Weekly Bulletin"
-      },
-      "fileUrl": "#",
-      "summary": {
-        "zh": "本周主日信息摘要、代祷事项、小组聚会通知及下周日程预告。欢迎下载完整周报了解教会最新动态。",
-        "en": "This week's Sunday message summary, prayer requests, small group meeting notices, and upcoming schedule preview. Download the full bulletin for the latest church updates."
-      },
-      "highlights": {
-        "zh": "• 主日信息：「行走在光中」\n• 本周祷告重点：社区健康日筹备\n• 下周六青年团契特别活动预告",
-        "en": "• Sunday Message: 'Walking in the Light'\n• Prayer Focus: Community Health Day Preparation\n• Next Saturday Youth Fellowship Special Event Preview"
-      }
-    },
-    {
-      "id": 2,
-      "title": {
-        "zh": "2026年7月6日 主日周报",
-        "en": "July 6, 2026 Sunday Bulletin"
-      },
-      "date": "2026-07-06",
-      "category": {
-        "zh": "周报",
-        "en": "Weekly Bulletin"
-      },
-      "fileUrl": "#",
-      "summary": {
-        "zh": "双亲节感恩崇拜回顾、爱邻社区关怀最新探访报告及七月份教会活动总览。",
-        "en": "Parents' Day Thanksgiving Service recap, Neighborly Community Care visitation report, and July church activities overview."
-      },
-      "highlights": {
-        "zh": "• 双亲节崇拜回顾照片\n• 爱邻社区探访报告\n• 七月份生日名单及祝福",
-        "en": "• Parents' Day Service Photo Recap\n• Neighborly Care Visitation Report\n• July Birthday List & Blessings"
-      }
-    },
-    {
-      "id": 3,
-      "title": {
-        "zh": "2026年6月教会月刊",
-        "en": "June 2026 Church Monthly Newsletter"
-      },
-      "date": "2026-06-30",
-      "category": {
-        "zh": "月刊",
-        "en": "Monthly Newsletter"
-      },
-      "fileUrl": "#",
-      "summary": {
-        "zh": "六月份教会大事记：五饼二鱼事工扩展、恩典之泉老人中心新课程、青年营会报名启动等精彩内容。",
-        "en": "June highlights: Five Loaves & Two Fishes ministry expansion, Spring of Grace new programs, Youth Camp registration launch, and more."
-      },
-      "highlights": {
-        "zh": "• 五饼二鱼新增10户派送家庭\n• 恩典之泉新增赞美操课程\n• 青年营会《点燃》正式开放报名\n• 上半年财务透明报告",
-        "en": "• Five Loaves adds 10 new delivery families\n• Spring of Grace launches praise exercise class\n• Youth Camp 'Ignite' registration open\n• First-half financial transparency report"
-      }
-    }
-  ],
+  "bulletins": [],
   "sermons": [
     {
       "id": 1,
