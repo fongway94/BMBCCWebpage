@@ -948,7 +948,7 @@ export const initialData = {
         "zh": "恩典小组由一群热爱主的中老年弟兄姐妹组成。我们通过深度查经、生命分享和户外灵修，在主里彼此建立、互相扶持。聚会后通常有丰富茶点， fellowship 气氛温馨。",
         "en": "Grace Cell Group is composed of middle-aged and senior members who love the Lord. Through in-depth Bible study, life sharing, and outdoor devotionals, we build each other up. Fellowship tea time after each meeting adds warmth to our gatherings."
       },
-      "image": "https://images.unsplash.com/photo-1544027993-37db34262766?auto=format&fit=crop&w=600&q=80"
+      "image": "https://drive.google.com/thumbnail?id=1HC1sRVFasSDZ1MCG_GFHubqEwVUJxE_H&sz=w2000"
     },
     {
       "id": 4,
