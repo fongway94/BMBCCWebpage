@@ -674,18 +674,18 @@ export const initialData = {
     {
       "id": 4,
       "title": {
-        "zh": "2026年7月主日敬拜赞美 - 恩典时刻",
-        "en": "Sunday Worship Praise - Moment of Grace July 2026"
+        "zh": "2020年12月圣诞敬拜",
+        "en": "Christmas worship in December 2020"
       },
-      "date": "2026-07-06",
-      "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "date": "2020-12-21",
+      "videoUrl": "https://www.youtube.com/watch?v=3OGS8UY7Ao4",
       "series": {
         "zh": "敬拜赞美",
         "en": "Worship Praise"
       },
       "description": {
-        "zh": "2026年7月6日主日敬拜赞美精选，包含会众敬拜、诗歌与祷告。",
-        "en": "Curated worship praise from July 6, 2026 Sunday, including congregational worship, hymns and prayer."
+        "zh": "2020年12月圣诞敬拜 \n天使歌唱在高天 & 听呀天使高声唱",
+        "en": "December 2020 Christmas Worship: Angels Sing in Heaven & Listen, the Angels Sing Loudly"
       },
       "thumbnail": "https://images.unsplash.com/photo-1516450360452-9312abbf5f5e?auto=format&fit=crop&w=800&q=80",
       "type": "worship"
