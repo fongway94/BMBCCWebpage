@@ -889,8 +889,8 @@ export const initialData = {
         "en": ""
       },
       "description": {
-        "zh": "The Moses Group is active in the Simpang Ampat area, where they gather and share their experiences.",
-        "en": "Moses Cell Group focuses on the spiritual growth and relationship building of young married couples. Through Bible study, mutual prayer, and life sharing, we grow together in the Lord's love. Young families are welcome to join our warm gatherings!"
+        "zh": "摩西小组活跃于南美园地区，一起相聚，一起分享。",
+        "en": "The Moses Group is active in the Sri Rambai area, where they gather and share their experiences."
       },
       "image": "https://drive.google.com/thumbnail?id=1ZQMZZy7c9J7AkZ7ETD2s_X-MImVm-2v8&sz=w2000"
     },
