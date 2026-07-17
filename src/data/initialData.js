@@ -615,7 +615,9 @@ export const initialData = {
         "details": {
           "zh": "支持 DuitNow QR / Touch 'n Go / GrabPay / Boost 等主流电子钱包。请在转账备注中注明姓名与奉献用途（如：十一奉献 / 感恩奉献 / 建堂基金等）。",
           "en": "Supports DuitNow QR / Touch 'n Go / GrabPay / Boost and other major e-wallets. Please include your name and purpose (e.g., Tithe / Thank Offering / Building Fund) in the transfer note."
-        }
+        },
+        "index": 2,
+        "qrCodeUrl": "https://drive.google.com/thumbnail?id=149PktVjOuafTW4Dy-PhXiveFoGX6k9rX&sz=w2000"
       }
     ],
     "contactNote": {
