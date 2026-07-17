@@ -981,28 +981,28 @@ export const initialData = {
     {
       "id": 5,
       "name": {
-        "zh": "迦勒小组 (Caleb)",
+        "zh": "迦勒小组",
         "en": "Caleb Group"
       },
       "leader": {
-        "zh": "负责人",
-        "en": "Leader"
+        "zh": "黄天胜组长 & 潘康宁组长",
+        "en": "Bro. Joseph & Sis. Kang Ning"
       },
       "schedule": {
-        "zh": "聚会时间",
-        "en": "Schedule"
+        "zh": "每周二晚上 8:30 PM - 10:00 PM",
+        "en": "Every Tuesday 8:30 PM to 10:00 PM"
       },
       "location": {
-        "zh": "聚会地点",
-        "en": "Location"
+        "zh": "柔府区",
+        "en": "Juru"
       },
       "target": {
         "zh": "适合人群",
         "en": "Target Group"
       },
       "description": {
-        "zh": "小组简介...",
-        "en": "Group description..."
+        "zh": "迦勒小组活跃于柔府地区，一起相聚，一起分享。",
+        "en": "The Caleb group is active in the Juru area, where they gather and share together."
       },
       "image": "https://drive.google.com/thumbnail?id=1jBLQ97FDFUWAF5da0xcLikWtr9iIZi_9&sz=w2000"
     },
