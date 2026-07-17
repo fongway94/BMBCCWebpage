@@ -222,7 +222,7 @@ export const initialData = {
     },
     {
       "id": 3,
-      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSn5wiYtgrlWBMNhVubumkzQEBjc4lh_2fk2zsjuqhCJQ&s=10",
+      "image": "https://drive.google.com/thumbnail?id=13IkZl6VS1NdQR9p-TkGSlYOuywtam3ua&sz=w2000",
       "title": {
         "zh": "走入社区，宣扬主爱",
         "en": "Enter the Community, Proclaim Lord's Love"
