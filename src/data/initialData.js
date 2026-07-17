@@ -876,7 +876,7 @@ export const initialData = {
         "en": "Moses Cell Group"
       },
       "leader": {
-        "zh": "韩川定 弟兄 & 林美凤 姐妹",
+        "zh": "韩川定组长 & 林美凤组长",
         "en": "Bro. Han Suan Ting & Sis. Lim Mooi Hiong"
       },
       "schedule": {
