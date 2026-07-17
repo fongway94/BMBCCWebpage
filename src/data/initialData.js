@@ -500,22 +500,6 @@ export const initialData = {
       }
     },
     {
-      "id": 5,
-      "name": {
-        "zh": "李玉章 博士",
-        "en": "Dr. Lee"
-      },
-      "role": {
-        "zh": "牧师",
-        "en": "Rev"
-      },
-      "image": "https://drive.google.com/thumbnail?id=13WvLTpNl_omUTOsF5Z8bbhhO7vDCtkSh&sz=w2000",
-      "bio": {
-        "zh": "李玉章博士",
-        "en": "Dr. Lee"
-      }
-    },
-    {
       "id": 2,
       "name": {
         "zh": "郑金兰 传道",
@@ -529,6 +513,22 @@ export const initialData = {
       "bio": {
         "zh": "郑金兰传道在教会里服事敬拜团带领，也是诗班的带领者。在教会里是大家的师母。",
         "en": "Pastor Camelia serves as the leader of the worship team and choir in the church. She is known as the pastor's wife in the church."
+      }
+    },
+    {
+      "id": 5,
+      "name": {
+        "zh": "李玉章 博士",
+        "en": "Dr. Lee"
+      },
+      "role": {
+        "zh": "牧师",
+        "en": "Rev"
+      },
+      "image": "https://drive.google.com/thumbnail?id=13WvLTpNl_omUTOsF5Z8bbhhO7vDCtkSh&sz=w2000",
+      "bio": {
+        "zh": "李玉章博士",
+        "en": "Dr. Lee"
       }
     },
     {
