@@ -799,25 +799,6 @@ export const initialData = {
       },
       "thumbnail": "https://images.unsplash.com/photo-1516450360452-9312abbf5f5e?auto=format&fit=crop&w=800&q=80",
       "type": "worship"
-    },
-    {
-      "id": 5,
-      "title": {
-        "zh": "2026年6月敬拜夜 - 在主爱里敬拜",
-        "en": "Worship Night June 2026 - Worship in His Love"
-      },
-      "date": "2026-06-28",
-      "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-      "series": {
-        "zh": "敬拜之夜",
-        "en": "Worship Night"
-      },
-      "description": {
-        "zh": "6月敬拜之夜完整录影，现代敬拜与祷告。",
-        "en": "Full recording of June Worship Night, modern worship and prayer."
-      },
-      "thumbnail": "https://images.unsplash.com/photo-1493225457124-a5467605ff2fb?auto=format&fit=crop&w=800&q=80",
-      "type": "worship"
     }
   ],
   "pageVisibility": {
