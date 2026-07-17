@@ -976,7 +976,7 @@ export const initialData = {
         "zh": "芥菜种小组欢迎整个家庭一起加入！我们相信信仰传承从家庭开始，大人和孩子们一起在神的话语中成长。小组提供儿童看顾服务，让父母安心参与查经。",
         "en": "Mustard Seed Cell Group welcomes entire families! We believe faith传承 starts at home, with adults and children growing together in God's Word. Childcare is provided so parents can fully engage in Bible study."
       },
-      "image": "https://images.unsplash.com/photo-1609220136736-443140cffec6?auto=format&fit=crop&w=600&q=80"
+      "image": "https://drive.google.com/thumbnail?id=1v_kK0M0IxwqFLmZ2aTEEkL7yiNV7GALy&sz=w2000"
     },
     {
       "id": 5,
