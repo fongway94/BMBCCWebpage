@@ -590,29 +590,6 @@ export const initialData = {
   "bulletins": [],
   "sermons": [
     {
-      "id": 1,
-      "title": {
-        "zh": "行走在光中 - 在主爱里生活系列 (一)",
-        "en": "Walking in the Light - Living in the Lord's Love Series (1)"
-      },
-      "preacher": {
-        "zh": "杨桔槟 牧师",
-        "en": "Pastor Stanley Yeoh"
-      },
-      "date": "2026-07-06",
-      "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-      "series": {
-        "zh": "在主爱里生活",
-        "en": "Living in the Lord's Love"
-      },
-      "scripture": "约翰一书 1:5-10",
-      "description": {
-        "zh": "第一讲：当我们行在光中，就能与神和彼此有真实的团契。探讨如何靠着主的恩典，过一个光明、诚实、彼此认罪代祷的生活。",
-        "en": "Part 1: When we walk in the light, we have true fellowship with God and each other. Explore how by God's grace we can live a life of light, honesty, and mutual confession and prayer."
-      },
-      "thumbnail": "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80"
-    },
-    {
       "id": 2,
       "title": {
         "zh": "爱的诫命 - 在主爱里生活系列 (二)",
