@@ -465,7 +465,8 @@ export const initialData = {
       "description": {
         "zh": "关爱社区，从健康开始。本次活动由教会联合本地医疗团队举办，免费提供血压、血糖测量、眼科基础筛查、中医针灸诊疗与专业健康饮食咨询。欢迎社区居民男女老幼一同来关心身体健康。现场亦设趣味益智儿童角！",
         "en": "Caring for our community starts with health. Co-organized with local medical professionals, this event offers free blood pressure, blood glucose tests, basic eye screenings, traditional Chinese medicine consultations, and dietary advice. We welcome neighbors of all ages. A fun children's corner is also available!"
-      }
+      },
+      "popupEnabled": true
     },
     {
       "id": 3,
