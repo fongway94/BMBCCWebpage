@@ -892,7 +892,7 @@ export const initialData = {
         "zh": "摩西小组专注于青年夫妇的属灵成长与家庭关系建立。我们通过查经分享、彼此代祷和生活互助，在主爱中一同成长。欢迎年轻家庭加入我们温馨的小组聚会！",
         "en": "Moses Cell Group focuses on the spiritual growth and relationship building of young married couples. Through Bible study, mutual prayer, and life sharing, we grow together in the Lord's love. Young families are welcome to join our warm gatherings!"
       },
-      "image": "https://drive.usercontent.google.com/download?id=1ZQMZZy7c9J7AkZ7ETD2s_X-MImVm-2v8&export=view&authuser=0"
+      "image": "https://drive.google.com/uc?export=view&id=1ZQMZZy7c9J7AkZ7ETD2s_X-MImVm-2v8"
     },
     {
       "id": 2,
