@@ -538,8 +538,8 @@ export const initialData = {
         "en": "Dr. Lee"
       },
       "role": {
-        "zh": "传道",
-        "en": "Pastor"
+        "zh": "牧师",
+        "en": "Rev"
       },
       "image": "https://drive.google.com/thumbnail?id=13WvLTpNl_omUTOsF5Z8bbhhO7vDCtkSh&sz=w2000",
       "bio": {
