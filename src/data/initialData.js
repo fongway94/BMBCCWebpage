@@ -928,7 +928,7 @@ export const initialData = {
         "en": "Bukit Mertajam Baptist Chinese Church (Main)\nTaman Bukit Minyak, 14000 Bukit Mertajam, Penang, Malaysia"
       },
       "directions": {
-        "zh": "如何到达：\n\n🚗 自驾车：\n从南北大道（PLUS Highway）大山脚出口下，沿Jalan Bukit Minyak行驶约3公里即可到达。教会建筑位于道路右侧，设有明显十字架标志。\n\n🚌 公共交通：\n可搭乘 Rapid Penang 巴士 701/702 号至 Taman Bukit Minyak 站下车，步行约5分钟即到。\n\n🅿️ 停车：\n教会前方及后方均设有免费停车场，可容纳约50辆车。",
+        "zh": "如何到达：\n\n🚗 自驾车：\n从南北大道（PLUS Highway）大山脚出口下，沿Jalan Bukit Minyak行驶约3公里即可到达。教会建筑位于道路右侧，设有明显十字架标志。\n\n🅿️ 停车：\n教会前方及后方均设有免费停车场，可容纳约50辆车。",
         "en": "How to get here:\n\n🚗 By Car:\nTake the Bukit Mertajam exit from PLUS Highway, drive along Jalan Bukit Minyak for about 3km. The church building is on the right side with a prominent cross sign.\n\n🚌 Public Transport:\nTake Rapid Penang Bus 701/702 to Taman Bukit Minyak stop, a 5-minute walk to the church.\n\n🅿️ Parking:\nFree parking available at the front and rear of the church, accommodating approximately 50 vehicles."
       },
       "landmarks": {
