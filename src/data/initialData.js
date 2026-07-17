@@ -414,7 +414,7 @@ export const initialData = {
         "zh": "爱邻社区关怀 ❤",
         "en": "Neighborly Community Care ❤"
       },
-      "image": "https://images.unsplash.com/photo-1542810634-71277d95dcbb?auto=format&fit=crop&w=800&q=80",
+      "image": "https://drive.google.com/thumbnail?id=1tB7Zb7qGUtxz_TCC6cI3hcJKcoti9FBV&sz=w2000",
       "description": {
         "zh": "大山脚浸信教会是走入社区的教会，在于社区关怀的事工有很大的负担。爱邻社区关怀包括一系列的社区服务与关怀，包括家庭探访、辅导支持、节日慰问及物资援助，把基督的温暖和实际的援助送到每一户有需要的家庭中。",
         "en": "Bukit Mertajam Baptist Chinese Church is a church that steps into the community, carrying a strong commitment to local welfare. Neighborly Community Care includes home visitation, counselling support, seasonal greetings, and food aid, delivering Christ's warmth and practical relief to vulnerable families."
