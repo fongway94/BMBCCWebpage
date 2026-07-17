@@ -97,7 +97,7 @@ export const initialData = {
       "en": "Here, you can learn about our upcoming special worship services, holiday celebrations, welfare activities, and camps. Welcome to register and attend with friends!"
     },
     "bulletinsBadge": {
-      "zh": "教会资源中心",
+      "zh": "崇拜与敬拜 · 回顾",
       "en": "Church Resource Centre"
     },
     "bulletinsTitle": {
