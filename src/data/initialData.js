@@ -500,6 +500,22 @@ export const initialData = {
       }
     },
     {
+      "id": 5,
+      "name": {
+        "zh": "李玉章 博士",
+        "en": "Dr. Lee"
+      },
+      "role": {
+        "zh": "牧师",
+        "en": "Rev"
+      },
+      "image": "https://drive.google.com/thumbnail?id=13WvLTpNl_omUTOsF5Z8bbhhO7vDCtkSh&sz=w2000",
+      "bio": {
+        "zh": "李玉章博士",
+        "en": "Dr. Lee"
+      }
+    },
+    {
       "id": 2,
       "name": {
         "zh": "郑金兰 传道",
@@ -529,22 +545,6 @@ export const initialData = {
       "bio": {
         "zh": "邓婉龄传道",
         "en": "Pastor Teng"
-      }
-    },
-    {
-      "id": 5,
-      "name": {
-        "zh": "李玉章 博士",
-        "en": "Dr. Lee"
-      },
-      "role": {
-        "zh": "牧师",
-        "en": "Rev"
-      },
-      "image": "https://drive.google.com/thumbnail?id=13WvLTpNl_omUTOsF5Z8bbhhO7vDCtkSh&sz=w2000",
-      "bio": {
-        "zh": "李玉章博士",
-        "en": "Dr. Lee"
       }
     }
   ],
