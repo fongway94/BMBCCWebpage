@@ -611,29 +611,6 @@ export const initialData = {
         "en": "Part 2: The Lord Jesus gives us a new commandment—to love one another. When we love each other, everyone will know we are His disciples."
       },
       "thumbnail": "https://images.unsplash.com/photo-1455849318743-b2233052fcff?auto=format&fit=crop&w=800&q=80"
-    },
-    {
-      "id": 3,
-      "title": {
-        "zh": "走入社区，宣扬主爱 - 2026年度主题信息",
-        "en": "Enter the Community, Proclaim the Lord's Love - 2026 Theme Message"
-      },
-      "preacher": {
-        "zh": "邓婉龄 传道",
-        "en": "Pastor Teng Wan Ling"
-      },
-      "date": "2026-01-04",
-      "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-      "series": {
-        "zh": "年度主题",
-        "en": "Yearly Theme"
-      },
-      "scripture": "马太福音 5:13-16",
-      "description": {
-        "zh": "2026年教会异象：走入社区，宣扬主爱。我们是世上的光和盐，被呼召进入社区，将基督的爱活出来、传出去。",
-        "en": "2026 Church Vision: Enter the community, proclaim the Lord's love. We are the light and salt of the earth, called to go into the community and live out and share Christ's love."
-      },
-      "thumbnail": "https://images.unsplash.com/photo-1438232992991-995b705bafb1?auto=format&fit=crop&w=800&q=80"
     }
   ],
   "services": [
