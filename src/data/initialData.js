@@ -246,7 +246,7 @@ export const initialData = {
       },
       "time": "10:00 AM - 12:00 PM",
       "location": {
-        "zh": "教会主堂",
+        "zh": "BMBCC 母堂",
         "en": "Church Sanctuary"
       },
       "language": {
