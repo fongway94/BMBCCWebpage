@@ -22,6 +22,7 @@ export const initialData = {
       "en": "2026 Vision: Build Families, Build the Church."
     },
     "themeColor": "emerald",
+    "headerLogo": "",
     "contactPhone": "+60 12-345 6789",
     "contactEmail": "bmbcc18161412@gmail.com",
     "contactAddress": "14, 16, 18, Lebuh Kota Permai 2, Taman Kota Permai, 14000 Bukit Mertajam, Penang",

@@ -129,7 +129,7 @@ export default function App() {
           }
           return parsedObj;
         };
-        const settingsKeys = ['churchName','slogan','description','themeYear','aboutIntro','aboutVision','aboutMission','homeVisionPara1','homeVisionPara2','yearlyVisionLabel','yearlyVisionTitle','yearlyVisionBadge','yearlyVisionScripture','yearlyVisionRef','ctaTitle','ctaDescription','footerCopyright','footerTagline','churchTagline'];
+        const settingsKeys = ['churchName','slogan','description','themeYear','aboutIntro','aboutVision','aboutMission','homeVisionPara1','homeVisionPara2','yearlyVisionLabel','yearlyVisionTitle','yearlyVisionBadge','yearlyVisionScripture','yearlyVisionRef','ctaTitle','ctaDescription','footerCopyright','footerTagline','churchTagline','headerLogo'];
         const mergedSettings = { ...initialData.settings, ...(parsed.settings || {}) };
         delete mergedSettings.adminPassword;
         settingsKeys.forEach(k => {
@@ -159,6 +159,7 @@ export default function App() {
   const [adminLoginError, setAdminLoginError] = useState('');
   const [adminActiveSection, setAdminActiveSection] = useState('settings'); // 'settings', 'carousel', 'timetable', 'events', 'ministries', 'backup'
   const [adminSuccessMessage, setAdminSuccessMessage] = useState('');
+  const [logoUploadError, setLogoUploadError] = useState('');
   
   // Verify auth session on mount
   useEffect(() => {
@@ -656,6 +657,51 @@ export default function App() {
     saveAllData(updated);
   };
 
+  // Header logo is stored with the rest of the site settings. Images are resized
+  // before saving so LocalStorage/backups/GitHub auto-save remain reasonably small.
+  const handleHeaderLogoUpload = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    setLogoUploadError('');
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setLogoUploadError(lang === 'zh' ? '请选择图片文件（PNG、JPG、WebP 等）。' : 'Please choose an image file (PNG, JPG, WebP, etc.).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setLogoUploadError(lang === 'zh' ? '图片不能超过 5MB。' : 'The image must be 5MB or smaller.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => setLogoUploadError(lang === 'zh' ? '无法读取该图片，请重试。' : 'Could not read this image. Please try again.');
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => setLogoUploadError(lang === 'zh' ? '该文件不是有效的图片。' : 'This file is not a valid image.');
+      image.onload = () => {
+        const maxDimension = 512;
+        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext('2d');
+        if (!context) return;
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        // PNG preserves transparency, which is especially useful for church marks.
+        const logoDataUrl = canvas.toDataURL('image/png');
+        if (logoDataUrl.length > 900 * 1024) {
+          setLogoUploadError(lang === 'zh' ? '图片压缩后仍然太大，请使用较简单或较小的图片。' : 'The compressed image is still too large. Please use a smaller or simpler image.');
+          return;
+        }
+        updateSetting('headerLogo', null, logoDataUrl);
+        triggerAdminSuccess(lang === 'zh' ? '教会标志已上传并显示在顶部菜单。' : 'Church logo uploaded and shown in the header.');
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
   // 2. Carousel Actions
   const handleSaveSlide = (slide) => {
     const updated = { ...data };
@@ -999,12 +1045,20 @@ export default function App() {
           <div className="flex justify-between h-20">
             <div className="flex items-center shrink-0">
               <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setActiveTab('home')}>
-                <div className="bg-primary hover:bg-primary-dark text-white p-2.5 rounded-xl shadow-md shadow-primary/20 transition-all">
-                  {/* Custom cross SVG */}
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m-6-8h12" />
-                  </svg>
-                </div>
+                {data.settings.headerLogo ? (
+                  <img
+                    src={data.settings.headerLogo}
+                    alt={`${t(data.settings.churchName)} logo`}
+                    className="w-12 h-12 rounded-xl object-contain border border-gray-100 bg-white p-1 shadow-sm"
+                  />
+                ) : (
+                  <div className="bg-primary hover:bg-primary-dark text-white p-2.5 rounded-xl shadow-md shadow-primary/20 transition-all">
+                    {/* Default cross shown until a logo is uploaded in Admin Settings. */}
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m-6-8h12" />
+                    </svg>
+                  </div>
+                )}
                 <div>
                   <span className="font-bold text-lg md:text-xl text-gray-900 block leading-tight tracking-wide font-sans">
                     {t(data.settings.churchName)}
@@ -3613,7 +3667,44 @@ export default function App() {
                           />
                         </div>
 
-{/* Church Abbreviation */}
+{/* Header Logo */}
+                        <div className="md:col-span-2 rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                            <div className="w-16 h-16 rounded-xl border border-gray-200 bg-white flex items-center justify-center overflow-hidden shrink-0">
+                              {data.settings.headerLogo ? (
+                                <img src={data.settings.headerLogo} alt="Header logo preview" className="w-full h-full object-contain p-1" />
+                              ) : (
+                                <div className="bg-primary text-white p-2 rounded-lg">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m-6-8h12" /></svg>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <label className="block text-xs font-bold text-gray-800 mb-1">
+                                {lang === 'zh' ? '顶部菜单教会标志 / Header Logo' : 'Header Church Logo / 顶部菜单教会标志'}
+                              </label>
+                              <p className="text-[10px] text-gray-500 leading-relaxed">
+                                {lang === 'zh' ? '上传后将取代顶部左侧的绿色十字标志。支持 PNG、JPG、WebP 或 GIF；图片会自动缩小并随网站设置一同保存。' : 'Uploading replaces the green cross at the top-left. PNG, JPG, WebP, and GIF are supported; the image is resized and saved with the site settings.'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <label className="cursor-pointer px-3 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold transition-all flex items-center gap-1.5">
+                              <Upload size={14} />
+                              <span>{lang === 'zh' ? '上传标志图片' : 'Upload Logo Image'}</span>
+                              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handleHeaderLogoUpload} className="hidden" />
+                            </label>
+                            {data.settings.headerLogo && (
+                              <button type="button" onClick={() => updateSetting('headerLogo', null, '')} className="px-3 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition-all flex items-center gap-1.5">
+                                <Trash2 size={14} />
+                                <span>{lang === 'zh' ? '恢复绿色十字' : 'Restore Green Cross'}</span>
+                              </button>
+                            )}
+                          </div>
+                          {logoUploadError && <p className="text-[11px] text-red-600">{logoUploadError}</p>}
+                        </div>
+
+                        {/* Church Abbreviation */}
                         <div>
                           <label className="block text-xs font-bold text-gray-700 mb-1">教会简称 / Abbreviation (e.g. BMBCC)</label>
                           <input
