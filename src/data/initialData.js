@@ -651,6 +651,25 @@ export const initialData = {
       },
       "thumbnail": "https://images.unsplash.com/photo-1516450360452-9312abbf5f5e?auto=format&fit=crop&w=800&q=80",
       "type": "worship"
+    },
+    {
+      "id": 5,
+      "title": {
+        "zh": "2020年12月圣诞敬拜",
+        "en": "Christmas worship in December 2020"
+      },
+      "date": "2020-12-23",
+      "videoUrl": "https://www.youtube.com/watch?v=vw3G8LRiloU",
+      "series": {
+        "zh": "圣诞敬拜赞美",
+        "en": "Christmas Worship and Praise"
+      },
+      "description": {
+        "zh": "2020年12月圣诞敬拜 \n有一件礼物",
+        "en": "There was a gift during the December 2020 Christmas worship service."
+      },
+      "thumbnail": "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80",
+      "type": "worship"
     }
   ],
   "pageVisibility": {
