@@ -1009,28 +1009,28 @@ export const initialData = {
     {
       "id": 6,
       "name": {
-        "zh": "⁠亚伯拉罕小组 （Abraham)",
+        "zh": "⁠亚伯拉罕小组",
         "en": "Abraham Cell Group"
       },
       "leader": {
-        "zh": "负责人",
-        "en": "Leader"
+        "zh": "郑金兰组长 & 钱桂妮组长",
+        "en": "Ps. Camelia & Sis. Chian"
       },
       "schedule": {
-        "zh": "聚会时间",
-        "en": "Schedule"
+        "zh": "每周二晚上 8:30 PM - 10:00 PM",
+        "en": "Every Tuesday 8:30 PM to 10:00 PM"
       },
       "location": {
-        "zh": "聚会地点",
-        "en": "Location"
+        "zh": "阿儿玛",
+        "en": "Alma"
       },
       "target": {
-        "zh": "适合人群",
-        "en": "Target Group"
+        "zh": "",
+        "en": ""
       },
       "description": {
-        "zh": "小组简介...",
-        "en": "Group description..."
+        "zh": "⁠亚伯拉罕小组活跃于阿儿玛地区，一起相聚，一起分享。",
+        "en": "The Abraham group is active in the Alma area, where they gather and share together."
       },
       "image": "https://drive.google.com/thumbnail?id=1a039xV6S52qVnU1kFUa7bUIpVMemmHUD&sz=w2000"
     }
