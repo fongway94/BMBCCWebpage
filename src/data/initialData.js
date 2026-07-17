@@ -480,7 +480,7 @@ export const initialData = {
         "zh": "师母/传道",
         "en": "Pastor"
       },
-      "image": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80",
+      "image": "https://drive.google.com/thumbnail?id=1gO40oC9OqXgHIDCb3YsO1T9yjXE3wHWj&sz=w2000",
       "bio": {
         "zh": "郑金兰传道在教会里服事敬拜团带领，也是诗班的带领者。在教会里是大家的师母。",
         "en": "Pastor Camelia serves as the leader of the worship team and choir in the church. She is known as the pastor's wife in the church."
