@@ -941,8 +941,8 @@ export const initialData = {
         "en": "BKBC Church"
       },
       "target": {
-        "zh": "居住在 Simpang Ampat 一代的弟兄姐妹",
-        "en": "Brothers and sisters living in the Simpang Ampat area"
+        "zh": "",
+        "en": ""
       },
       "description": {
         "zh": "约瑟小组活跃于Simpang Ampat 地区，一起相聚，一起分享。",
