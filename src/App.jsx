@@ -203,6 +203,8 @@ export default function App() {
   const [logoUploadError, setLogoUploadError] = useState('');
   const [eventPopupOpen, setEventPopupOpen] = useState(false);
   const [eventPopupSlide, setEventPopupSlide] = useState(0);
+  const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   
   // Verify auth session on mount
   useEffect(() => {
@@ -2565,7 +2567,13 @@ export default function App() {
             {data.events.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {data.events.map((evt) => (
-                  <div key={evt.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm flex flex-col hover:shadow-lg transition-all duration-300">
+                  <button
+                    key={evt.id}
+                    type="button"
+                    onClick={() => { setSelectedEvent(evt); setEventDetailsOpen(true); }}
+                    aria-label={`${lang === 'zh' ? '查看活动详情：' : 'View event details: '}${t(evt.title)}`}
+                    className="group text-left bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm flex flex-col hover:shadow-lg hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-all duration-300"
+                  >
                     <div className="relative h-52 overflow-hidden bg-gray-100">
                       <img 
                         src={evt.image} 
@@ -2596,8 +2604,11 @@ export default function App() {
                           <span className="truncate">{t(evt.location)}</span>
                         </div>
                       </div>
+                      <div className="px-6 pb-5 text-xs font-bold text-primary opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                        {lang === 'zh' ? '点击查看详情 →' : 'Click for full details →'}
+                      </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             ) : (
@@ -7407,6 +7418,21 @@ export default function App() {
       </main>
 
       {/* 4. FOOTER */}
+      {eventDetailsOpen && selectedEvent && (
+        <div className="fixed inset-0 z-[75] bg-gray-950/75 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={lang === 'zh' ? '活动详情' : 'Event details'} onMouseDown={(e) => { if (e.target === e.currentTarget) setEventDetailsOpen(false); }}>
+          <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <button onClick={() => setEventDetailsOpen(false)} aria-label={lang === 'zh' ? '关闭' : 'Close'} className="absolute right-4 top-4 z-10 rounded-full bg-black/55 p-2 text-white hover:bg-black/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><X size={20} /></button>
+            <img src={selectedEvent.image} alt={t(selectedEvent.title)} className="max-h-[62vh] w-full object-contain bg-gray-950" />
+            <div className="p-6 sm:p-8">
+              <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary"><Calendar size={15} /> {lang === 'zh' ? '特别活动' : 'Special event'}</div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">{t(selectedEvent.title)}</h2>
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-600"><span className="flex items-center gap-1.5"><Calendar size={15} />{selectedEvent.date}</span><span className="flex items-center gap-1.5"><Clock size={15} />{selectedEvent.time}</span><span className="flex items-center gap-1.5"><MapPin size={15} />{t(selectedEvent.location)}</span></div>
+              <p className="mt-5 whitespace-pre-line text-sm leading-7 text-gray-600">{t(selectedEvent.description)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {eventPopupOpen && (() => {
         const popupEvents = (data.events || []).filter(e => e.popupEnabled);
         if (popupEvents.length === 0 || activeTab === 'admin') return null;
