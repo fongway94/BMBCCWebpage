@@ -1032,7 +1032,7 @@ export const initialData = {
         "zh": "小组简介...",
         "en": "Group description..."
       },
-      "image": "https://images.unsplash.com/photo-1529156069898-49953e39b8f2?auto=format&fit=crop&w=600&q=80"
+      "image": "https://drive.google.com/thumbnail?id=1a039xV6S52qVnU1kFUa7bUIpVMemmHUD&sz=w2000"
     }
   ],
   "newFriendGuide": {
