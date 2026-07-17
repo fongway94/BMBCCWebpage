@@ -44,7 +44,7 @@ export const initialData = {
       "en": "Bukit Mertajam Baptist Chinese Church (BMBCC) is a community-based, loving, and vibrant family. We firmly believe in the truth of the Bible and use it as our guide. As a church that reaches out, we have a heavy burden for community care ministries, yearning to share God's abundant grace and love with everyone around us."
     },
     "aboutVision": {
-      "zh": "成为一个健康、充满主爱、积极宣教并服侍社区的门徒教会。",
+      "zh": "zhan",
       "en": "To be a healthy, Christ-loving, active mission-oriented, and community-serving disciple church."
     },
     "aboutMission": {
