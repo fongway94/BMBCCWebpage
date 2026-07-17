@@ -193,6 +193,34 @@ export const initialData = {
       "zh": "❤︎❤︎",
       "en": "❤︎❤︎"
     },
+    "footerDescription": {
+      "zh": "我们是走入社区的教会。爱邻舍、送温情，大山脚百利镇社区的一个充满主爱、温暖人心的恩典家园。",
+      "en": "A community-centered church in Taman Bukit Minyak, shepherding souls and serving vulnerable neighbors with Christ’s love."
+    },
+    "footerNavTitle": {
+      "zh": "网站导航",
+      "en": "Navigation"
+    },
+    "footerServiceTitle": {
+      "zh": "核心崇拜聚会",
+      "en": "Combined Service"
+    },
+    "footerServiceName": {
+      "zh": "周日主日崇拜",
+      "en": "Sunday Combined Worship"
+    },
+    "footerServiceTime": {
+      "zh": "星期日早上 10:00 AM",
+      "en": "Sundays at 10:00 AM"
+    },
+    "footerServiceLocation": {
+      "zh": "教会主堂 / 线上直播同步",
+      "en": "Church Sanctuary / Live"
+    },
+    "footerContactTitle": {
+      "zh": "联系与到访",
+      "en": "Contact Us"
+    },
     "autoSaveToGithub": true
   },
   "carousel": [

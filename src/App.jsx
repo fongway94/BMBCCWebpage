@@ -4703,12 +4703,83 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* ===== Footer Text Settings ===== */}
+                        {/* ===== Footer Sections & Text Settings ===== */}
                         <div className="md:col-span-2 pt-4 border-t border-gray-100">
-                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2"><Info size={14} className="text-primary" /> {lang === 'zh' ? '页脚版权与标语设置' : 'Footer Copyright & Tagline Settings'}</h3>
-                          <p className="text-[10px] text-gray-500 mb-3">{lang === 'zh' ? '编辑页脚底部的版权声明和网站标语' : 'Edit the copyright notice and tagline at the bottom of the footer'}</p>
+                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2"><Info size={14} className="text-primary" /> {lang === 'zh' ? '页脚栏目与内容设置 (Combined Service, 联系与到访等)' : 'Footer Sections & Content Settings'}</h3>
+                          <p className="text-[10px] text-gray-500 mb-3">{lang === 'zh' ? '在此完整编辑页脚各栏目的标题、崇拜时间说明、简介及版权声明' : 'Edit footer column titles, service schedules, intro description, and copyright'}</p>
                         </div>
 
+                        {/* Footer Description (Col 1) */}
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '页脚教会简介 (中文)' : 'Footer Church Description (Chinese)'}</label>
+                          <textarea rows={3} value={data.settings.footerDescription?.zh || ''} onChange={(e) => updateSetting('footerDescription', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Footer Church Description (English)</label>
+                          <textarea rows={3} value={data.settings.footerDescription?.en || ''} onChange={(e) => updateSetting('footerDescription', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        {/* Footer Nav Title (Col 2) */}
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '网站导航栏目标题 (中文)' : 'Navigation Title (Chinese)'}</label>
+                          <input type="text" value={data.settings.footerNavTitle?.zh || ''} onChange={(e) => updateSetting('footerNavTitle', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Navigation Title (English)</label>
+                          <input type="text" value={data.settings.footerNavTitle?.en || ''} onChange={(e) => updateSetting('footerNavTitle', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        {/* Combined Service Title (Col 3) */}
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '核心崇拜栏目标题 (中文)' : 'Combined Service Title (Chinese)'}</label>
+                          <input type="text" value={data.settings.footerServiceTitle?.zh || ''} onChange={(e) => updateSetting('footerServiceTitle', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Combined Service Title (English)</label>
+                          <input type="text" value={data.settings.footerServiceTitle?.en || ''} onChange={(e) => updateSetting('footerServiceTitle', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        {/* Service Name */}
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '崇拜名称 (中文)' : 'Service Name (Chinese)'}</label>
+                          <input type="text" value={data.settings.footerServiceName?.zh || ''} onChange={(e) => updateSetting('footerServiceName', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Service Name (English)</label>
+                          <input type="text" value={data.settings.footerServiceName?.en || ''} onChange={(e) => updateSetting('footerServiceName', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        {/* Service Time */}
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '崇拜时间 (中文)' : 'Service Time (Chinese)'}</label>
+                          <input type="text" value={data.settings.footerServiceTime?.zh || ''} onChange={(e) => updateSetting('footerServiceTime', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Service Time (English)</label>
+                          <input type="text" value={data.settings.footerServiceTime?.en || ''} onChange={(e) => updateSetting('footerServiceTime', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        {/* Service Location */}
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '崇拜地点/直播说明 (中文)' : 'Service Location (Chinese)'}</label>
+                          <input type="text" value={data.settings.footerServiceLocation?.zh || ''} onChange={(e) => updateSetting('footerServiceLocation', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Service Location (English)</label>
+                          <input type="text" value={data.settings.footerServiceLocation?.en || ''} onChange={(e) => updateSetting('footerServiceLocation', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        {/* Contact Us Title (Col 4) */}
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '联系栏目标题 (中文)' : 'Contact Title (Chinese)'}</label>
+                          <input type="text" value={data.settings.footerContactTitle?.zh || ''} onChange={(e) => updateSetting('footerContactTitle', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Contact Title (English)</label>
+                          <input type="text" value={data.settings.footerContactTitle?.en || ''} onChange={(e) => updateSetting('footerContactTitle', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                        </div>
+
+                        {/* Copyright & Tagline */}
                         <div>
                           <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '版权声明 (中文)' : 'Copyright Notice (Chinese)'}</label>
                           <input
@@ -7624,15 +7695,15 @@ export default function App() {
               <span className="font-extrabold text-base tracking-wide">{t(data.settings.churchName)}</span>
             </div>
             <p className="text-xs text-gray-400 leading-relaxed max-w-sm">
-              {lang === 'zh' 
+              {t(data.settings.footerDescription) || (lang === 'zh' 
                 ? '我们是走入社区的教会。爱邻舍、送温情，大山脚百利镇社区的一个充满主爱、温暖人心的恩典家园。' 
-                : 'A community-centered church in Taman Bukit Minyak, shepherding souls and serving vulnerable neighbors with Christ’s love.'}
+                : 'A community-centered church in Taman Bukit Minyak, shepherding souls and serving vulnerable neighbors with Christ’s love.')}
             </p>
           </div>
 
           {/* Col 2: Navigation Links */}
           <div className="space-y-3">
-            <h4 className="text-white text-xs font-bold uppercase tracking-wider">{lang === 'zh' ? '网站导航' : 'Navigation'}</h4>
+            <h4 className="text-white text-xs font-bold uppercase tracking-wider">{t(data.settings.footerNavTitle) || (lang === 'zh' ? '网站导航' : 'Navigation')}</h4>
             <div className="grid grid-cols-2 gap-2 text-xs">
               {(() => {
                 const vis = data.pageVisibility || {};
@@ -7664,23 +7735,23 @@ export default function App() {
 
           {/* Col 3: Service Schedule Simple Summary */}
           <div className="space-y-3 text-xs leading-relaxed">
-            <h4 className="text-white text-xs font-bold uppercase tracking-wider">{lang === 'zh' ? '核心崇拜聚会' : 'Combined Service'}</h4>
+            <h4 className="text-white text-xs font-bold uppercase tracking-wider">{t(data.settings.footerServiceTitle) || (lang === 'zh' ? '核心崇拜聚会' : 'Combined Service')}</h4>
             <div className="space-y-1.5">
-              <p className="font-bold text-gray-300">{lang === 'zh' ? '周日主日崇拜' : 'Sunday Combined Worship'}</p>
+              <p className="font-bold text-gray-300">{t(data.settings.footerServiceName) || (lang === 'zh' ? '周日主日崇拜' : 'Sunday Combined Worship')}</p>
               <div className="flex items-center gap-1.5 text-gray-400">
                 <Clock size={12} />
-                <span>{lang === 'zh' ? '星期日早上 10:00 AM' : 'Sundays at 10:00 AM'}</span>
+                <span>{t(data.settings.footerServiceTime) || (lang === 'zh' ? '星期日早上 10:00 AM' : 'Sundays at 10:00 AM')}</span>
               </div>
               <div className="flex items-center gap-1.5 text-gray-400">
                 <MapPin size={12} className="shrink-0" />
-                <span>{lang === 'zh' ? '教会主堂 / 线上直播同步' : 'Church Sanctuary / Live'}</span>
+                <span>{t(data.settings.footerServiceLocation) || (lang === 'zh' ? '教会主堂 / 线上直播同步' : 'Church Sanctuary / Live')}</span>
               </div>
             </div>
           </div>
 
           {/* Col 4: Contact & Social links */}
           <div className="space-y-3 text-xs">
-            <h4 className="text-white text-xs font-bold uppercase tracking-wider">{lang === 'zh' ? '联系与到访' : 'Contact Us'}</h4>
+            <h4 className="text-white text-xs font-bold uppercase tracking-wider">{t(data.settings.footerContactTitle) || (lang === 'zh' ? '联系与到访' : 'Contact Us')}</h4>
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Phone size={14} className="text-primary shrink-0" />
