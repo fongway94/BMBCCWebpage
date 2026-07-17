@@ -953,28 +953,28 @@ export const initialData = {
     {
       "id": 4,
       "name": {
-        "zh": "耶利米小组 (Jeremiah)",
+        "zh": "耶利米小组",
         "en": "Jeremiah Cell Group"
       },
       "leader": {
-        "zh": "李志文 弟兄 & 李太太",
-        "en": "Bro. Lee Zhi Wen & Mrs. Lee"
+        "zh": "陈英明组长 & 张若祈组长",
+        "en": "Bro. Ying Ming & Sis. Joey"
       },
       "schedule": {
-        "zh": "每周三晚上 8:00 PM",
-        "en": "Every Wednesday 8:00 PM"
+        "zh": "每周二晚上 8:30 PM - 10:00 PM",
+        "en": "Every Tuesday 8:30 PM to 10:00 PM"
       },
       "location": {
-        "zh": "Permatang Rawa 区域 (线上 Zoom 同步)",
-        "en": "Permatang Rawa Area (with Zoom option)"
+        "zh": "居林区",
+        "en": "Kulim"
       },
       "target": {
-        "zh": "家庭小组 (欢迎所有年龄段)",
-        "en": "Family Group (All ages welcome)"
+        "zh": "",
+        "en": ""
       },
       "description": {
-        "zh": "芥菜种小组欢迎整个家庭一起加入！我们相信信仰传承从家庭开始，大人和孩子们一起在神的话语中成长。小组提供儿童看顾服务，让父母安心参与查经。",
-        "en": "Mustard Seed Cell Group welcomes entire families! We believe faith传承 starts at home, with adults and children growing together in God's Word. Childcare is provided so parents can fully engage in Bible study."
+        "zh": "耶利米小组活跃于居林地区，一起相聚，一起分享。",
+        "en": "The Jeremiah group is active in the Kulim area, where they gather and share together."
       },
       "image": "https://drive.google.com/thumbnail?id=1v_kK0M0IxwqFLmZ2aTEEkL7yiNV7GALy&sz=w2000"
     },
