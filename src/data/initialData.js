@@ -437,20 +437,21 @@ export const initialData = {
     {
       "id": 3,
       "title": {
-        "zh": "2026 青年营会：《点燃》",
-        "en": "Youth Camp 2026: 'Ignite'"
+        "zh": "2026 第三届少年营 - 原来我酱特别",
+        "en": "2026 The 3rd Youth Camp - Turns out I'm so special"
       },
-      "date": "2026-12-10",
+      "date": "2026-09-01",
       "time": "3 Days 2 Nights",
       "location": {
-        "zh": "大山脚营地 / 户外基地",
-        "en": "Bukit Mertajam Campsite"
+        "zh": "St. Ann 教堂",
+        "en": "St. Ann Church"
       },
-      "image": "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=800&q=80",
+      "image": "https://drive.google.com/thumbnail?id=167qE_DNbKDEy9akl0Kmar3JHWwbF3YOY&sz=w2000",
       "description": {
-        "zh": "呼召大山脚与全马各地青年在主爱里集结！在营会中，我们一起打破藩篱，通过充满活力的现代赞美、点燃生命的先知讲道、激动人心的户外拓展，探索生命的价值和崇高使命。期待你的到来，让圣灵之火在心中彻底燃烧！",
-        "en": "Calling all youths from Bukit Mertajam and beyond to unite! Break barriers as we explore life's value and purpose. Through modern praise & worship, inspiring messages, and adventurous outdoor teambuilding, prepare to be ignited by the Holy Spirit. See you there!"
-      }
+        "zh": "呼召大山脚与全马各地青少年在主爱里集结！在营会中，我们一起打破藩篱，激动人心的户外拓展，发掘原来自己那么特别！期待你的到来！",
+        "en": "Calling all youth from Bukit Mertajam and across Malaysia to gather in the Lord's love! At the camp, we'll break down barriers together, engage in exciting outdoor activities, and discover how special you truly are! We look forward to your participation!"
+      },
+      "popupEnabled": true
     }
   ],
   "leadership": [
