@@ -877,8 +877,8 @@ export const initialData = {
           "en": "🕐 Sunday Service Flow"
         },
         "content": {
-          "zh": "我们的主日崇拜于每周日上午10:00准时开始，约于12:00结束。崇拜流程包括：\n\n• 9:45 AM - 入座与诗歌预热\n• 10:00 AM - 开始祷告与赞美敬拜\n• 10:30 AM - 牧师证道/讲道\n• 11:30 AM - 回应祷告与奉献\n• 12:00 PM - 祝福与散会\n\n崇拜后欢迎到一楼大厅参加茶点时间，与弟兄姐妹交流认识。",
-          "en": "Our Sunday worship begins at 10:00 AM and ends around 11:30 AM. The service flow includes:\n\n• 9:45 AM - Seating & Prelude Songs\n• 10:00 AM - Opening Prayer & Praise/Worship\n• 10:30 AM - Pastoral Sermon/Message\n• 11:30 AM - Response Prayer & Offering\n• 12:00 PM - Benediction & Dismissal\n\nAfter the service, please join us for tea time at the 1st Floor Hall to meet fellow members."
+          "zh": "我们的主日崇拜于每周日上午10:00准时开始，约于12:00结束。崇拜流程包括：\n\n• 9:45 AM - 入座开始祷告\n• 10:00 AM - 崇拜开始与赞美敬拜\n• 10:30 AM - 奉献 & 牧师证道/讲道\n• 11:30 AM - 回应诗歌和祷告\n• 12:00 PM - 祝福与散会\n\n崇拜后欢迎与弟兄姐妹交流认识。",
+          "en": "Our Sunday worship begins at 10:00 AM and ends around 11:30 AM. The service flow includes:\n\n• 9:45 AM - Seating & Prayer\n• 10:00 AM - Service Starts & Praise/Worship\n• 10:30 AM - Offering & Pastoral Sermon/Message\n• 11:30 AM - Response Prayer\n• 12:00 PM -  Response Song & Benediction\n\nAfter the service, welcome to join and meet fellow members."
         }
       },
       {
