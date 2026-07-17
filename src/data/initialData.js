@@ -925,28 +925,28 @@ export const initialData = {
     {
       "id": 3,
       "name": {
-        "zh": "约瑟小组 (Grace)",
+        "zh": "约瑟小组",
         "en": "Joseph Cell Group"
       },
       "leader": {
-        "zh": "林淑芬 姐妹",
-        "en": "Sis. Lim Shuk Fern"
+        "zh": "林方炜 组长 & 陈悠儿组长",
+        "en": "Bro. Fong Way & Sis. Yogie"
       },
       "schedule": {
         "zh": "每周六下午 3:00 PM",
         "en": "Every Saturday 3:00 PM"
       },
       "location": {
-        "zh": "Taman Cengal 第3区 (淑芬姐家)",
-        "en": "Taman Cengal Zone 3 (Sis. Lim's home)"
+        "zh": "BKBC 教会",
+        "en": "BKBC Church"
       },
       "target": {
-        "zh": "中年及以上弟兄姐妹 (40岁以上)",
-        "en": "Middle-aged & Senior Members (40+ years old)"
+        "zh": "居住在 Simpang Ampat 一代的弟兄姐妹",
+        "en": "Brothers and sisters living in the Simpang Ampat area"
       },
       "description": {
-        "zh": "恩典小组由一群热爱主的中老年弟兄姐妹组成。我们通过深度查经、生命分享和户外灵修，在主里彼此建立、互相扶持。聚会后通常有丰富茶点， fellowship 气氛温馨。",
-        "en": "Grace Cell Group is composed of middle-aged and senior members who love the Lord. Through in-depth Bible study, life sharing, and outdoor devotionals, we build each other up. Fellowship tea time after each meeting adds warmth to our gatherings."
+        "zh": "约瑟小组活跃于Simpang Ampat 地区，一起相聚，一起分享。",
+        "en": "The Joseph Cell Group is active in the Simpang Ampat area, where they gather and share together."
       },
       "image": "https://drive.google.com/thumbnail?id=1HC1sRVFasSDZ1MCG_GFHubqEwVUJxE_H&sz=w2000"
     },
