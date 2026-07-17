@@ -942,7 +942,7 @@ export const initialData = {
         "zh": "峇都交湾浸信教会",
         "en": "Batu Kawan Baptist Church (BKBC)"
       },
-      "googleMapsEmbedUrl": "https://maps.google.com/maps?q=Taman%20Alma%2C%2014000%20Bukit%20Mertajam%2C%20Penang%2C%20Malaysia&output=embed",
+      "googleMapsEmbedUrl": "https://www.google.com/maps/place/%E5%B3%87%E9%83%BD%E4%BA%A4%E6%B9%BE%E6%B5%B8%E4%BF%A1%E6%95%99%E4%BC%9A+Batu+Kawan+Baptist+Church+(BKBC)/data=!4m2!3m1!1s0x0:0x296f8042309a8855?sa=X&ved=1t:2428&ictx=111",
       "address": {
         "zh": "BMBCC 南区聚会点\nTaman Alma, 14000 Bukit Mertajam, Pulau Pinang, Malaysia",
         "en": "BMBCC South District Fellowship Point\nTaman Alma, 14000 Bukit Mertajam, Penang, Malaysia"
