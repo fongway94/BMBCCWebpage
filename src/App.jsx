@@ -50,7 +50,8 @@ import {
   Globe,
   Filter,
   Layers,
-  PlayCircle
+  PlayCircle,
+  Video
 } from 'lucide-react';
 import { initialData } from './data/initialData';
 
@@ -273,6 +274,12 @@ export default function App() {
   const [sermonViewMode, setSermonViewMode] = useState('cards'); // 'cards' | 'table'
   const [selectedBulletinModal, setSelectedBulletinModal] = useState(null);
   const [selectedSermonModal, setSelectedSermonModal] = useState(null);
+  // Service Library states
+  const [editingService, setEditingService] = useState(null);
+  const [serviceFilter, setServiceFilter] = useState('all');
+  const [serviceSearchQuery, setServiceSearchQuery] = useState('');
+  const [serviceViewMode, setServiceViewMode] = useState('cards'); // 'cards' | 'table'
+  const [selectedServiceModal, setSelectedServiceModal] = useState(null);
   const [importJsonText, setImportJsonText] = useState('');
   const [importError, setImportError] = useState('');
 
@@ -372,7 +379,8 @@ export default function App() {
 
   // Event alerts are intentionally shown on every page load (not once per session).
   useEffect(() => {
-    if (data.settings.eventPopupEnabled && data.events?.length && activeTab !== 'admin') {
+    const popupEvents = (data.events || []).filter(e => e.popupEnabled);
+    if (data.settings.eventPopupEnabled && popupEvents.length > 0 && activeTab !== 'admin') {
       setEventPopupSlide(0);
       setEventPopupOpen(true);
     }
@@ -640,6 +648,7 @@ export default function App() {
     setEditingCellGroup(null);
     setEditingLeader(null);
     setEditingSermon(null);
+    setEditingService(null);
     setEditingOfferingMethod(null);
     setEditingGuideSection(null);
   };
@@ -935,7 +944,29 @@ export default function App() {
     }
   };
 
-  // 9.6 Page Visibility Actions
+  // 9.7 Service Library Actions
+  const handleSaveService = (item) => {
+    const updated = { ...data };
+    if (!updated.services) updated.services = [];
+    if (item.id === 'new') {
+      const newId = Math.max(...updated.services.map(s => s.id), 0) + 1;
+      updated.services.push({ ...item, id: newId });
+    } else {
+      updated.services = updated.services.map(s => s.id === item.id ? item : s);
+    }
+    saveAllData(updated);
+    setEditingService(null);
+  };
+
+  const handleDeleteService = (id) => {
+    if (window.confirm(lang === 'zh' ? '确定要删除此崇拜录影吗？' : 'Are you sure you want to delete this service recording?')) {
+      const updated = { ...data };
+      updated.services = updated.services.filter(s => s.id !== id);
+      saveAllData(updated);
+    }
+  };
+
+  // 9.8 Page Visibility Actions
   const togglePageVisibility = (pageKey) => {
     const updated = { ...data };
     if (!updated.pageVisibility) updated.pageVisibility = {};
@@ -1132,6 +1163,7 @@ export default function App() {
                     label: lang === 'zh' ? '资源' : 'Resources', 
                     items: [
                       vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '周报与讲道' : 'Bulletins & Sermons' },
+                      vis.services !== false && { id: 'services', label: lang === 'zh' ? '崇拜录影库' : 'Service Library' },
                       vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide' }
                     ].filter(Boolean)
                   },
@@ -1201,7 +1233,7 @@ export default function App() {
               </button>
 
               {/* Admin Panel Access Button - Hidden by default for security */}
-              {(data.settings.showLoginButton || isAdminLoggedIn) && (
+              {(data.settings.showLoginButton) && (
                 <button
                   onClick={() => { setActiveTab('admin'); window.scrollTo(0, 0); }}
                   className={`p-2 rounded-lg flex items-center gap-1.5 transition-all text-sm ${
@@ -1257,9 +1289,10 @@ export default function App() {
                   vis.events !== false && { id: 'events', label: lang === 'zh' ? '  特别活动' : '  Events', sub: true },
                   { id: '__group_resources__', label: lang === 'zh' ? '▸ 资源 / Resources' : '▸ Resources', group: true, disabled: true },
                   vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '  周报与讲道' : '  Bulletins & Sermons', sub: true },
+                  vis.services !== false && { id: 'services', label: lang === 'zh' ? '  崇拜录影库' : '  Service Library', sub: true },
                   vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '  新朋友指南' : '  New Friend Guide', sub: true },
                   vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
-                  (data.settings.showLoginButton || isAdminLoggedIn) && { id: 'admin', label: lang === 'zh' ? (isAdminLoggedIn ? '管理员控制台' : '后台管理登录') : (isAdminLoggedIn ? 'Admin Console' : 'Admin Login'), icon: Shield }
+                  data.settings.showLoginButton && { id: 'admin', label: lang === 'zh' ? (isAdminLoggedIn ? '管理员控制台' : '后台管理登录') : (isAdminLoggedIn ? 'Admin Console' : 'Admin Login'), icon: Shield }
                 ].filter(Boolean);
 
                 return allTabs.map((tab) => (
@@ -3198,6 +3231,305 @@ export default function App() {
           );
         })()}
 
+        {/* ==================== PAGE: SERVICE LIBRARY ==================== */}
+        {activeTab === 'services' && (() => {
+          const services = data.services || [];
+          const allSeries = [...new Set(services.map(s => t(s.series)))];
+          const filteredServices = services.filter(s => {
+            const matchesFilter = serviceFilter === 'all' || t(s.series) === serviceFilter;
+            const q = serviceSearchQuery.toLowerCase().trim();
+            const matchesSearch = !q || t(s.title).toLowerCase().includes(q) || t(s.series).toLowerCase().includes(q) || s.date.includes(q) || t(s.description).toLowerCase().includes(q);
+            return matchesFilter && matchesSearch;
+          });
+          return (
+            <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
+              <div className="text-center max-w-3xl mx-auto space-y-4 mb-10">
+                <span className="text-primary font-bold uppercase tracking-wider text-xs">
+                  {lang === 'zh' ? '崇拜录影 · 回顾主日' : 'Service Recordings · Sunday Replay'}
+                </span>
+                <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+                  {lang === 'zh' ? '崇拜录影库' : 'Service Library'}
+                </h1>
+                <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
+                  {lang === 'zh'
+                    ? '回顾完整主日崇拜录影，包括敬拜赞美、证道、祷告及教会报告事项。'
+                    : 'Revisit full Sunday worship service recordings, including praise, sermon, prayer, and church announcements.'}
+                </p>
+              </div>
+
+              {/* Filters & Control Toolbar */}
+              <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm space-y-4 mb-8">
+                <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+                  {/* Search Bar */}
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input 
+                      type="text"
+                      value={serviceSearchQuery}
+                      onChange={(e) => setServiceSearchQuery(e.target.value)}
+                      placeholder={lang === 'zh' ? '搜索标题、系列或日期...' : 'Search title, series, or date...'}
+                      className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-250 bg-gray-50/50 text-sm font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-white transition-all"
+                    />
+                    {serviceSearchQuery && (
+                      <button 
+                        onClick={() => setServiceSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full hover:bg-gray-200/60"
+                      >
+                        <X size={15} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* View Mode Switcher */}
+                  <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl self-start lg:self-auto border border-gray-200/60">
+                    <button
+                      onClick={() => setServiceViewMode('cards')}
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                        serviceViewMode === 'cards' 
+                          ? 'bg-white text-primary shadow-sm' 
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                      }`}
+                      title={lang === 'zh' ? '卡片网格视图' : 'Grid View'}
+                    >
+                      <LayoutGrid size={16} />
+                      <span>{lang === 'zh' ? '卡片模式' : 'Grid'}</span>
+                    </button>
+                    <button
+                      onClick={() => setServiceViewMode('table')}
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                        serviceViewMode === 'table' 
+                          ? 'bg-white text-primary shadow-sm' 
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                      }`}
+                      title={lang === 'zh' ? '表格视图' : 'Table View'}
+                    >
+                      <ListFilter size={16} />
+                      <span>{lang === 'zh' ? '列表表格' : 'Table'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filter Pills */}
+                {allSeries.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-100">
+                    <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1">
+                      <Filter size={12} />
+                      {lang === 'zh' ? '分类筛选:' : 'Filter by:'}
+                    </span>
+                    <button
+                      onClick={() => setServiceFilter('all')}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                        serviceFilter === 'all'
+                          ? 'bg-gray-900 text-white shadow-xs'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {lang === 'zh' ? '全部系列' : 'All Services'}
+                    </button>
+                    {allSeries.map(series => (
+                      <button
+                        key={series}
+                        onClick={() => setServiceFilter(series)}
+                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                          serviceFilter === series
+                            ? 'bg-primary text-white shadow-xs'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        📌 {series}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Empty state */}
+              {filteredServices.length === 0 ? (
+                <div className="bg-white rounded-3xl p-12 text-center border border-gray-200 shadow-sm max-w-lg mx-auto space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center gap-2 justify-center mx-auto border border-amber-200">
+                    <Video size={32} />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {lang === 'zh' ? '未找到相关崇拜录影' : 'No Matching Services Found'}
+                  </h3>
+                  <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                    {lang === 'zh'
+                      ? '您可以尝试清除搜索关键词或重置系列筛选条件。'
+                      : 'Try clearing your search query or resetting the series filter.'}
+                  </p>
+                  <button
+                    onClick={() => {
+                      setServiceSearchQuery('');
+                      setServiceFilter('all');
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-md hover:bg-primary-dark transition-all"
+                  >
+                    {lang === 'zh' ? '重置筛选条件' : 'Reset All Filters'}
+                  </button>
+                </div>
+              ) : serviceViewMode === 'cards' ? (
+                /* Cards View Mode */
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {filteredServices.map((service) => (
+                    <div key={service.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col group">
+                      {/* Video Thumbnail / Embed */}
+                      <div className="relative aspect-video bg-gray-900 cursor-pointer" onClick={() => setSelectedServiceModal(service)}>
+                        {service.videoUrl && getYoutubeEmbedUrl(service.videoUrl) ? (
+                          <iframe
+                            src={getYoutubeEmbedUrl(service.videoUrl)}
+                            title={t(service.title)}
+                            className="absolute inset-0 w-full h-full pointer-events-auto"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-white">
+                            <Video size={48} className="opacity-30" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-5 flex-grow flex flex-col justify-between space-y-3">
+                        <div>
+                          <div className="flex items-center gap-2 mb-2 justify-between">
+                            <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-bold">
+                              {t(service.series)}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-gray-400 text-[10px] font-medium">
+                              <Calendar size={10} />
+                              {service.date}
+                            </span>
+                          </div>
+                          <h3 onClick={() => setSelectedServiceModal(service)} className="font-extrabold text-sm text-gray-900 leading-tight group-hover:text-primary transition-colors cursor-pointer">{t(service.title)}</h3>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                          <button
+                            onClick={() => setSelectedServiceModal(service)}
+                            className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+                          >
+                            <PlayCircle size={14} />
+                            {lang === 'zh' ? '观看录影' : 'Watch Recording'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* Table View Mode */
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-200">
+                          <th className="px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">{lang === 'zh' ? '日期' : 'Date'}</th>
+                          <th className="px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">{lang === 'zh' ? '标题' : 'Title'}</th>
+                          <th className="px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">{lang === 'zh' ? '系列' : 'Series'}</th>
+                          <th className="px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">{lang === 'zh' ? '操作' : 'Action'}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {filteredServices.map((service) => (
+                          <tr key={service.id} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-5 py-3.5 text-xs text-gray-600 font-medium whitespace-nowrap">{service.date}</td>
+                            <td className="px-5 py-3.5">
+                              <span className="text-sm font-bold text-gray-900">{t(service.title)}</span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-bold">{t(service.series)}</span>
+                            </td>
+                            <td className="px-5 py-3.5 text-right">
+                              <button
+                                onClick={() => setSelectedServiceModal(service)}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-all shadow-2xs"
+                              >
+                                <PlayCircle size={14} />
+                                <span>{lang === 'zh' ? '观看录影' : 'Watch'}</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Service Detail Modal */}
+              {selectedServiceModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
+                  <div className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-gray-100 space-y-5 p-6 sm:p-8 relative">
+                    <button 
+                      onClick={() => setSelectedServiceModal(null)}
+                      className="absolute top-5 right-5 p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors z-10"
+                    >
+                      <X size={20} />
+                    </button>
+                    <div className="space-y-1.5 pr-6">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">
+                          {t(selectedServiceModal.series)}
+                        </span>
+                        <span className="text-xs text-gray-500 font-medium">
+                          {selectedServiceModal.date}
+                        </span>
+                      </div>
+                      <h2 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">
+                        {t(selectedServiceModal.title)}
+                      </h2>
+                    </div>
+                    
+                    {/* Video Player */}
+                    <div className="relative aspect-video bg-black rounded-2xl overflow-hidden shadow-md">
+                      {selectedServiceModal.videoUrl && getYoutubeEmbedUrl(selectedServiceModal.videoUrl) ? (
+                        <iframe
+                          src={getYoutubeEmbedUrl(selectedServiceModal.videoUrl)}
+                          title={t(selectedServiceModal.title)}
+                          className="absolute inset-0 w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4 text-center">
+                          <Video size={48} className="opacity-40 mb-2" />
+                          <p className="text-sm">{lang === 'zh' ? '无法嵌入视频，或未提供视频链接。' : 'No embeddable video URL provided.'}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-xs sm:text-sm text-gray-600 font-normal leading-relaxed">{t(selectedServiceModal.description)}</p>
+
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        onClick={() => setSelectedServiceModal(null)}
+                        className="py-2.5 px-6 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition-all"
+                      >
+                        {lang === 'zh' ? '关闭' : 'Close'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Notice Footer Card */}
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 rounded-2xl p-6 border border-amber-200/80 flex flex-col sm:flex-row items-start gap-4 shadow-xs mt-8 sm:mt-10 mb-6">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                  <Info size={20} />
+                </div>
+                <div className="space-y-2 flex-1">
+                  <h4 className="font-extrabold text-amber-900 text-sm">
+                    {lang === 'zh' ? '崇拜录影温馨提示' : 'Service Recording Notice'}
+                  </h4>
+                  <p className="text-xs text-amber-900/80 leading-relaxed">
+                    {lang === 'zh'
+                      ? '崇拜录影通常于主日崇拜后一周内上传。若您在观看视频时遇到任何问题，欢迎随时联系教会行政同工查询。'
+                      : 'Service recordings are typically uploaded within one week after the Sunday service. If you experience issues viewing the videos, please contact our administrative office.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ==================== PAGE: CELL GROUPS ==================== */}
         {activeTab === 'cellgroups' && (
           <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
@@ -3523,6 +3855,7 @@ export default function App() {
                         { id: 'offerings', label: lang === 'zh' ? '奉献设置' : 'Offerings Settings', icon: HandHeart },
                         { id: 'bulletins', label: lang === 'zh' ? '周报管理' : 'Bulletins Manager', icon: FileText },
                         { id: 'sermons', label: lang === 'zh' ? '讲道库' : 'Sermon Library', icon: BookOpen },
+                        { id: 'services', label: lang === 'zh' ? '崇拜录影库' : 'Service Library', icon: Video },
                         { id: 'cellgroups', label: lang === 'zh' ? '小组管理' : 'Cell Groups', icon: Compass },
                         { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide', icon: HelpCircle },
                         { id: 'maps', label: lang === 'zh' ? '地图设置' : 'Maps Settings', icon: MapIcon },
@@ -4108,6 +4441,7 @@ export default function App() {
                               { key: 'events', zh: '特别活动', en: 'Events' },
                               { key: 'offerings', zh: '奉献', en: 'Offerings' },
                               { key: 'bulletins', zh: '周报与讲道', en: 'Bulletins & Sermons' },
+                              { key: 'services', zh: '崇拜录影库', en: 'Service Library' },
                               { key: 'cellgroups', zh: '小组', en: 'Cell Groups' },
                               { key: 'newfriend', zh: '新朋友指南', en: 'New Friend Guide' },
                               { key: 'maps', zh: '地图', en: 'Maps' }
@@ -4807,6 +5141,7 @@ export default function App() {
                               time: '9:00 AM - 12:00 PM',
                               location: { zh: '教会礼堂', en: 'Church Hall' },
                               image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=800&q=80',
+                              popupEnabled: false,
                               description: { zh: '在此处填写新活动详情和报名信息。', en: 'Write detail registration or information here.' }
                             })}
                             className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
@@ -4932,6 +5267,19 @@ export default function App() {
                                 className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
                               />
                             </div>
+
+                            <div className="md:col-span-2">
+                              <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-gray-600">
+                                <input
+                                  type="checkbox"
+                                  checked={editingEvent.popupEnabled === true}
+                                  onChange={(e) => setEditingEvent({ ...editingEvent, popupEnabled: e.target.checked })}
+                                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <span>{lang === 'zh' ? '在首页弹窗中显示此活动' : 'Show this event in the homepage popup'}</span>
+                              </label>
+                              <p className="text-[10px] text-gray-400 mt-1 ml-6">{lang === 'zh' ? '仅勾选的活动才会在访客打开网站时以弹窗形式展示' : 'Only events with this checked will appear in the popup when visitors open the website'}</p>
+                            </div>
                           </div>
 
                           <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
@@ -4964,6 +5312,11 @@ export default function App() {
                                     <Calendar size={11} />
                                     <span>{evt.date}</span>
                                     <span className="text-gray-400 font-light">({evt.time})</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${evt.popupEnabled ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400'}`}>
+                                      {evt.popupEnabled ? (lang === 'zh' ? '🔔 弹窗' : '🔔 Popup') : (lang === 'zh' ? '静默' : 'Silent')}
+                                    </span>
                                   </div>
                                 </div>
                               </div>
@@ -5476,6 +5829,110 @@ export default function App() {
                               </div>
                             </div>
                           ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* SECTION: SERVICE LIBRARY MANAGER */}
+                  {adminActiveSection === 'services' && (
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-start gap-4">
+                        <div>
+                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '崇拜录影库管理' : 'Service Library Manager'}</h2>
+                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理完整崇拜录影、系列和日期' : 'Manage full service recordings, series, and dates'}</p>
+                        </div>
+                        {editingService === null && (
+                          <button
+                            onClick={() => setEditingService({
+                              id: 'new',
+                              title: { zh: '新崇拜录影', en: 'New Service Recording' },
+                              date: new Date().toISOString().slice(0, 10),
+                              videoUrl: 'https://www.youtube.com/watch?v=',
+                              series: { zh: '崇拜系列', en: 'Service Series' },
+                              description: { zh: '崇拜录影描述...', en: 'Service recording description...' },
+                              thumbnail: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80'
+                            })}
+                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                          >
+                            <Plus size={14} />
+                            <span>{lang === 'zh' ? '添加崇拜录影' : 'Add Service'}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {editingService ? (
+                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
+                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
+                            {editingService.id === 'new' ? (lang === 'zh' ? '新增崇拜录影' : 'Add New Service') : (lang === 'zh' ? '编辑崇拜录影' : 'Edit Service')}
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '标题 (中文)' : 'Title (Chinese)'}</label>
+                              <input type="text" value={editingService.title.zh} onChange={(e) => setEditingService({ ...editingService, title: { ...editingService.title, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Title (English)' : 'Title (English)'}</label>
+                              <input type="text" value={editingService.title.en} onChange={(e) => setEditingService({ ...editingService, title: { ...editingService.title, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '日期' : 'Date'}</label>
+                              <input type="date" value={editingService.date} onChange={(e) => setEditingService({ ...editingService, date: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '系列 (中文)' : 'Series (Chinese)'}</label>
+                              <input type="text" value={editingService.series.zh} onChange={(e) => setEditingService({ ...editingService, series: { ...editingService.series, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Series (English)' : 'Series (English)'}</label>
+                              <input type="text" value={editingService.series.en} onChange={(e) => setEditingService({ ...editingService, series: { ...editingService.series, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'YouTube 视频链接' : 'YouTube Video URL'}</label>
+                              <input type="text" value={editingService.videoUrl} onChange={(e) => setEditingService({ ...editingService, videoUrl: e.target.value })} placeholder="https://www.youtube.com/watch?v=..." className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '支持 YouTube 视频链接' : 'Supports YouTube video URLs'}</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '描述 (中文)' : 'Description (Chinese)'}</label>
+                              <textarea rows={3} value={editingService.description.zh} onChange={(e) => setEditingService({ ...editingService, description: { ...editingService.description, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Description (English)' : 'Description (English)'}</label>
+                              <textarea rows={3} value={editingService.description.en} onChange={(e) => setEditingService({ ...editingService, description: { ...editingService.description, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
+                            <button onClick={() => setEditingService(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
+                            <button onClick={() => handleSaveService(editingService)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 pt-4 border-t border-gray-100">
+                          {(data.services || []).map((service, idx) => (
+                            <div key={service.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                              <div className="flex gap-3 items-center w-full sm:w-3/4">
+                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
+                                <div className="w-16 h-12 bg-gray-200 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                                  <Video className="text-gray-400" size={20} />
+                                </div>
+                                <div className="space-y-1">
+                                  <h4 className="font-bold text-sm text-gray-900">{t(service.title)}</h4>
+                                  <p className="text-xs text-gray-500">{service.date} • {t(service.series)}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                <button onClick={() => handleMoveItem('services', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
+                                <button onClick={() => handleMoveItem('services', idx, 'down')} disabled={idx === (data.services || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
+                                <button onClick={() => setEditingService(service)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
+                                <button onClick={() => handleDeleteService(service.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
+                              </div>
+                            </div>
+                          ))}
+                          {(data.services || []).length === 0 && (
+                            <div className="text-center py-8 text-gray-400 text-xs">
+                              {lang === 'zh' ? '暂无崇拜录影，点击上方按钮添加' : 'No service recordings yet. Click the button above to add one.'}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -6156,8 +6613,10 @@ export default function App() {
       </main>
 
       {/* 4. FOOTER */}
-      {eventPopupOpen && data.events?.length > 0 && activeTab !== 'admin' && (() => {
-        const popupEvent = data.events[eventPopupSlide % data.events.length];
+      {eventPopupOpen && (() => {
+        const popupEvents = (data.events || []).filter(e => e.popupEnabled);
+        if (popupEvents.length === 0 || activeTab === 'admin') return null;
+        const popupEvent = popupEvents[eventPopupSlide % popupEvents.length];
         return (
           <div className="fixed inset-0 z-[70] bg-gray-950/70 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={lang === 'zh' ? '活动通知' : 'Event alert'}>
             <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
@@ -6168,7 +6627,7 @@ export default function App() {
                 <h2 className="text-2xl font-extrabold text-gray-900">{t(popupEvent.title)}</h2>
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600"><span className="flex items-center gap-1.5"><Calendar size={15} />{popupEvent.date}</span><span className="flex items-center gap-1.5"><Clock size={15} />{popupEvent.time}</span><span className="flex items-center gap-1.5"><MapPin size={15} />{t(popupEvent.location)}</span></div>
                 <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-gray-600">{t(popupEvent.description)}</p>
-                {data.events.length > 1 && <div className="mt-6 flex items-center justify-between gap-3"><button onClick={() => setEventPopupSlide((eventPopupSlide - 1 + data.events.length) % data.events.length)} className="rounded-lg border border-gray-200 p-2 hover:bg-gray-50" aria-label="Previous event"><ChevronLeft size={18} /></button><div className="flex gap-1.5">{data.events.map((_, i) => <button key={i} onClick={() => setEventPopupSlide(i)} aria-label={`Event ${i + 1}`} className={`h-2 w-2 rounded-full ${i === eventPopupSlide ? 'bg-primary' : 'bg-gray-300'}`} />)}</div><button onClick={() => setEventPopupSlide((eventPopupSlide + 1) % data.events.length)} className="rounded-lg border border-gray-200 p-2 hover:bg-gray-50" aria-label="Next event"><ChevronRight size={18} /></button></div>}
+                {popupEvents.length > 1 && <div className="mt-6 flex items-center justify-between gap-3"><button onClick={() => setEventPopupSlide((eventPopupSlide - 1 + popupEvents.length) % popupEvents.length)} className="rounded-lg border border-gray-200 p-2 hover:bg-gray-50" aria-label="Previous event"><ChevronLeft size={18} /></button><div className="flex gap-1.5">{popupEvents.map((_, i) => <button key={i} onClick={() => setEventPopupSlide(i)} aria-label={`Event ${i + 1}`} className={`h-2 w-2 rounded-full ${i === eventPopupSlide ? 'bg-primary' : 'bg-gray-300'}`} />)}</div><button onClick={() => setEventPopupSlide((eventPopupSlide + 1) % popupEvents.length)} className="rounded-lg border border-gray-200 p-2 hover:bg-gray-50" aria-label="Next event"><ChevronRight size={18} /></button></div>}
               </div>
             </div>
           </div>
@@ -6210,9 +6669,10 @@ export default function App() {
                   vis.cellgroups !== false && { id: 'cellgroups', label: lang === 'zh' ? '小组' : 'Cell Groups' },
                   vis.offerings !== false && { id: 'offerings', label: lang === 'zh' ? '奉献' : 'Offerings' },
                   vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '周报与讲道' : 'Bulletins & Sermons' },
+                  vis.services !== false && { id: 'services', label: lang === 'zh' ? '崇拜录影库' : 'Service Library' },
                   vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '新朋友' : 'New Friend' },
                   vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
-                  (data.settings.showLoginButton || isAdminLoggedIn) && { id: 'admin', label: lang === 'zh' ? '后台管理' : 'Admin Area' }
+                  data.settings.showLoginButton && { id: 'admin', label: lang === 'zh' ? '后台管理' : 'Admin Area' }
                 ].filter(Boolean).map((lnk) => (
                   <button
                     key={lnk.id}

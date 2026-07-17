@@ -340,6 +340,7 @@ export const initialData = {
         "en": "Church Sanctuary"
       },
       "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTQcn292W1ZEfc9wFACXnPbJaBAW77Mrx7qZo-Ywin-rjZlcnojrZYu0jhv&s=10",
+      "popupEnabled": true,
       "description": {
         "zh": "'要孝敬父母，使你得福，在世长寿。' 这是第一条带应许的诫命。我们诚心欢迎大家携同父母及家人前来参加崇拜，齐心向神感恩。会后将备有丰盛的爱宴以及送给父母的精美伴手礼，让我们在温情和笑声中团聚！",
         "en": "'Honor your father and mother'—which is the first commandment with a promise. We warmly welcome everyone to bring parents and families for a morning of worship and gratitude. Following the service, we will share a loving feast and hand out special gifts to parents. Let's gather in love!"
@@ -358,6 +359,7 @@ export const initialData = {
         "en": "Church Multipurpose Centre"
       },
       "image": "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=800&q=80",
+      "popupEnabled": false,
       "description": {
         "zh": "关爱社区，从健康开始。本次活动由教会联合本地医疗团队举办，免费提供血压、血糖测量、眼科基础筛查、中医针灸诊疗与专业健康饮食咨询。欢迎社区居民男女老幼一同来关心身体健康。现场亦设趣味益智儿童角！",
         "en": "Caring for our community starts with health. Co-organized with local medical professionals, this event offers free blood pressure, blood glucose tests, basic eye screenings, traditional Chinese medicine consultations, and dietary advice. We welcome neighbors of all ages. A fun children's corner is also available!"
@@ -376,6 +378,7 @@ export const initialData = {
         "en": "Bukit Mertajam Campsite"
       },
       "image": "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=800&q=80",
+      "popupEnabled": false,
       "description": {
         "zh": "呼召大山脚与全马各地青年在主爱里集结！在营会中，我们一起打破藩篱，通过充满活力的现代赞美、点燃生命的先知讲道、激动人心的户外拓展，探索生命的价值和崇高使命。期待你的到来，让圣灵之火在心中彻底燃烧！",
         "en": "Calling all youths from Bukit Mertajam and beyond to unite! Break barriers as we explore life's value and purpose. Through modern praise & worship, inspiring messages, and adventurous outdoor teambuilding, prepare to be ignited by the Holy Spirit. See you there!"
@@ -649,12 +652,69 @@ export const initialData = {
       "thumbnail": "https://images.unsplash.com/photo-1438232992991-995b705bafb1?auto=format&fit=crop&w=800&q=80"
     }
   ],
+  "services": [
+    {
+      "id": 1,
+      "title": {
+        "zh": "2026年7月6日 主日崇拜",
+        "en": "Sunday Worship Service - July 6, 2026"
+      },
+      "date": "2026-07-06",
+      "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "series": {
+        "zh": "在主爱里生活",
+        "en": "Living in the Lord's Love"
+      },
+      "description": {
+        "zh": "2026年7月6日主日崇拜完整录影，包含敬拜赞美、祷告、证道及报告事项。",
+        "en": "Full recording of the Sunday worship service on July 6, 2026, including praise and worship, prayer, sermon, and announcements."
+      },
+      "thumbnail": "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      "id": 2,
+      "title": {
+        "zh": "2026年6月29日 主日崇拜",
+        "en": "Sunday Worship Service - June 29, 2026"
+      },
+      "date": "2026-06-29",
+      "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "series": {
+        "zh": "在主爱里生活",
+        "en": "Living in the Lord's Love"
+      },
+      "description": {
+        "zh": "2026年6月29日主日崇拜完整录影，包含敬拜赞美、祷告、证道及报告事项。",
+        "en": "Full recording of the Sunday worship service on June 29, 2026, including praise and worship, prayer, sermon, and announcements."
+      },
+      "thumbnail": "https://images.unsplash.com/photo-1455849318743-b2233052fcff?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      "id": 3,
+      "title": {
+        "zh": "2026年双亲节感恩崇拜",
+        "en": "Parents' Day Thanksgiving Service 2026"
+      },
+      "date": "2026-06-21",
+      "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "series": {
+        "zh": "特别崇拜",
+        "en": "Special Service"
+      },
+      "description": {
+        "zh": "双亲节感恩崇拜完整录影，孝敬父母，感恩相聚。",
+        "en": "Full recording of the Parents' Day Thanksgiving Service, honoring parents and gathering in gratitude."
+      },
+      "thumbnail": "https://images.unsplash.com/photo-1438232992991-995b705bafb1?auto=format&fit=crop&w=800&q=80"
+    }
+  ],
   "pageVisibility": {
     "ministries": true,
     "timetable": true,
     "events": true,
     "offerings": true,
     "bulletins": true,
+    "services": true,
     "cellgroups": true,
     "newfriend": true,
     "maps": true
