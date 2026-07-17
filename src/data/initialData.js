@@ -940,7 +940,7 @@ export const initialData = {
       "id": 3,
       "name": {
         "zh": "峇都交湾浸信教会",
-        "en": "BMBCC South District Fellowship Point"
+        "en": "Batu Kawan Baptist Church (BKBC)"
       },
       "googleMapsEmbedUrl": "https://maps.google.com/maps?q=Taman%20Alma%2C%2014000%20Bukit%20Mertajam%2C%20Penang%2C%20Malaysia&output=embed",
       "address": {
