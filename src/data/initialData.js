@@ -881,15 +881,15 @@ export const initialData = {
         "en": "Every Tuesday 8:30 PM - 10:00 PM"
       },
       "location": {
-        "zh": "Taman Bukit Minyak 第5区 (伟明兄家)",
-        "en": "Taman Bukit Minyak Zone 5 (Bro. Teo's home)"
+        "zh": "南美园区",
+        "en": "Taman Sri Rambai"
       },
       "target": {
-        "zh": "已婚青年夫妇 (25-40岁)",
-        "en": "Married Young Couples (25-40 years old)"
+        "zh": "",
+        "en": ""
       },
       "description": {
-        "zh": "摩西小组专注于青年夫妇的属灵成长与家庭关系建立。我们通过查经分享、彼此代祷和生活互助，在主爱中一同成长。欢迎年轻家庭加入我们温馨的小组聚会！",
+        "zh": "The Moses Group is active in the Simpang Ampat area, where they gather and share their experiences.",
         "en": "Moses Cell Group focuses on the spiritual growth and relationship building of young married couples. Through Bible study, mutual prayer, and life sharing, we grow together in the Lord's love. Young families are welcome to join our warm gatherings!"
       },
       "image": "https://drive.google.com/thumbnail?id=1ZQMZZy7c9J7AkZ7ETD2s_X-MImVm-2v8&sz=w2000"
