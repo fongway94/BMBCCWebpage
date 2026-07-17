@@ -45,7 +45,7 @@ export const initialData = {
     },
     "aboutVision": {
       "zh": "展翅高飞，广传福音",
-      "en": "Spread your wings and fly high, spread the gospel far and wide"
+      "en": "Spread your wings , spread the gospel far and wide"
     },
     "aboutMission": {
       "zh": "走入百利镇及大山脚社区，广传耶稣基督的救恩福音，关怀弱势群体，并栽培生命成熟、热心服侍的门徒。",
