@@ -932,7 +932,7 @@ export const initialData = {
         "en": "How to get here:\n\n🚗 By Car:\nTake the Bukit Mertajam exit from PLUS Highway, drive along Jalan Bukit Minyak for about 3km. The church building is on the right side with a prominent cross sign.\n\n🅿️ Parking:\nFree parking available at the front and rear of the church, accommodating approximately 50 vehicles."
       },
       "landmarks": {
-        "zh": "附近地标：\n• Billion 商业中心 (500米)\n• AEON Mall Bukit Mertajam (2公里)\n• SMK Bukit Minyak 学校 (300米)",
+        "zh": "附近地标：\n• Billion 商业中心 (500米)\n• AEON Mall Bukit Mertajam (2公里)",
         "en": "Nearby Landmarks:\n• Bukit Minyak Commercial Centre (500m)\n• AEON Mall Bukit Mertajam (2km)\n• SMK Bukit Minyak School (300m)"
       }
     },
