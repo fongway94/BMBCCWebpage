@@ -937,26 +937,6 @@ export const initialData = {
       }
     },
     {
-      "id": 2,
-      "name": {
-        "zh": "BMBCC 市中心聚会点",
-        "en": "BMBCC Downtown Fellowship Point"
-      },
-      "googleMapsEmbedUrl": "https://maps.google.com/maps?q=Jalan%20Besar%2C%2014000%20Bukit%20Mertajam%2C%20Penang%2C%20Malaysia&output=embed",
-      "address": {
-        "zh": "BMBCC 市中心聚会点\nJalan Besar, 14000 Bukit Mertajam, Pulau Pinang, Malaysia",
-        "en": "BMBCC Downtown Fellowship Point\nJalan Besar, 14000 Bukit Mertajam, Penang, Malaysia"
-      },
-      "directions": {
-        "zh": "如何到达：\n\n🚗 自驾车：\n位于大山脚市中心区域，从主堂驱车约10分钟即可到达。附近有公共停车场。\n\n🚌 公共交通：\n可搭乘 Rapid Penang 巴士至 Bukit Mertajam 市中心站下车，步行约3分钟即到。\n\n🅿️ 停车：\n建筑物后方设有付费停车场，或可使用路边停车位。",
-        "en": "How to get here:\n\n🚗 By Car:\nLocated in downtown Bukit Mertajam, about 10 minutes drive from the main church. Public parking available nearby.\n\n🚌 Public Transport:\nTake Rapid Penang Bus to Bukit Mertajam downtown stop, a 3-minute walk to the location.\n\n🅿️ Parking:\nPaid parking available behind the building, or use street parking."
-      },
-      "landmarks": {
-        "zh": "附近地标：\n• Bukit Mertajam 市中心广场 (100米)\n• 大山脚巴刹 (200米)\n• Maybank 分行 (150米)",
-        "en": "Nearby Landmarks:\n• Bukit Mertajam Town Square (100m)\n• Bukit Mertajam Market (200m)\n• Maybank Branch (150m)"
-      }
-    },
-    {
       "id": 3,
       "name": {
         "zh": "BMBCC 南区聚会点",
