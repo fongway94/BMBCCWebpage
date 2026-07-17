@@ -945,7 +945,7 @@ export const initialData = {
       "googleMapsEmbedUrl": "https://www.google.com/maps/place/%E5%B3%87%E9%83%BD%E4%BA%A4%E6%B9%BE%E6%B5%B8%E4%BF%A1%E6%95%99%E4%BC%9A+Batu+Kawan+Baptist+Church+(BKBC)/data=!4m2!3m1!1s0x0:0x296f8042309a8855?sa=X&ved=1t:2428&ictx=111",
       "address": {
         "zh": "BMBCC 南区聚会点\nTaman Alma, 14000 Bukit Mertajam, Pulau Pinang, Malaysia",
-        "en": " 8, Jalan Paboi, Taman Merak, 14100 Simpang Ampat, Pulau Pinang"
+        "en": " \n8, Jalan Paboi, Taman Merak, 14100 Simpang Ampat, Pulau Pinang"
       },
       "directions": {
         "zh": "如何到达：\n\n🚗 自驾车：\n从主堂沿 Jalan Bukit Minyak 向南行驶约5公里，转入 Taman Alma 区域即可到达。\n\n🚌 公共交通：\n可搭乘 Rapid Penang 巴士至 Taman Alma 站下车，步行约2分钟即到。\n\n🅿️ 停车：\n聚会点前方设有免费停车场，可容纳约20辆车。",
