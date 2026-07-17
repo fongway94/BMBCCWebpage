@@ -621,7 +621,7 @@ export const initialData = {
         "en": "Parents' Day Thanksgiving Service 2026"
       },
       "date": "2026-06-21",
-      "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "videoUrl": "",
       "series": {
         "zh": "特别崇拜",
         "en": "Special Service"
