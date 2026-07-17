@@ -15,7 +15,7 @@ export const initialData = {
     },
     "description": {
       "zh": "在百利镇附近的家人们赶快来加入我们大山脚浸信教会的大家庭哦~！",
-      "en": "To our neighbors around Taman Bukit Minyak / Bukit Mertajam, come and join the big family of Bukit Mertajam Baptist Church Chinese~!"
+      "en": "To our neighbors around Taman Kota Permai / Bukit Mertajam, come and join the big family of Bukit Mertajam Baptist Church Chinese~!"
     },
     "themeYear": {
       "zh": "2026年异象：建立家庭，建立教会",
