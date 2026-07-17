@@ -426,7 +426,7 @@ export const initialData = {
         "zh": "恩典之家老人中心",
         "en": "Grace Home Elderly Care Centre"
       },
-      "image": "https://images.unsplash.com/photo-1516627145497-ae6968895b74?auto=format&fit=crop&w=800&q=80",
+      "image": "https://drive.google.com/thumbnail?id=13IkZl6VS1NdQR9p-TkGSlYOuywtam3ua&sz=w2000",
       "description": {
         "zh": "一所基督信仰背景的老人日间照顾与福音中心。在这里，年长者不仅能在舒适、安全的硬件设施中获得生活起居上的贴心陪伴，更能通过赞美操、手工、团契歌唱和圣经分享，让身心灵得着饱足，拥有喜乐丰盛的晚年。",
         "en": "A faith-centered day care and gospel outreach centre for the elderly. Here, seniors enjoy warm companionship in a safe, comfortable facility. They keep active with physical praise exercises, crafts, singing, and Bible sharing, nurturing their mind, body, and spirit in their golden years."
