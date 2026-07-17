@@ -922,7 +922,7 @@ export const initialData = {
         "zh": "大山脚浸信教会 (主堂)",
         "en": "Bukit Mertajam Baptist Chinese Church (Main)"
       },
-      "googleMapsEmbedUrl": "google.com/maps/place/Bukit+Mertajam+Baptist+Church+Chinese/data=!4m2!3m1!1s0x0:0x1dc445c1af18a0c3?sa=X&ved=1t:2428&ictx=111&cshid=1784303970973694",
+      "googleMapsEmbedUrl": "https://maps.google.com/maps?q=Bukit%20Mertajam%20Baptist%20Chinese%20Church%2C%20Taman%20Bukit%20Minyak%2C%2014000%20Bukit%20Mertajam%2C%20Penang%2C%20Malaysia&output=embed",
       "address": {
         "zh": "大山脚浸信教会 (主堂)\nTaman Bukit Minyak, 14000 Bukit Mertajam, Pulau Pinang, Malaysia",
         "en": "Bukit Mertajam Baptist Chinese Church (Main)\nTaman Bukit Minyak, 14000 Bukit Mertajam, Penang, Malaysia"
