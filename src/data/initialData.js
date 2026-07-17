@@ -447,7 +447,8 @@ export const initialData = {
       "description": {
         "zh": "'要孝敬父母，使你得福，在世长寿。' 这是第一条带应许的诫命。我们诚心欢迎大家携同父母及家人前来参加崇拜，齐心向神感恩。会后将备有丰盛的爱宴以及送给父母的精美伴手礼，让我们在温情和笑声中团聚！",
         "en": "'Honor your father and mother'—which is the first commandment with a promise. We warmly welcome everyone to bring parents and families for a morning of worship and gratitude. Following the service, we will share a loving feast and hand out special gifts to parents. Let's gather in love!"
-      }
+      },
+      "popupEnabled": true
     },
     {
       "id": 2,
