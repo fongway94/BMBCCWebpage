@@ -642,8 +642,8 @@ export const initialData = {
       "date": "2020-12-21",
       "videoUrl": "https://www.youtube.com/watch?v=3OGS8UY7Ao4",
       "series": {
-        "zh": "敬拜赞美",
-        "en": "Worship Praise"
+        "zh": "圣诞敬拜赞美",
+        "en": "Christmas Worship and Praise"
       },
       "description": {
         "zh": "2020年12月圣诞敬拜 \n天使歌唱在高天 & 听呀天使高声唱",
