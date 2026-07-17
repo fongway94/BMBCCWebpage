@@ -388,6 +388,16 @@ export default function App() {
     document.documentElement.style.setProperty('--color-primary-light', selected.light);
   }, [data.settings.themeColor, data.settings.customThemeColor]);
 
+  // Scale the document's rem-based typography so the setting affects the whole site,
+  // including navigation, content, forms, and the footer.
+  useEffect(() => {
+    const scale = Number(data.settings.textScale) || 100;
+    document.documentElement.style.fontSize = `${Math.min(140, Math.max(80, scale))}%`;
+    return () => {
+      document.documentElement.style.fontSize = '';
+    };
+  }, [data.settings.textScale]);
+
   // Keep the browser tab icon in sync with the uploaded header logo.
   useEffect(() => {
     const icon = document.querySelector('link[rel="icon"]');
@@ -4522,6 +4532,45 @@ export default function App() {
                             <button type="button" role="switch" aria-checked={data.settings.eventPopupEnabled === true} onClick={() => updateSetting('eventPopupEnabled', null, !data.settings.eventPopupEnabled)} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${data.settings.eventPopupEnabled ? 'bg-primary' : 'bg-gray-300'}`}>
                               <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${data.settings.eventPopupEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                             </button>
+                          </div>
+                        </div>
+
+                        {/* OVERALL TEXT SIZE */}
+                        <div className="md:col-span-2 pt-4 border-t border-gray-100">
+                          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <label htmlFor="overall-text-size" className="block text-xs font-bold text-gray-800 uppercase tracking-wide">
+                                  {lang === 'zh' ? '整体文字大小 / Overall Text Size' : 'Overall Text Size / 整体文字大小'}
+                                </label>
+                                <p className="mt-1 text-[10px] leading-relaxed text-gray-500">
+                                  {lang === 'zh' ? '调整网站所有页面的整体文字大小，保存后会立即生效。' : 'Adjust the overall text size across every page. Changes take effect immediately.'}
+                                </p>
+                              </div>
+                              <span className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-sm font-extrabold text-primary shadow-sm border border-primary/10">
+                                {data.settings.textScale || 100}%
+                              </span>
+                            </div>
+                            <div className="mt-4 flex items-center gap-3">
+                              <span className="text-[10px] text-gray-500" aria-hidden="true">A</span>
+                              <input
+                                id="overall-text-size"
+                                type="range"
+                                min="80"
+                                max="140"
+                                step="5"
+                                value={data.settings.textScale || 100}
+                                onChange={(e) => updateSetting('textScale', null, Number(e.target.value))}
+                                className="h-2 w-full cursor-pointer accent-primary"
+                                aria-label={lang === 'zh' ? '整体文字大小' : 'Overall text size'}
+                              />
+                              <span className="text-lg font-semibold text-gray-700" aria-hidden="true">A</span>
+                            </div>
+                            <div className="mt-1 flex justify-between pl-5 text-[10px] text-gray-400">
+                              <span>{lang === 'zh' ? '较小' : 'Smaller'}</span>
+                              <span>{lang === 'zh' ? '默认' : 'Default'}</span>
+                              <span>{lang === 'zh' ? '较大' : 'Larger'}</span>
+                            </div>
                           </div>
                         </div>
 
