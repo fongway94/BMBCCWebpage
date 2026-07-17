@@ -1883,23 +1883,26 @@ export default function App() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {data.leadership?.map((leader) => (
-                  <div key={leader.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-md transition-all flex flex-col">
-                    <div className="relative h-72 w-full overflow-hidden bg-gray-100">
+                  <div key={leader.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-md transition-all flex flex-col group">
+                    <div 
+                      className="relative h-80 sm:h-96 w-full overflow-hidden bg-gradient-to-b from-gray-50 via-gray-100/60 to-gray-200/50 flex items-center justify-center p-3 cursor-zoom-in"
+                      onClick={() => setSelectedImage({ url: leader.image, title: `${t(leader.name)} - ${t(leader.role)}` })}
+                      title={lang === 'zh' ? '点击放大照片' : 'Click to view full image'}
+                    >
                       <img 
                         src={leader.image} 
                         alt={t(leader.name)} 
-                        className="w-full h-full object-cover"
+                        className="max-h-full max-w-full object-contain rounded-xl drop-shadow-md group-hover:scale-[1.02] transition-transform duration-300"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                      <div className="absolute bottom-4 left-4 text-white">
-                        <span className="bg-primary px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider block w-fit mb-1 shadow-sm">
+                    </div>
+                    <div className="p-6 flex-grow flex flex-col space-y-3">
+                      <div className="space-y-1.5">
+                        <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider inline-block">
                           {t(leader.role)}
                         </span>
-                        <h4 className="text-xl font-bold">{t(leader.name)}</h4>
+                        <h4 className="text-xl font-extrabold text-gray-900 leading-snug">{t(leader.name)}</h4>
                       </div>
-                    </div>
-                    <div className="p-6 flex-grow space-y-3">
-                      <p className="text-gray-600 text-sm font-light leading-relaxed">
+                      <p className="text-gray-600 text-sm font-light leading-relaxed pt-1">
                         {t(leader.bio)}
                       </p>
                     </div>
@@ -6042,7 +6045,7 @@ export default function App() {
                             <div key={leader.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
                               <div className="flex gap-4 items-center w-full sm:w-3/4">
                                 <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
-                                <img src={leader.image} alt="Preview" className="w-14 h-14 object-cover rounded-lg shrink-0 border border-gray-200" />
+                                <img src={leader.image} alt="Preview" className="w-14 h-14 object-contain rounded-lg shrink-0 border border-gray-200 bg-white p-0.5" />
                                 <div className="space-y-1">
                                   <h4 className="font-bold text-sm text-gray-900">{leader.name.zh} / {leader.name.en}</h4>
                                   <p className="text-xs text-primary font-semibold">{leader.role.zh} / {leader.role.en}</p>
