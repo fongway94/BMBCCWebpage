@@ -920,7 +920,7 @@ export const initialData = {
         "zh": "活水小组是一个充满活力的青年群体，专注于信仰探索、职场见证和彼此激励。我们结合圣经教导与现实生活议题，帮助青年在职场和生活中活出信仰。",
         "en": "Living Water is a vibrant youth community focused on faith exploration, workplace testimony, and mutual encouragement. We combine biblical teaching with real-life issues, helping youth live out their faith in career and daily life."
       },
-      "image": "https://drive.google.com/thumbnail?id=1uu9BDNuYb3B3a_2Q1S4_GYw0NgRJo1hd=w2000"
+      "image": "https://drive.google.com/thumbnail?id=1uu9BDNuYb3B3a_2Q1S4_GYw0NgRJo1hd&sz=w2000"
     },
     {
       "id": 3,
