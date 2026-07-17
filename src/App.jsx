@@ -5519,7 +5519,7 @@ export default function App() {
                         {/* ===== About Page Content ===== */}
                         <div className="md:col-span-2 pt-4 mt-2 border-t border-gray-100">
                           <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2"><Info size={14} className="text-primary" /> {lang === 'zh' ? '关于我们页面内容设置' : 'About Us Page Content Settings'}</h3>
-                          <p className="text-[10px] text-gray-500 mb-3">{lang === 'zh' ? '以下内容显示在“关于我们”页面的顶栏小标题、标题、顶部介绍文案、愿景与使命、以及牧者团队标题' : 'Configure About Us top header badges, title, introduction text, vision & mission cards, and leadership team headers'}</p>
+                          <p className="text-[10px] text-gray-500 mb-3">{lang === 'zh' ? '以下内容显示在“关于我们”页面的顶栏小标题、标题、顶部介绍文案、愿景与使命（牧者团队标题请在“牧者与领袖”标签中设置）' : 'Configure About Us top header badges, title, introduction text, and vision & mission cards (leadership team headers are managed in the Pastors & Leaders tab)'}</p>
                         </div>
 
                         <div>
@@ -5617,63 +5617,6 @@ export default function App() {
                             rows={3}
                             value={data.settings.aboutMission?.en || ''}
                             onChange={(e) => updateSetting('aboutMission', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">牧者团队小标题 Badge (中文)</label>
-                          <input
-                            type="text"
-                            value={data.settings.leadershipBadge?.zh || ''}
-                            onChange={(e) => updateSetting('leadershipBadge', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Leadership Badge (English)</label>
-                          <input
-                            type="text"
-                            value={data.settings.leadershipBadge?.en || ''}
-                            onChange={(e) => updateSetting('leadershipBadge', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">牧者团队标题 Title (中文)</label>
-                          <input
-                            type="text"
-                            value={data.settings.leadershipTitle?.zh || ''}
-                            onChange={(e) => updateSetting('leadershipTitle', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Leadership Title (English)</label>
-                          <input
-                            type="text"
-                            value={data.settings.leadershipTitle?.en || ''}
-                            onChange={(e) => updateSetting('leadershipTitle', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">牧者团队引言 Intro (中文)</label>
-                          <textarea
-                            rows={2}
-                            value={data.settings.leadershipIntro?.zh || ''}
-                            onChange={(e) => updateSetting('leadershipIntro', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Leadership Intro (English)</label>
-                          <textarea
-                            rows={2}
-                            value={data.settings.leadershipIntro?.en || ''}
-                            onChange={(e) => updateSetting('leadershipIntro', 'en', e.target.value)}
                             className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
                           />
                         </div>
@@ -6472,16 +6415,6 @@ export default function App() {
                           <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '崇拜与敬拜管理' : 'Services & Worships Manager'}</h2>
                           <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理完整崇拜与敬拜录影、类型、系列和日期' : 'Manage full service & worship recordings, type, series, and dates'}</p>
                         </div>
-                        <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-1" role="tablist" aria-label="Service recording type">
-                          {[
-                            { id: 'service', zh: '崇拜录影', en: 'Services' },
-                            { id: 'worship', zh: '敬拜录影', en: 'Worships' }
-                          ].map((tab) => (
-                            <button key={tab.id} type="button" role="tab" aria-selected={adminServiceTab === tab.id} onClick={() => { setAdminServiceTab(tab.id); setEditingService(null); }} className={`px-3 py-2 rounded-md text-xs font-bold transition-colors ${adminServiceTab === tab.id ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
-                              {lang === 'zh' ? tab.zh : tab.en}
-                            </button>
-                          ))}
-                        </div>
                         {editingService === null && (
                           <button
                             onClick={() => setEditingService({
@@ -6500,6 +6433,19 @@ export default function App() {
                             <span>{adminServiceTab === 'worship' ? (lang === 'zh' ? '添加敬拜录影' : 'Add Worship') : (lang === 'zh' ? '添加崇拜录影' : 'Add Service')}</span>
                           </button>
                         )}
+                      </div>
+
+                      {/* Tab Switcher */}
+                      <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200/60" role="tablist" aria-label="Service recording type">
+                        {[
+                          { id: 'service', zh: '崇拜录影', en: 'Services', icon: Video },
+                          { id: 'worship', zh: '敬拜录影', en: 'Worships', icon: PlayCircle }
+                        ].map((tab) => (
+                          <button key={tab.id} type="button" role="tab" aria-selected={adminServiceTab === tab.id} onClick={() => { setAdminServiceTab(tab.id); setEditingService(null); }} className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${adminServiceTab === tab.id ? 'bg-white text-primary shadow-sm' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'}`}>
+                            <tab.icon size={14} />
+                            <span>{lang === 'zh' ? tab.zh : tab.en}</span>
+                          </button>
+                        ))}
                       </div>
 
                       {/* Services Page Header Settings */}
