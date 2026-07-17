@@ -98,7 +98,7 @@ export const initialData = {
     },
     "bulletinsBadge": {
       "zh": "周报与讲道库 · 回顾",
-      "en": "Church Resource Centre"
+      "en": "Services & Worships · Replay"
     },
     "bulletinsTitle": {
       "zh": "周报与讲道库",
