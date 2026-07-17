@@ -927,8 +927,8 @@ export const initialData = {
           "en": "🤝 How to Join a Cell Group"
         },
         "content": {
-          "zh": "小组（Cell Group）是我们教会最重要的团契生活单元。每个小组由10-20位弟兄姐妹组成，定期在家中聚会查经、祷告和分享生命。\n\n如何加入？\n1. 查看「小组」页面了解各小组详情\n2. 选择适合您的时间/地点/年龄层的小组\n3. 崇拜后联系接待同工或直接在小组页面填写联系表\n4. 小组负责人将主动联系您并邀请您参加！\n\n我们鼓励每位弟兄姐妹加入一个小组，因为属灵的成长需要在群体中彼此扶持。",
-          "en": "Cell Groups are the most important unit of fellowship life in our church. Each group of 10-20 members meets regularly in homes for Bible study, prayer, and life sharing.\n\nHow to join:\n1. Visit our 'Cell Groups' page to see group details\n2. Choose a group that fits your schedule/location/age range\n3. After worship, contact our welcome team or use the contact form on the group page\n4. The group leader will reach out and invite you!\n\nWe encourage every member to join a cell group, as spiritual growth thrives in community."
+          "zh": "小组（Cell Group）是我们教会最重要的团契生活单元。每个小组由10-20位弟兄姐妹组成，定期在家中聚会查经、祷告和分享生命。\n\n如何加入？\n1. 查看「小组」页面了解各小组详情\n2. 选择适合您的时间/地点/年龄层的小组\n3. 崇拜后联系接待同工\n4. 小组负责人将主动联系您并邀请您参加！\n\n我们鼓励每位弟兄姐妹加入一个小组，因为属灵的成长需要在群体中彼此扶持。",
+          "en": "Cell Groups are the most important unit of fellowship life in our church. Each group of 10-20 members meets regularly in homes for Bible study, prayer, and life sharing.\n\nHow to join:\n1. Visit our 'Cell Groups' page to see group details\n2. Choose a group that fits your schedule/location/age range\n3. After worship, contact our welcome team\n4. The group leader will reach out and invite you!\n\nWe encourage every member to join a cell group, as spiritual growth thrives in community."
         }
       },
       {
