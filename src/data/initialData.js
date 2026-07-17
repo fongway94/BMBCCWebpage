@@ -23,7 +23,7 @@ export const initialData = {
     },
     "themeColor": "custom",
     "customThemeColor": "#3c70b4",
-    "textScale": 100,
+    "textScale": 110,
     "fontFamilyZh": "noto-sans-sc",
     "fontFamilyEn": "inter",
     "eventPopupEnabled": true,
