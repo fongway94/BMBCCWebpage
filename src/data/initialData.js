@@ -997,8 +997,8 @@ export const initialData = {
         "en": "Juru"
       },
       "target": {
-        "zh": "适合人群",
-        "en": "Target Group"
+        "zh": "",
+        "en": ""
       },
       "description": {
         "zh": "迦勒小组活跃于柔府地区，一起相聚，一起分享。",
