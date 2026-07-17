@@ -496,7 +496,7 @@ export const initialData = {
         "zh": "传道",
         "en": "Pastor"
       },
-      "image": "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=300&q=80",
+      "image": "https://drive.google.com/thumbnail?id=1lFmXVAaXq-3Yk7-AiFJeOsaopY_YWy4f&sz=w2000",
       "bio": {
         "zh": "邓婉龄传道",
         "en": "Pastor Teng"
