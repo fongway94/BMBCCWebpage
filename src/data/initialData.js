@@ -933,7 +933,7 @@ export const initialData = {
       },
       "landmarks": {
         "zh": "附近地标：\n• Billion 商业中心 (500米)\n• AEON Mall Bukit Mertajam (2公里)",
-        "en": "Nearby Landmarks:\n• Bukit Minyak Commercial Centre (500m)\n• AEON Mall Bukit Mertajam (2km)\n• SMK Bukit Minyak School (300m)"
+        "en": "Nearby Landmarks:\n• Bukit Minyak Commercial Centre (500m)\n• AEON Mall Bukit Mertajam (2km)"
       }
     },
     {
