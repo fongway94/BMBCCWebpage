@@ -600,7 +600,7 @@ export const initialData = {
         "en": "Pastor Stanley Yeoh"
       },
       "date": "2026-07-13",
-      "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "videoUrl": "",
       "series": {
         "zh": "在主爱里生活",
         "en": "Living in the Lord's Love"
