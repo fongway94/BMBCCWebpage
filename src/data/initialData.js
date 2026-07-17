@@ -473,7 +473,7 @@ export const initialData = {
     {
       "id": 2,
       "name": {
-        "zh": "郑金兰传道",
+        "zh": "郑金兰 传道",
         "en": "Pastor Camelia"
       },
       "role": {
