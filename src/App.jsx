@@ -112,6 +112,24 @@ const hexToRgb = (hex) => {
 };
 const rgbString = (rgb) => `${rgb.r} ${rgb.g} ${rgb.b}`;
 
+const fontFamilyOptions = {
+  zh: [
+    { value: 'noto-sans-sc', label: 'Noto Sans SC / 思源黑体', family: '"Noto Sans SC", "Microsoft YaHei", "PingFang SC", "Heiti SC", sans-serif' },
+    { value: 'system-sans', label: 'System Sans / 系统无衬线', family: '"Microsoft YaHei", "PingFang SC", Arial, sans-serif' },
+    { value: 'serif', label: 'Noto Serif SC / 思源宋体', family: '"Noto Serif SC", "Songti SC", SimSun, serif' },
+    { value: 'kai', label: 'KaiTi / 楷体', family: 'KaiTi, STKaiti, "Kaiti SC", serif' }
+  ],
+  en: [
+    { value: 'inter', label: 'Inter / Modern Sans', family: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
+    { value: 'system-sans', label: 'System Sans', family: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif' },
+    { value: 'serif', label: 'Georgia / Serif', family: 'Georgia, "Times New Roman", serif' },
+    { value: 'rounded', label: 'Rounded Sans', family: '"Arial Rounded MT Bold", "Trebuchet MS", ui-sans-serif, sans-serif' }
+  ]
+};
+
+const getFontFamily = (language, fontKey) =>
+  fontFamilyOptions[language].find(font => font.value === fontKey)?.family || fontFamilyOptions[language][0].family;
+
 const colorsMap = {
   emerald: { primary: '16 185 129', dark: '5 150 105', light: '209 250 229', name: 'Emerald / 翡翠绿' },
   indigo: { primary: '99 102 241', dark: '79 70 229', light: '224 231 255', name: 'Indigo / 靛青蓝' },
@@ -397,6 +415,16 @@ export default function App() {
       document.documentElement.style.fontSize = '';
     };
   }, [data.settings.textScale]);
+
+  // Use separate typefaces for the Chinese and English versions of the site.
+  // The selected language determines which setting is used in the live preview.
+  useEffect(() => {
+    const fontKey = lang === 'zh' ? data.settings.fontFamilyZh : data.settings.fontFamilyEn;
+    document.documentElement.style.setProperty('--site-font-family', getFontFamily(lang, fontKey));
+    return () => {
+      document.documentElement.style.removeProperty('--site-font-family');
+    };
+  }, [lang, data.settings.fontFamilyZh, data.settings.fontFamilyEn]);
 
   // Keep the browser tab icon in sync with the uploaded header logo.
   useEffect(() => {
@@ -1169,7 +1197,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans">
+    <div className="min-h-screen flex flex-col font-sans" style={{ fontFamily: 'var(--site-font-family)' }}>
       
       {/* ADMIN SESSION ACTIVE TOP BANNER - Appears when logged in as admin but viewing live site */}
       {isAdminLoggedIn && activeTab !== 'admin' && (
@@ -4570,6 +4598,30 @@ export default function App() {
                               <span>{lang === 'zh' ? '较小' : 'Smaller'}</span>
                               <span>{lang === 'zh' ? '默认' : 'Default'}</span>
                               <span>{lang === 'zh' ? '较大' : 'Larger'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* FONT FAMILY SETTINGS */}
+                        <div className="md:col-span-2 pt-4 border-t border-gray-100">
+                          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                            <div>
+                              <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wide">{lang === 'zh' ? '字体类型 / Font Type' : 'Font Type / 字体类型'}</h3>
+                              <p className="mt-1 text-[10px] leading-relaxed text-gray-500">{lang === 'zh' ? '分别选择中文和英文版网站的字体。切换网站语言即可预览相应字体。' : 'Choose separate typefaces for the Chinese and English versions. Switch the site language to preview each typeface.'}</p>
+                            </div>
+                            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <div>
+                                <label htmlFor="font-family-zh" className="mb-1 block text-xs font-bold text-gray-700">中文字体 / Chinese Font</label>
+                                <select id="font-family-zh" value={data.settings.fontFamilyZh || 'noto-sans-sc'} onChange={(e) => updateSetting('fontFamilyZh', null, e.target.value)} className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary">
+                                  {fontFamilyOptions.zh.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}
+                                </select>
+                              </div>
+                              <div>
+                                <label htmlFor="font-family-en" className="mb-1 block text-xs font-bold text-gray-700">English Font / 英文字体</label>
+                                <select id="font-family-en" value={data.settings.fontFamilyEn || 'inter'} onChange={(e) => updateSetting('fontFamilyEn', null, e.target.value)} className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary">
+                                  {fontFamilyOptions.en.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}
+                                </select>
+                              </div>
                             </div>
                           </div>
                         </div>

@@ -8,6 +8,12 @@
   }
 }
 
+/* The admin font setting is inherited by the site and also replaces Tailwind's
+   explicit font-sans utility where it is used inside the interface. */
+.font-sans {
+  font-family: var(--site-font-family, ui-sans-serif, system-ui, sans-serif);
+}
+
 /* Custom scrollbar to make it look elegant */
 ::-webkit-scrollbar {
   width: 8px;
