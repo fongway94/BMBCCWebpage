@@ -103,6 +103,14 @@ const stripSensitiveData = (siteData) => {
   return sanitized;
 };
 
+const hexToRgb = (hex) => {
+  const value = String(hex || '').replace('#', '').trim();
+  const normalized = value.length === 3 ? value.split('').map(c => c + c).join('') : value;
+  if (!/^[0-9a-f]{6}$/i.test(normalized)) return null;
+  return { r: parseInt(normalized.slice(0, 2), 16), g: parseInt(normalized.slice(2, 4), 16), b: parseInt(normalized.slice(4, 6), 16) };
+};
+const rgbString = (rgb) => `${rgb.r} ${rgb.g} ${rgb.b}`;
+
 const colorsMap = {
   emerald: { primary: '16 185 129', dark: '5 150 105', light: '209 250 229', name: 'Emerald / 翡翠绿' },
   indigo: { primary: '99 102 241', dark: '79 70 229', light: '224 231 255', name: 'Indigo / 靛青蓝' },
@@ -160,6 +168,8 @@ export default function App() {
   const [adminActiveSection, setAdminActiveSection] = useState('settings'); // 'settings', 'carousel', 'timetable', 'events', 'ministries', 'backup'
   const [adminSuccessMessage, setAdminSuccessMessage] = useState('');
   const [logoUploadError, setLogoUploadError] = useState('');
+  const [eventPopupOpen, setEventPopupOpen] = useState(false);
+  const [eventPopupSlide, setEventPopupSlide] = useState(0);
   
   // Verify auth session on mount
   useEffect(() => {
@@ -336,14 +346,37 @@ export default function App() {
     };
   }, []);
 
-  // Apply theme color
+  // Apply the selected preset or freely chosen custom brand color.
   useEffect(() => {
+    const custom = hexToRgb(data.settings.customThemeColor);
     const colorKey = data.settings.themeColor || 'emerald';
+    if (colorKey === 'custom' && custom) {
+      const dark = { r: Math.max(0, Math.round(custom.r * .82)), g: Math.max(0, Math.round(custom.g * .82)), b: Math.max(0, Math.round(custom.b * .82)) };
+      const light = { r: Math.min(255, Math.round(custom.r + (255 - custom.r) * .78)), g: Math.min(255, Math.round(custom.g + (255 - custom.g) * .78)), b: Math.min(255, Math.round(custom.b + (255 - custom.b) * .78)) };
+      document.documentElement.style.setProperty('--color-primary', rgbString(custom));
+      document.documentElement.style.setProperty('--color-primary-dark', rgbString(dark));
+      document.documentElement.style.setProperty('--color-primary-light', rgbString(light));
+      return;
+    }
     const selected = colorsMap[colorKey] || colorsMap.emerald;
     document.documentElement.style.setProperty('--color-primary', selected.primary);
     document.documentElement.style.setProperty('--color-primary-dark', selected.dark);
     document.documentElement.style.setProperty('--color-primary-light', selected.light);
-  }, [data.settings.themeColor]);
+  }, [data.settings.themeColor, data.settings.customThemeColor]);
+
+  // Keep the browser tab icon in sync with the uploaded header logo.
+  useEffect(() => {
+    const icon = document.querySelector('link[rel="icon"]');
+    if (icon) icon.href = data.settings.headerLogo || '/favicon.svg';
+  }, [data.settings.headerLogo]);
+
+  // Event alerts are intentionally shown on every page load (not once per session).
+  useEffect(() => {
+    if (data.settings.eventPopupEnabled && data.events?.length && activeTab !== 'admin') {
+      setEventPopupSlide(0);
+      setEventPopupOpen(true);
+    }
+  }, []);
 
   // Save helper
   const saveAllData = (newData) => {
@@ -4102,6 +4135,19 @@ export default function App() {
                           </div>
                         </div>
 
+                        {/* EVENT POP-UP SETTINGS */}
+                        <div className="md:col-span-2 pt-4 border-t border-gray-100">
+                          <div className="flex items-start justify-between gap-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                            <div>
+                              <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide">{lang === 'zh' ? '活动弹窗提醒 / Event Alert Pop-up' : 'Event Alert Pop-up / 活动弹窗提醒'}</label>
+                              <p className="mt-1 text-[10px] leading-relaxed text-gray-500">{lang === 'zh' ? '开启后，访客每次打开网站都会看到活动提醒；有多个活动时可左右切换。' : 'When enabled, visitors see an event alert every time they open the website. Multiple events can be browsed like a carousel.'}</p>
+                            </div>
+                            <button type="button" role="switch" aria-checked={data.settings.eventPopupEnabled === true} onClick={() => updateSetting('eventPopupEnabled', null, !data.settings.eventPopupEnabled)} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${data.settings.eventPopupEnabled ? 'bg-primary' : 'bg-gray-300'}`}>
+                              <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${data.settings.eventPopupEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                          </div>
+                        </div>
+
                         {/* SELECT BRAND COLOR Theme */}
                         <div className="md:col-span-2 pt-4 border-t border-gray-100">
                           <label className="block text-xs font-bold text-gray-800 mb-2 uppercase tracking-wide">
@@ -4129,6 +4175,16 @@ export default function App() {
                                 </button>
                               );
                             })}
+                          </div>
+                          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-xs font-bold text-gray-800">{lang === 'zh' ? '自由选择自定义颜色' : 'Pick a custom colour'}</p>
+                              <p className="mt-1 text-[10px] text-gray-500">{lang === 'zh' ? '使用颜色选择器调整品牌色，所有 CSS 变量会即时更新。' : 'Use the picker to freely adjust the brand colour. CSS variables update instantly.'}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input type="color" aria-label="Custom brand color" value={data.settings.customThemeColor || '#10b981'} onChange={(e) => { updateSetting('customThemeColor', null, e.target.value); updateSetting('themeColor', null, 'custom'); }} className="h-10 w-14 cursor-pointer rounded border border-gray-300 bg-white p-1" />
+                              <input type="text" aria-label="Custom brand hex color" value={data.settings.customThemeColor || '#10b981'} onChange={(e) => { const value = e.target.value; if (/^#?[0-9a-f]{6}$/i.test(value)) { const hex = value.startsWith('#') ? value : `#${value}`; updateSetting('customThemeColor', null, hex); updateSetting('themeColor', null, 'custom'); } }} placeholder="#10B981" className="w-24 rounded border border-gray-300 px-2 py-2 text-xs font-mono uppercase" />
+                            </div>
                           </div>
                         </div>
 
@@ -4737,6 +4793,10 @@ export default function App() {
                         <div>
                           <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '特别/近期活动内容管理' : 'Events Post Manager'}</h2>
                           <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '在这里发布新活动通告、修改庆典、营会、健康检查等活动讯息' : 'Publish or update special holiday activities, camps, charity events, medical checks'}</p>
+                          <label className="mt-3 inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-gray-700">
+                            <input type="checkbox" checked={data.settings.eventPopupEnabled === true} onChange={(e) => updateSetting('eventPopupEnabled', null, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                            <span>{lang === 'zh' ? '访客每次打开网站时显示活动弹窗' : 'Show event pop-up whenever visitors open the website'}</span>
+                          </label>
                         </div>
                         {editingEvent === null && (
                           <button
@@ -6096,6 +6156,25 @@ export default function App() {
       </main>
 
       {/* 4. FOOTER */}
+      {eventPopupOpen && data.events?.length > 0 && activeTab !== 'admin' && (() => {
+        const popupEvent = data.events[eventPopupSlide % data.events.length];
+        return (
+          <div className="fixed inset-0 z-[70] bg-gray-950/70 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={lang === 'zh' ? '活动通知' : 'Event alert'}>
+            <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+              <button onClick={() => setEventPopupOpen(false)} aria-label="Close" className="absolute right-3 top-3 z-10 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"><X size={18} /></button>
+              <img src={popupEvent.image} alt={t(popupEvent.title)} className="h-48 w-full object-cover sm:h-64" />
+              <div className="p-6 sm:p-8">
+                <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary"><Calendar size={15} /> {lang === 'zh' ? '活动通知' : 'Event alert'}</div>
+                <h2 className="text-2xl font-extrabold text-gray-900">{t(popupEvent.title)}</h2>
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600"><span className="flex items-center gap-1.5"><Calendar size={15} />{popupEvent.date}</span><span className="flex items-center gap-1.5"><Clock size={15} />{popupEvent.time}</span><span className="flex items-center gap-1.5"><MapPin size={15} />{t(popupEvent.location)}</span></div>
+                <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-gray-600">{t(popupEvent.description)}</p>
+                {data.events.length > 1 && <div className="mt-6 flex items-center justify-between gap-3"><button onClick={() => setEventPopupSlide((eventPopupSlide - 1 + data.events.length) % data.events.length)} className="rounded-lg border border-gray-200 p-2 hover:bg-gray-50" aria-label="Previous event"><ChevronLeft size={18} /></button><div className="flex gap-1.5">{data.events.map((_, i) => <button key={i} onClick={() => setEventPopupSlide(i)} aria-label={`Event ${i + 1}`} className={`h-2 w-2 rounded-full ${i === eventPopupSlide ? 'bg-primary' : 'bg-gray-300'}`} />)}</div><button onClick={() => setEventPopupSlide((eventPopupSlide + 1) % data.events.length)} className="rounded-lg border border-gray-200 p-2 hover:bg-gray-50" aria-label="Next event"><ChevronRight size={18} /></button></div>}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       <footer className="bg-gray-900 text-gray-400 py-12 px-4 sm:px-6 md:px-8 border-t border-gray-800 transition-all font-light">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
           
