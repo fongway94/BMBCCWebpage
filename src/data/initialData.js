@@ -615,25 +615,6 @@ export const initialData = {
   ],
   "services": [
     {
-      "id": 1,
-      "title": {
-        "zh": "2026年7月6日 主日崇拜",
-        "en": "Sunday Worship Service - July 6, 2026"
-      },
-      "date": "2026-07-06",
-      "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-      "series": {
-        "zh": "在主爱里生活",
-        "en": "Living in the Lord's Love"
-      },
-      "description": {
-        "zh": "2026年7月6日主日崇拜完整录影，包含敬拜赞美、祷告、证道及报告事项。",
-        "en": "Full recording of the Sunday worship service on July 6, 2026, including praise and worship, prayer, sermon, and announcements."
-      },
-      "thumbnail": "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80",
-      "type": "service"
-    },
-    {
       "id": 3,
       "title": {
         "zh": "2026年双亲节感恩崇拜",
