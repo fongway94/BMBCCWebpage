@@ -932,7 +932,7 @@ export const initialData = {
         "en": "Joseph Cell Group"
       },
       "leader": {
-        "zh": "林方炜 组长 & 陈悠儿组长",
+        "zh": "林方炜组长 & 陈悠儿组长",
         "en": "Bro. Fong Way & Sis. Yogie"
       },
       "schedule": {
