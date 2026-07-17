@@ -948,7 +948,7 @@ export const initialData = {
         "en": "Batu Kawan Baptist Church (BKBC) \n8, Jalan Paboi, Taman Merak, 14100 Simpang Ampat, Pulau Pinang"
       },
       "directions": {
-        "zh": "如何到达：\n\n🚗 自驾车：\n从主堂沿 Jalan Bukit Tambun 向南行驶约5公里，转入 Taman Merak 区域即可到达。\n\n\n🅿️ 停车：\n聚会点前方设有免费停车场，可容纳约20辆车。",
+        "zh": "如何到达：\n\n🚗 自驾车：\n从主堂沿 Jalan Bukit Tambun 向南行驶约5公里，转入 Taman Merak 区域即可到达。\n\n\n🅿️ 停车：\n聚会点前方设有停车场，可容纳约20辆车。",
         "en": "How to get here:\n\n🚗 By Car:\nFrom the main church, drive south along Jalan Bukit Minyak for about 5km, then turn into Taman Alma area.\n\n🚌 Public Transport:\nTake Rapid Penang Bus to Taman Alma stop, a 2-minute walk to the location.\n\n🅿️ Parking:\nFree parking available in front of the fellowship point, accommodating approximately 20 vehicles."
       },
       "landmarks": {
