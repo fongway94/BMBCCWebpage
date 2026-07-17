@@ -570,7 +570,7 @@ export const initialData = {
         },
         "icon": "heart",
         "details": {
-          "zh": "教会大厅门口设有多个奉献箱，亦可使用 Touch 'n Go eWallet、DuitNow QR 等电子支付方式。",
+          "zh": "教会大厅门口也设有奉献箱，亦可使用 Touch 'n Go eWallet、DuitNow QR 等电子支付方式。",
           "en": "Collection boxes are available at the sanctuary entrance. We also accept Touch 'n Go eWallet, DuitNow QR, and other e-payment methods."
         },
         "index": 0
@@ -587,7 +587,7 @@ export const initialData = {
         },
         "icon": "building",
         "details": {
-          "zh": "银行名称：RHB Bank\n户名：Pertubuhan Penganut Kristian Baptist Bukit Mertajam\n账号：2071580051581\n（转账后请截图或WhatsApp联系教会同工确认）",
+          "zh": "银行名称：RHB Bank\n户名：Pertubuhan Penganut Kristian Baptist Bukit Mertajam\n账号：20715800051581\n（转账后请截图或WhatsApp联系教会同工确认）",
           "en": "Bank Name: RHB Bank\nAccount Name: Pertubuhan Penganut Kristian Baptist Bukit Mertajam\nAccount No: 2071580051581\n(Please screenshot or WhatsApp our staff after transfer for confirmation)"
         },
         "index": 1
