@@ -634,25 +634,6 @@ export const initialData = {
       "type": "service"
     },
     {
-      "id": 2,
-      "title": {
-        "zh": "2026年6月29日 主日崇拜",
-        "en": "Sunday Worship Service - June 29, 2026"
-      },
-      "date": "2026-06-29",
-      "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-      "series": {
-        "zh": "在主爱里生活",
-        "en": "Living in the Lord's Love"
-      },
-      "description": {
-        "zh": "2026年6月29日主日崇拜完整录影，包含敬拜赞美、祷告、证道及报告事项。",
-        "en": "Full recording of the Sunday worship service on June 29, 2026, including praise and worship, prayer, sermon, and announcements."
-      },
-      "thumbnail": "https://images.unsplash.com/photo-1455849318743-b2233052fcff?auto=format&fit=crop&w=800&q=80",
-      "type": "service"
-    },
-    {
       "id": 3,
       "title": {
         "zh": "2026年双亲节感恩崇拜",
