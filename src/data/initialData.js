@@ -953,7 +953,7 @@ export const initialData = {
       },
       "landmarks": {
         "zh": "附近地标：\n• Eco Bloom 公寓 (200米)\n• My News 便利店 (100米)",
-        "en": "Nearby Landmarks:\n• Taman Alma Commercial Centre (200m)\n• My News Convenience Store (100m)"
+        "en": "Nearby Landmarks:\n• Eco Bloom Condo (200m)\n• My News Convenience Store (100m)"
       }
     }
   ]
