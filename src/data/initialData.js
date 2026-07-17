@@ -435,44 +435,6 @@ export const initialData = {
   ],
   "events": [
     {
-      "id": 1,
-      "title": {
-        "zh": "双亲节联合感恩崇拜",
-        "en": "Parents' Day Thanksgiving Service"
-      },
-      "date": "2026-06-21",
-      "time": "10:00 AM - 12:30 PM",
-      "location": {
-        "zh": "教会主堂",
-        "en": "Church Sanctuary"
-      },
-      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTQcn292W1ZEfc9wFACXnPbJaBAW77Mrx7qZo-Ywin-rjZlcnojrZYu0jhv&s=10",
-      "description": {
-        "zh": "'要孝敬父母，使你得福，在世长寿。' 这是第一条带应许的诫命。我们诚心欢迎大家携同父母及家人前来参加崇拜，齐心向神感恩。会后将备有丰盛的爱宴以及送给父母的精美伴手礼，让我们在温情和笑声中团聚！",
-        "en": "'Honor your father and mother'—which is the first commandment with a promise. We warmly welcome everyone to bring parents and families for a morning of worship and gratitude. Following the service, we will share a loving feast and hand out special gifts to parents. Let's gather in love!"
-      },
-      "popupEnabled": true
-    },
-    {
-      "id": 2,
-      "title": {
-        "zh": "社区健康日与免费义诊",
-        "en": "Community Health Day & Free Clinic"
-      },
-      "date": "2026-08-15",
-      "time": "9:00 AM - 1:00 PM",
-      "location": {
-        "zh": "教会多元化中心",
-        "en": "Church Multipurpose Centre"
-      },
-      "image": "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=800&q=80",
-      "description": {
-        "zh": "关爱社区，从健康开始。本次活动由教会联合本地医疗团队举办，免费提供血压、血糖测量、眼科基础筛查、中医针灸诊疗与专业健康饮食咨询。欢迎社区居民男女老幼一同来关心身体健康。现场亦设趣味益智儿童角！",
-        "en": "Caring for our community starts with health. Co-organized with local medical professionals, this event offers free blood pressure, blood glucose tests, basic eye screenings, traditional Chinese medicine consultations, and dietary advice. We welcome neighbors of all ages. A fun children's corner is also available!"
-      },
-      "popupEnabled": true
-    },
-    {
       "id": 3,
       "title": {
         "zh": "2026 青年营会：《点燃》",
