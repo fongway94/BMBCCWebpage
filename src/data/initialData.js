@@ -933,8 +933,8 @@ export const initialData = {
         "en": "Bro. Fong Way & Sis. Yogie"
       },
       "schedule": {
-        "zh": "每周六下午 3:00 PM",
-        "en": "Every Saturday 3:00 PM"
+        "zh": "每周二晚上 8:30 PM - 10:00 PM",
+        "en": "Every Tuesday 8:30 PM to 10:00 PM"
       },
       "location": {
         "zh": "BKBC 教会",
