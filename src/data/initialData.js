@@ -916,8 +916,8 @@ export const initialData = {
           "en": "👶 Children's Sunday School"
         },
         "content": {
-          "zh": "如果您带着孩子来教会，不用担心！我们在主日崇拜同时段（10:00 AM - 11:30 AM）设有儿童主日学，分为：\n\n• 幼儿班 (3-5岁)：通过故事、手工、歌唱认识耶稣\n• 儿童班 (6-12岁)：系统化的圣经课程、小组讨论和趣味活动\n\n主日学教室位于主堂旁边，由专业的儿童事工老师带领。您的孩子将在安全、快乐的环境中学习神的真理！",
-          "en": "If you bring children, don't worry! We run Children's Sunday School concurrently (10:00 AM - 11:30 AM), divided into:\n\n• Toddlers (3-5): Learning about Jesus through stories, crafts, and songs\n• Children (6-12): Systematic Bible curriculum, small group discussions, and fun activities\n\nSunday School classrooms are next to the main sanctuary, led by trained children's ministry teachers. Your kids will learn God's truth in a safe, joyful environment!"
+          "zh": "如果您带着孩子来教会，不用担心！我们在主日崇拜同时段（10:00 AM - 11:30 AM）设有儿童主日学，分为：\n\n• 儿童班 (6-12岁)：儿童崇拜、小组讨论和趣味活动\n\n主日学教室位于智慧谷，由专业的儿童事工老师带领。您的孩子将在安全、快乐的环境中学习神的真理！",
+          "en": "If you bring children, don't worry! We run Children's Sunday School concurrently (10:00 AM - 11:30 AM), divided into:\n\n• Children (6-12): Children Service, small group discussions, and fun activities\n\nSunday School classrooms are at Wisdom Valley, led by trained children's ministry teachers. Your kids will learn God's truth in a safe, joyful environment!"
         }
       },
       {
