@@ -464,7 +464,7 @@ export const initialData = {
         "zh": "主任牧师",
         "en": "Lead Pastor"
       },
-      "image": "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=300&q=80",
+      "image": "https://drive.google.com/thumbnail?id=1IYDLB3zQxOv-f53DjI1ks6hz5QEIiltY&sz=w2000",
       "bio": {
         "zh": "杨桔槟牧 - 大山脚浸信教会的主任牧师",
         "en": "Pastor Stanley Yeoh - Senior Pastor of Bukit Mertajam Baptist Church"
