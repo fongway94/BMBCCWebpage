@@ -466,8 +466,8 @@ export const initialData = {
       },
       "image": "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=300&q=80",
       "bio": {
-        "zh": "杨桔槟牧师忠心服侍主已逾十五年。他胸怀社区宣教异象，对百利镇及大山脚社区的灵魂有着深沉的爱，致力带领教会走出四墙、宣扬主爱。",
-        "en": "Pastor Yeoh has faithfully served for over 15 years. With a strong vision for community outreach, he carries a deep burden for Bukit Mertajam, leading the church to go beyond walls."
+        "zh": "杨桔槟牧 - 大山脚浸信教会的主任牧师",
+        "en": "Pastor Stanley Yeoh - Senior Pastor of Bukit Mertajam Baptist Church"
       }
     },
     {
