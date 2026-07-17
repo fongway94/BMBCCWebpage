@@ -214,8 +214,8 @@ export const initialData = {
       "en": "Sundays at 10:00 AM"
     },
     "footerServiceLocation": {
-      "zh": "教会主堂 / 线上直播同步",
-      "en": "Church Sanctuary / Live"
+      "zh": "教会主堂",
+      "en": "Church Sanctuary"
     },
     "footerContactTitle": {
       "zh": "联系与到访",
