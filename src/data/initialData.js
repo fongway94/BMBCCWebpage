@@ -581,7 +581,8 @@ export const initialData = {
         "details": {
           "zh": "教会大厅门口设有多个奉献箱，亦可使用 Touch 'n Go eWallet、DuitNow QR 等电子支付方式。",
           "en": "Collection boxes are available at the sanctuary entrance. We also accept Touch 'n Go eWallet, DuitNow QR, and other e-payment methods."
-        }
+        },
+        "index": 0
       },
       {
         "id": 2,
