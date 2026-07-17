@@ -28,6 +28,14 @@ export const initialData = {
     "contactPhone": "+60 12-345 6789",
     "contactEmail": "bmbcc18161412@gmail.com",
     "contactAddress": "14, 16, 18, Lebuh Kota Permai 2, Taman Kota Permai, 14000 Bukit Mertajam, Penang",
+    "aboutBadge": {
+      "zh": "了解我们大山脚浸信教会",
+      "en": "Get to Know BMBCC"
+    },
+    "aboutTitle": {
+      "zh": "关于我们",
+      "en": "About Us"
+    },
     "aboutIntro": {
       "zh": "大山脚浸信教会（BMBCC）是一个立足于社区、充满爱心与活力的大家庭。我们坚信圣经的真理，并以此为我们行事的准则。作为走入社区的教会，我们在社区关怀的事工上有很大的负担，渴望将神满满的恩典和爱分享给身边的每一个人。",
       "en": "Bukit Mertajam Baptist Chinese Church (BMBCC) is a community-based, loving, and vibrant family. We firmly believe in the truth of the Bible and use it as our guide. As a church that reaches out, we have a heavy burden for community care ministries, yearning to share God's abundant grace and love with everyone around us."
@@ -39,6 +47,102 @@ export const initialData = {
     "aboutMission": {
       "zh": "走入百利镇及大山脚社区，广传耶稣基督的救恩福音，关怀弱势群体，并栽培生命成熟、热心服侍的门徒。",
       "en": "Step into the communities of Taman Bukit Minyak and Bukit Mertajam, spread the gospel of salvation of Jesus Christ, care for the vulnerable, and nurture mature, service-oriented disciples."
+    },
+    "leadershipBadge": {
+      "zh": "属灵领袖与关怀同工",
+      "en": "Spiritual Guides & Shepherds"
+    },
+    "leadershipTitle": {
+      "zh": "牧者与事工团队",
+      "en": "Leadership Team"
+    },
+    "leadershipIntro": {
+      "zh": "神选召并赐予我们的忠心仆人，倾尽爱心，牧养群羊，引领社区事工蓬勃发展。",
+      "en": "Servants called by God to shepherd the congregation and guide community ministries with love."
+    },
+    "ministriesBadge": {
+      "zh": "走入人群，服侍弱势",
+      "en": "Outreach & Community Service"
+    },
+    "ministriesTitle": {
+      "zh": "教会事工介绍",
+      "en": "Our Ministries"
+    },
+    "ministriesIntro": {
+      "zh": "大山脚浸信教会不仅专注于信徒身心灵的牧养，更带着沉甸甸的负担投身于百利镇周边社区。我们相信，爱需要行动来显明，福音是看得见的。",
+      "en": "BMBCC focuses on shepherding believers as well as reaching out to the surrounding communities. We believe love requires action and the gospel should be visible."
+    },
+    "timetableBadge": {
+      "zh": "与我们一同朝见神与相聚",
+      "en": "Fellowship & Grow Together"
+    },
+    "timetableTitle": {
+      "zh": "周聚会与崇拜时间表",
+      "en": "Weekly Services & Timetable"
+    },
+    "timetableIntro": {
+      "zh": "我们诚挚地邀请您和您的家人参与我们的周聚会，共同在敬拜、祷告、真理和爱心团契里，经历生命的翻转与复兴。",
+      "en": "We warmly invite you and your family to join our weekly gatherings for worship, prayer, truth, and genuine community."
+    },
+    "eventsBadge": {
+      "zh": "教会精彩纪实与未来计划",
+      "en": "Highlights & Upcoming Outlines"
+    },
+    "eventsTitle": {
+      "zh": "特别活动预告",
+      "en": "Special Events"
+    },
+    "eventsIntro": {
+      "zh": "在这里，您可以了解到教会近期举办的大型特殊崇拜、节日庆典、关怀行动和社区营会，欢迎带同亲友报名并一同参盛。",
+      "en": "Here, you can learn about our upcoming special worship services, holiday celebrations, welfare activities, and camps. Welcome to register and attend with friends!"
+    },
+    "bulletinsBadge": {
+      "zh": "教会资源中心",
+      "en": "Church Resource Centre"
+    },
+    "bulletinsTitle": {
+      "zh": "周报与讲道库",
+      "en": "Bulletins & Sermon Library"
+    },
+    "bulletinsIntro": {
+      "zh": "查阅每周周报、代祷事项，或回顾过往讲道信息。",
+      "en": "Access weekly bulletins, prayer items, and past sermon messages."
+    },
+    "servicesBadge": {
+      "zh": "崇拜与敬拜 · 完整回顾",
+      "en": "Services & Worships · Full Replay"
+    },
+    "servicesTitle": {
+      "zh": "崇拜与敬拜",
+      "en": "Services & Worships"
+    },
+    "servicesIntro": {
+      "zh": "回顾完整主日崇拜与敬拜赞美录影，包括敬拜、证道、祷告及教会报告事项。崇拜与敬拜分开标签，方便查找。",
+      "en": "Revisit full Sunday service & worship recordings, including praise, sermon, prayer, and announcements. Browse by Services and Worships tabs."
+    },
+    "cellGroupsBadge": {
+      "zh": "小组生活 · 彼此相顾",
+      "en": "Community Life · Caring for One Another"
+    },
+    "cellGroupsTitle": {
+      "zh": "细胞小组",
+      "en": "Cell Groups"
+    },
+    "cellGroupsIntro": {
+      "zh": "小组是我们教会最重要的团契生活单元。每个小组定期聚会，一同查经、祷告、分享生命，在主爱中彼此建立。欢迎加入我们的小组！",
+      "en": "Cell groups are the heart of our fellowship life. Each group meets regularly for Bible study, prayer, and life sharing, building each other up in the Lord's love. Join us!"
+    },
+    "mapsBadge": {
+      "zh": "找到我们",
+      "en": "Find Us"
+    },
+    "mapsTitle": {
+      "zh": "教会地图与交通指南",
+      "en": "Church Map & Directions"
+    },
+    "mapsIntro": {
+      "zh": "我们在多个地点设有聚会点，请选择离您最近的地点。",
+      "en": "We have fellowship points at multiple locations. Choose the one closest to you."
     },
     "homeVisionPara1": {
       "zh": "大山脚浸信教会深信神赐予我们的召命：走出教会的舒适圈，切切实实走入我们所在的百利镇社区，接触身边的邻舍。",

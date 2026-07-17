@@ -138,7 +138,21 @@ export default function App() {
           }
           return parsedObj;
         };
-        const settingsKeys = ['churchName','slogan','description','themeYear','aboutIntro','aboutVision','aboutMission','homeVisionPara1','homeVisionPara2','yearlyVisionLabel','yearlyVisionTitle','yearlyVisionBadge','yearlyVisionScripture','yearlyVisionRef','ctaTitle','ctaDescription','footerCopyright','footerTagline','churchTagline','headerLogo'];
+        const settingsKeys = [
+          'churchName','slogan','description','themeYear',
+          'aboutBadge','aboutTitle','aboutIntro','aboutVision','aboutMission',
+          'leadershipBadge','leadershipTitle','leadershipIntro',
+          'ministriesBadge','ministriesTitle','ministriesIntro',
+          'timetableBadge','timetableTitle','timetableIntro',
+          'eventsBadge','eventsTitle','eventsIntro',
+          'bulletinsBadge','bulletinsTitle','bulletinsIntro',
+          'servicesBadge','servicesTitle','servicesIntro',
+          'cellGroupsBadge','cellGroupsTitle','cellGroupsIntro',
+          'mapsBadge','mapsTitle','mapsIntro',
+          'homeVisionPara1','homeVisionPara2','yearlyVisionLabel','yearlyVisionTitle',
+          'yearlyVisionBadge','yearlyVisionScripture','yearlyVisionRef','ctaTitle',
+          'ctaDescription','footerCopyright','footerTagline','churchTagline','headerLogo'
+        ];
         const mergedSettings = { ...initialData.settings, ...(parsed.settings || {}) };
         delete mergedSettings.adminPassword;
         settingsKeys.forEach(k => {
@@ -630,6 +644,36 @@ export default function App() {
     }
   };
 
+  // Helper function to switch tabs and handle URL hashes smoothly
+  const switchTab = (tabId) => {
+    setActiveTab(tabId);
+    setMobileMenuOpen(false);
+    if (tabId === 'admin') {
+      if (window.location.hash !== '#/admin' && window.location.hash !== '#admin' && !window.location.pathname.endsWith('/admin')) {
+        if (window.history && window.history.pushState) {
+          window.history.pushState({}, '', '#/admin');
+        } else {
+          window.location.hash = '#/admin';
+        }
+      }
+    } else {
+      if (window.location.hash === '#/admin' || window.location.hash === '#admin') {
+        try {
+          if (window.history && window.history.pushState) {
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.hash = '';
+            window.history.pushState({}, '', cleanUrl.pathname + cleanUrl.search);
+          } else {
+            window.location.hash = '';
+          }
+        } catch (e) {
+          window.location.hash = '';
+        }
+      }
+    }
+    window.scrollTo(0, 0);
+  };
+
   const handleAdminLogout = async () => {
     try {
       await fetch(AUTH_ENDPOINT, {
@@ -645,6 +689,32 @@ export default function App() {
     setBackupReauthOpen(false);
     setBackupPasswordInput('');
     setBackupLoginError('');
+
+    // Clear /admin and #/admin from URL back to standard site URL
+    try {
+      if (window.history && window.history.pushState) {
+        let cleanPath = window.location.pathname;
+        if (cleanPath.endsWith('/admin') || cleanPath.endsWith('/admin/')) {
+          cleanPath = cleanPath.replace(/\/admin\/?$/, '');
+          if (!cleanPath) cleanPath = '/';
+        }
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.pathname = cleanPath;
+        if (cleanUrl.hash === '#/admin' || cleanUrl.hash === '#admin') {
+          cleanUrl.hash = '';
+        }
+        cleanUrl.searchParams.delete('admin');
+        cleanUrl.searchParams.delete('page');
+        window.history.pushState({}, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+      } else {
+        if (window.location.hash === '#/admin' || window.location.hash === '#admin') {
+          window.location.hash = '';
+        }
+      }
+    } catch (e) {
+      console.error('Error clearing admin URL:', e);
+    }
+    window.scrollTo(0, 0);
   };
 
   const resetAdminEditors = () => {
@@ -1089,6 +1159,24 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col font-sans">
       
+      {/* ADMIN SESSION ACTIVE TOP BANNER - Appears when logged in as admin but viewing live site */}
+      {isAdminLoggedIn && activeTab !== 'admin' && (
+        <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-white px-4 py-1.5 text-xs font-bold flex items-center justify-between shadow-sm z-50 shrink-0 sticky top-0">
+          <div className="flex items-center gap-2">
+            <Shield size={14} className="animate-pulse text-amber-100 shrink-0" />
+            <span className="truncate max-w-[260px] sm:max-w-none">
+              {lang === 'zh' ? '管理员已登录（正预览公开网站）' : 'Admin Session Active (Previewing Live Site)'}
+            </span>
+          </div>
+          <button
+            onClick={() => switchTab('admin')}
+            className="bg-white/20 hover:bg-white/30 text-white px-3 py-0.5 rounded text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 whitespace-nowrap shadow-xs"
+          >
+            <span>{lang === 'zh' ? '返回后台控制台 »' : 'Return to Admin Console »'}</span>
+          </button>
+        </div>
+      )}
+
       {/* 1. TOP INFORMATION HEADER */}
       <header className="bg-gray-900 text-gray-300 text-xs py-2 px-4 sm:px-6 md:px-8 border-b border-gray-800 transition-all">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
@@ -1116,7 +1204,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20">
             <div className="flex items-center shrink-0">
-              <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setActiveTab('home')}>
+              <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => switchTab('home')}>
                 {data.settings.headerLogo ? (
                   <img
                     src={data.settings.headerLogo}
@@ -1183,7 +1271,7 @@ export default function App() {
                     return (
                       <button
                         key={group.id}
-                        onClick={() => { setActiveTab(group.id); window.scrollTo(0, 0); }}
+                        onClick={() => switchTab(group.id)}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                           activeTab === group.id
                             ? 'bg-primary/10 text-primary font-semibold'
@@ -1212,7 +1300,7 @@ export default function App() {
                         {group.items.map((item) => (
                           <button
                             key={item.id}
-                            onClick={() => { setActiveTab(item.id); window.scrollTo(0, 0); }}
+                            onClick={() => switchTab(item.id)}
                             className={`w-full text-left px-4 py-2.5 text-sm transition-all first:rounded-t-lg last:rounded-b-lg ${
                               activeTab === item.id
                                 ? 'bg-primary/5 text-primary font-medium'
@@ -1240,40 +1328,46 @@ export default function App() {
                 <span className="font-medium text-xs uppercase tracking-wider">{lang === 'zh' ? 'EN' : '中文'}</span>
               </button>
 
-              {/* Admin Mode Indicator - Only shows when in /admin */}
+              {/* Admin Mode Indicator / Return Button */}
               {activeTab === 'admin' ? (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 shadow-sm">
-                  <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shadow-sm">
-                    <Shield size={14} />
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 shadow-xs shrink-0 whitespace-nowrap">
+                  <div className="w-6 h-6 rounded-md bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Shield size={13} />
                   </div>
-                  <div className="flex flex-col leading-tight">
-                    <span className="text-xs font-extrabold uppercase tracking-wider">
-                      {lang === 'zh' ? '后台管理模式' : 'Admin Mode'}
+                  <div className="flex flex-col leading-none shrink-0">
+                    <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">
+                      {lang === 'zh' ? '后台管理' : 'Admin'}
                     </span>
-                    <span className="text-[10px] font-medium text-amber-700/80">
-                      {isAdminLoggedIn ? (lang === 'zh' ? '已登录 • 管理中' : 'Logged in • Managing') : (lang === 'zh' ? '未登录 • 访客视图' : 'Guest view')}
+                    <span className="text-[9px] font-medium text-amber-700/90 whitespace-nowrap">
+                      {isAdminLoggedIn ? (lang === 'zh' ? '已登录' : 'Managing') : (lang === 'zh' ? '未登录' : 'Guest')}
                     </span>
                   </div>
                   {isAdminLoggedIn && (
                     <button
                       onClick={handleAdminLogout}
-                      className="ml-1 p-1.5 rounded-lg bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 transition-all"
+                      className="ml-0.5 p-1 rounded-md bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 transition-all shrink-0"
                       title={lang === 'zh' ? '退出登录' : 'Logout'}
                     >
-                      <LogOut size={12} />
+                      <LogOut size={11} />
                     </button>
                   )}
                 </div>
               ) : (
-                data.settings.showLoginButton && (
+                (data.settings.showLoginButton || isAdminLoggedIn) && (
                   <button
-                    onClick={() => { setActiveTab('admin'); window.scrollTo(0, 0); }}
-                    className="p-2 rounded-lg flex items-center gap-1.5 transition-all text-sm text-gray-500 hover:bg-amber-50 hover:text-amber-700"
+                    onClick={() => switchTab('admin')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+                      isAdminLoggedIn
+                        ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xs'
+                        : 'border border-gray-200 text-gray-600 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'
+                    }`}
                     title={lang === 'zh' ? '管理员后台' : 'Admin Panel'}
                   >
-                    <Shield size={17} />
-                    <span className="font-semibold text-xs uppercase tracking-wider">
-                      {isAdminLoggedIn ? (lang === 'zh' ? '后台' : 'Admin') : (lang === 'zh' ? '登录' : 'Login')}
+                    <Shield size={14} className="shrink-0" />
+                    <span className="uppercase tracking-wider shrink-0 whitespace-nowrap">
+                      {isAdminLoggedIn
+                        ? (lang === 'zh' ? '控制台' : 'Admin Console')
+                        : (lang === 'zh' ? '登录' : 'Login')}
                     </span>
                   </button>
                 )
@@ -1282,11 +1376,14 @@ export default function App() {
 
             {/* Mobile menu button */}
             <div className="flex md:hidden items-center gap-2">
-              {activeTab === 'admin' && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
-                  <Shield size={12} className="text-amber-600" />
-                  <span className="text-[10px] font-bold uppercase">{lang === 'zh' ? '后台' : 'Admin'}</span>
-                </div>
+              {(activeTab === 'admin' || isAdminLoggedIn) && (
+                <button
+                  onClick={() => switchTab('admin')}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold uppercase shrink-0 whitespace-nowrap"
+                >
+                  <Shield size={12} className="text-amber-600 shrink-0" />
+                  <span>{lang === 'zh' ? '控制台' : 'Admin'}</span>
+                </button>
               )}
               <button
                 onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
@@ -1327,7 +1424,7 @@ export default function App() {
                   vis.services !== false && { id: 'services', label: lang === 'zh' ? '  崇拜与敬拜' : '  Services & Worships', sub: true },
                   vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '  新朋友指南' : '  New Friend Guide', sub: true },
                   vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
-                  (data.settings.showLoginButton || activeTab === 'admin') && { id: 'admin', label: lang === 'zh' ? (isAdminLoggedIn ? '管理员控制台' : '后台管理登录') : (isAdminLoggedIn ? 'Admin Console' : 'Admin Login'), icon: Shield }
+                  (data.settings.showLoginButton || isAdminLoggedIn || activeTab === 'admin') && { id: 'admin', label: lang === 'zh' ? (isAdminLoggedIn ? '管理员控制台' : '后台管理登录') : (isAdminLoggedIn ? 'Admin Console' : 'Admin Login'), icon: Shield }
                 ].filter(Boolean);
 
                 return allTabs.map((tab) => (
@@ -1338,11 +1435,7 @@ export default function App() {
                   ) : (
                     <button
                       key={tab.id}
-                      onClick={() => {
-                        setActiveTab(tab.id);
-                        setMobileMenuOpen(false);
-                        window.scrollTo(0, 0);
-                      }}
+                      onClick={() => switchTab(tab.id)}
                       className={`w-full text-left px-4 py-3 rounded-xl text-base font-medium flex items-center gap-2 ${
                         tab.sub ? 'pl-8' : ''
                       } ${
@@ -1688,10 +1781,10 @@ export default function App() {
             {/* Header */}
             <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
               <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {lang === 'zh' ? '了解我们大山脚浸信教会' : 'Get to Know BMBCC'}
+                {t(data.settings.aboutBadge) || (lang === 'zh' ? '了解我们大山脚浸信教会' : 'Get to Know BMBCC')}
               </span>
               <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                {lang === 'zh' ? '关于我们' : 'About Us'}
+                {t(data.settings.aboutTitle) || (lang === 'zh' ? '关于我们' : 'About Us')}
               </h1>
               <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
                 {t(data.settings.aboutIntro)}
@@ -1731,15 +1824,15 @@ export default function App() {
             <div className="space-y-10">
               <div className="text-center max-w-2xl mx-auto space-y-3">
                 <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                  {lang === 'zh' ? '属灵领袖与关怀同工' : 'Spiritual Guides & Shepherds'}
+                  {t(data.settings.leadershipBadge) || (lang === 'zh' ? '属灵领袖与关怀同工' : 'Spiritual Guides & Shepherds')}
                 </span>
                 <h2 className="text-3xl font-extrabold text-gray-900">
-                  {lang === 'zh' ? '牧者与事工团队' : 'Leadership Team'}
+                  {t(data.settings.leadershipTitle) || (lang === 'zh' ? '牧者与事工团队' : 'Leadership Team')}
                 </h2>
                 <p className="text-gray-600 text-sm font-light leading-relaxed">
-                  {lang === 'zh' 
+                  {t(data.settings.leadershipIntro) || (lang === 'zh' 
                     ? '神选召并赐予我们的忠心仆人，倾尽爱心，牧养群羊，引领社区事工蓬勃发展。' 
-                    : 'Servants called by God to shepherd the congregation and guide community ministries with love.'}
+                    : 'Servants called by God to shepherd the congregation and guide community ministries with love.')}
                 </p>
               </div>
 
@@ -1778,15 +1871,15 @@ export default function App() {
             {/* Header */}
             <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
               <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {lang === 'zh' ? '走入人群，服侍弱势' : 'Outreach & Community Service'}
+                {t(data.settings.ministriesBadge) || (lang === 'zh' ? '走入人群，服侍弱势' : 'Outreach & Community Service')}
               </span>
               <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                {lang === 'zh' ? '教会事工介绍' : 'Our Ministries'}
+                {t(data.settings.ministriesTitle) || (lang === 'zh' ? '教会事工介绍' : 'Our Ministries')}
               </h1>
               <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                {lang === 'zh' 
+                {t(data.settings.ministriesIntro) || (lang === 'zh' 
                   ? '大山脚浸信教会不仅专注于信徒身心灵的牧养，更带着沉甸甸的负担投身于百利镇周边社区。我们相信，爱需要行动来显明，福音是看得见的。' 
-                  : 'BMBCC focuses on shepherding believers as well as reaching out to the surrounding communities. We believe love requires action and the gospel should be visible.'}
+                  : 'BMBCC focuses on shepherding believers as well as reaching out to the surrounding communities. We believe love requires action and the gospel should be visible.')}
               </p>
             </div>
 
@@ -1886,15 +1979,15 @@ export default function App() {
               {/* Header - standardized to match other pages */}
               <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
                 <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                  {lang === 'zh' ? '与我们一同朝见神与相聚' : 'Fellowship & Grow Together'}
+                  {t(data.settings.timetableBadge) || (lang === 'zh' ? '与我们一同朝见神与相聚' : 'Fellowship & Grow Together')}
                 </span>
                 <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                  {lang === 'zh' ? '周聚会与崇拜时间表' : 'Weekly Services & Timetable'}
+                  {t(data.settings.timetableTitle) || (lang === 'zh' ? '周聚会与崇拜时间表' : 'Weekly Services & Timetable')}
                 </h1>
                 <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                  {lang === 'zh' 
+                  {t(data.settings.timetableIntro) || (lang === 'zh' 
                     ? '我们诚挚地邀请您和您的家人参与我们的周聚会，共同在敬拜、祷告、真理和爱心团契里，经历生命的翻转与复兴。' 
-                    : 'We warmly invite you and your family to join our weekly gatherings for worship, prayer, truth, and genuine community.'}
+                    : 'We warmly invite you and your family to join our weekly gatherings for worship, prayer, truth, and genuine community.')}
                 </p>
               </div>
 
@@ -2416,15 +2509,15 @@ export default function App() {
             {/* Header */}
             <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
               <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {lang === 'zh' ? '教会精彩纪实与未来计划' : 'Highlights & Upcoming Outlines'}
+                {t(data.settings.eventsBadge) || (lang === 'zh' ? '教会精彩纪实与未来计划' : 'Highlights & Upcoming Outlines')}
               </span>
               <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                {lang === 'zh' ? '特别活动预告' : 'Special Events'}
+                {t(data.settings.eventsTitle) || (lang === 'zh' ? '特别活动预告' : 'Special Events')}
               </h1>
               <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                {lang === 'zh' 
+                {t(data.settings.eventsIntro) || (lang === 'zh' 
                   ? '在这里，您可以了解到教会近期举办的大型特殊崇拜、节日庆典、关怀行动和社区营会，欢迎带同亲友报名并一同参盛。' 
-                  : 'Here, you can learn about our upcoming special worship services, holiday celebrations, welfare activities, and camps. Welcome to register and attend with friends!'}
+                  : 'Here, you can learn about our upcoming special worship services, holiday celebrations, welfare activities, and camps. Welcome to register and attend with friends!')}
               </p>
             </div>
 
@@ -2588,15 +2681,15 @@ export default function App() {
             <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
               <div className="text-center max-w-3xl mx-auto space-y-4 mb-10">
                 <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                  {lang === 'zh' ? '教会资源中心' : 'Church Resource Centre'}
+                  {t(data.settings.bulletinsBadge) || (lang === 'zh' ? '教会资源中心' : 'Church Resource Centre')}
                 </span>
                 <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                  {lang === 'zh' ? '周报与讲道库' : 'Bulletins & Sermon Library'}
+                  {t(data.settings.bulletinsTitle) || (lang === 'zh' ? '周报与讲道库' : 'Bulletins & Sermon Library')}
                 </h1>
                 <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                  {lang === 'zh'
+                  {t(data.settings.bulletinsIntro) || (lang === 'zh'
                     ? '查阅每周周报、代祷事项，或回顾过往讲道信息。'
-                    : 'Access weekly bulletins, prayer items, and past sermon messages.'}
+                    : 'Access weekly bulletins, prayer items, and past sermon messages.')}
                 </p>
               </div>
 
@@ -3291,15 +3384,15 @@ export default function App() {
             <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
               <div className="text-center max-w-3xl mx-auto space-y-4 mb-10">
                 <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                  {lang === 'zh' ? '崇拜与敬拜 · 完整回顾' : 'Services & Worships · Full Replay'}
+                  {t(data.settings.servicesBadge) || (lang === 'zh' ? '崇拜与敬拜 · 完整回顾' : 'Services & Worships · Full Replay')}
                 </span>
                 <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                  {lang === 'zh' ? '崇拜与敬拜' : 'Services & Worships'}
+                  {t(data.settings.servicesTitle) || (lang === 'zh' ? '崇拜与敬拜' : 'Services & Worships')}
                 </h1>
                 <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                  {lang === 'zh'
+                  {t(data.settings.servicesIntro) || (lang === 'zh'
                     ? '回顾完整主日崇拜与敬拜赞美录影，包括敬拜、证道、祷告及教会报告事项。崇拜与敬拜分开标签，方便查找。'
-                    : 'Revisit full Sunday service & worship recordings, including praise, sermon, prayer, and announcements. Browse by Services and Worships tabs.'}
+                    : 'Revisit full Sunday service & worship recordings, including praise, sermon, prayer, and announcements. Browse by Services and Worships tabs.')}
                 </p>
               </div>
 
@@ -3646,15 +3739,15 @@ export default function App() {
           <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
             <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
               <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {lang === 'zh' ? '小组生活 · 彼此相顾' : 'Community Life · Caring for One Another'}
+                {t(data.settings.cellGroupsBadge) || (lang === 'zh' ? '小组生活 · 彼此相顾' : 'Community Life · Caring for One Another')}
               </span>
               <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                {lang === 'zh' ? '细胞小组' : 'Cell Groups'}
+                {t(data.settings.cellGroupsTitle) || (lang === 'zh' ? '细胞小组' : 'Cell Groups')}
               </h1>
               <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                {lang === 'zh'
+                {t(data.settings.cellGroupsIntro) || (lang === 'zh'
                   ? '小组是我们教会最重要的团契生活单元。每个小组定期聚会，一同查经、祷告、分享生命，在主爱中彼此建立。欢迎加入我们的小组！'
-                  : 'Cell groups are the heart of our fellowship life. Each group meets regularly for Bible study, prayer, and life sharing, building each other up in the Lord\'s love. Join us!'}
+                  : 'Cell groups are the heart of our fellowship life. Each group meets regularly for Bible study, prayer, and life sharing, building each other up in the Lord\'s love. Join us!')}
               </p>
             </div>
 
@@ -3764,14 +3857,14 @@ export default function App() {
           <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
             <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
               <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {lang === 'zh' ? '找到我们' : 'Find Us'}
+                {t(data.settings.mapsBadge) || (lang === 'zh' ? '找到我们' : 'Find Us')}
               </span>
               <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight flex items-center justify-center gap-3">
                 <MapIcon className="text-primary" size={36} />
-                <span>{lang === 'zh' ? '教会地图与交通指南' : 'Church Map & Directions'}</span>
+                <span>{t(data.settings.mapsTitle) || (lang === 'zh' ? '教会地图与交通指南' : 'Church Map & Directions')}</span>
               </h1>
               <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                {lang === 'zh' ? '我们在多个地点设有聚会点，请选择离您最近的地点。' : 'We have fellowship points at multiple locations. Choose the one closest to you.'}
+                {t(data.settings.mapsIntro) || (lang === 'zh' ? '我们在多个地点设有聚会点，请选择离您最近的地点。' : 'We have fellowship points at multiple locations. Choose the one closest to you.')}
               </p>
             </div>
 
@@ -4283,12 +4376,54 @@ export default function App() {
 
                         {/* ===== About Page Content ===== */}
                         <div className="md:col-span-2 pt-4 mt-2 border-t border-gray-100">
-                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2"><Info size={14} className="text-primary" /> {lang === 'zh' ? '关于我们页面内容' : 'About Us Page Content'}</h3>
-                          <p className="text-[10px] text-gray-500 mb-3">{lang === 'zh' ? '以下内容显示在“关于我们”页面的顶部介绍、愿景与使命卡片中' : 'These fields appear on the About Us page – intro, vision & mission cards'}</p>
+                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2"><Info size={14} className="text-primary" /> {lang === 'zh' ? '关于我们页面内容设置' : 'About Us Page Content Settings'}</h3>
+                          <p className="text-[10px] text-gray-500 mb-3">{lang === 'zh' ? '以下内容显示在“关于我们”页面的顶栏小标题、标题、顶部介绍文案、愿景与使命、以及牧者团队标题' : 'Configure About Us top header badges, title, introduction text, vision & mission cards, and leadership team headers'}</p>
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">关于我们简介 (中文) / About Intro</label>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文)</label>
+                          <input 
+                            type="text"
+                            value={data.settings.aboutBadge?.zh || ''}
+                            onChange={(e) => updateSetting('aboutBadge', 'zh', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                            placeholder="了解我们大山脚浸信教会"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Header Badge (English)</label>
+                          <input 
+                            type="text"
+                            value={data.settings.aboutBadge?.en || ''}
+                            onChange={(e) => updateSetting('aboutBadge', 'en', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                            placeholder="Get to Know BMBCC"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">页面大标题 Title (中文)</label>
+                          <input 
+                            type="text"
+                            value={data.settings.aboutTitle?.zh || ''}
+                            onChange={(e) => updateSetting('aboutTitle', 'zh', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                            placeholder="关于我们"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Page Title (English)</label>
+                          <input 
+                            type="text"
+                            value={data.settings.aboutTitle?.en || ''}
+                            onChange={(e) => updateSetting('aboutTitle', 'en', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                            placeholder="About Us"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">关于我们顶部引言 / Top Intro (中文)</label>
                           <textarea 
                             rows={3}
                             value={data.settings.aboutIntro?.zh || ''}
@@ -4297,7 +4432,7 @@ export default function App() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">About Intro (English)</label>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">About Top Intro (English)</label>
                           <textarea 
                             rows={3}
                             value={data.settings.aboutIntro?.en || ''}
@@ -4340,6 +4475,63 @@ export default function App() {
                             rows={3}
                             value={data.settings.aboutMission?.en || ''}
                             onChange={(e) => updateSetting('aboutMission', 'en', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">牧者团队小标题 Badge (中文)</label>
+                          <input 
+                            type="text"
+                            value={data.settings.leadershipBadge?.zh || ''}
+                            onChange={(e) => updateSetting('leadershipBadge', 'zh', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Leadership Badge (English)</label>
+                          <input 
+                            type="text"
+                            value={data.settings.leadershipBadge?.en || ''}
+                            onChange={(e) => updateSetting('leadershipBadge', 'en', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">牧者团队标题 Title (中文)</label>
+                          <input 
+                            type="text"
+                            value={data.settings.leadershipTitle?.zh || ''}
+                            onChange={(e) => updateSetting('leadershipTitle', 'zh', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Leadership Title (English)</label>
+                          <input 
+                            type="text"
+                            value={data.settings.leadershipTitle?.en || ''}
+                            onChange={(e) => updateSetting('leadershipTitle', 'en', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">牧者团队引言 Intro (中文)</label>
+                          <textarea 
+                            rows={2}
+                            value={data.settings.leadershipIntro?.zh || ''}
+                            onChange={(e) => updateSetting('leadershipIntro', 'zh', e.target.value)}
+                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Leadership Intro (English)</label>
+                          <textarea 
+                            rows={2}
+                            value={data.settings.leadershipIntro?.en || ''}
+                            onChange={(e) => updateSetting('leadershipIntro', 'en', e.target.value)}
                             className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
                           />
                         </div>
@@ -4869,6 +5061,37 @@ export default function App() {
                         )}
                       </div>
 
+                      {/* Timetable Page Header Settings */}
+                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
+                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <Info size={14} className="text-primary" />
+                          <span>{lang === 'zh' ? '页面顶栏与引言设置' : 'Page Header & Intro Settings'}</span>
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.timetableBadge?.zh || ''} onChange={(e) => updateSetting('timetableBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="与我们一同朝见神与相聚" />
+                              <input type="text" value={data.settings.timetableBadge?.en || ''} onChange={(e) => updateSetting('timetableBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Fellowship & Grow Together" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.timetableTitle?.zh || ''} onChange={(e) => updateSetting('timetableTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="周聚会与崇拜时间表" />
+                              <input type="text" value={data.settings.timetableTitle?.en || ''} onChange={(e) => updateSetting('timetableTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Weekly Services & Timetable" />
+                            </div>
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面引言 Intro Description (中文 / EN)</label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <textarea rows={2} value={data.settings.timetableIntro?.zh || ''} onChange={(e) => updateSetting('timetableIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <textarea rows={2} value={data.settings.timetableIntro?.en || ''} onChange={(e) => updateSetting('timetableIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       {editingTimetable ? (
                         /* Edit Timetable Form */
                         <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
@@ -5094,6 +5317,37 @@ export default function App() {
                         )}
                       </div>
 
+                      {/* Ministries Page Header Settings */}
+                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
+                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <Info size={14} className="text-primary" />
+                          <span>{lang === 'zh' ? '页面顶栏与引言设置' : 'Page Header & Intro Settings'}</span>
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.ministriesBadge?.zh || ''} onChange={(e) => updateSetting('ministriesBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="走入人群，服侍弱势" />
+                              <input type="text" value={data.settings.ministriesBadge?.en || ''} onChange={(e) => updateSetting('ministriesBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Outreach & Community Service" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.ministriesTitle?.zh || ''} onChange={(e) => updateSetting('ministriesTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="教会事工介绍" />
+                              <input type="text" value={data.settings.ministriesTitle?.en || ''} onChange={(e) => updateSetting('ministriesTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Our Ministries" />
+                            </div>
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面引言 Intro Description (中文 / EN)</label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <textarea rows={2} value={data.settings.ministriesIntro?.zh || ''} onChange={(e) => updateSetting('ministriesIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <textarea rows={2} value={data.settings.ministriesIntro?.en || ''} onChange={(e) => updateSetting('ministriesIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       {editingMinistry ? (
                         /* Edit Ministry form */
                         <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
@@ -5261,6 +5515,37 @@ export default function App() {
                             <span>{lang === 'zh' ? '发布新活动' : 'Publish Event'}</span>
                           </button>
                         )}
+                      </div>
+
+                      {/* Events Page Header Settings */}
+                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
+                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <Info size={14} className="text-primary" />
+                          <span>{lang === 'zh' ? '页面顶栏与引言设置' : 'Page Header & Intro Settings'}</span>
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.eventsBadge?.zh || ''} onChange={(e) => updateSetting('eventsBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="教会精彩纪实与未来计划" />
+                              <input type="text" value={data.settings.eventsBadge?.en || ''} onChange={(e) => updateSetting('eventsBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Highlights & Upcoming Outlines" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.eventsTitle?.zh || ''} onChange={(e) => updateSetting('eventsTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="特别活动预告" />
+                              <input type="text" value={data.settings.eventsTitle?.en || ''} onChange={(e) => updateSetting('eventsTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Special Events" />
+                            </div>
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面引言 Intro Description (中文 / EN)</label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <textarea rows={2} value={data.settings.eventsIntro?.zh || ''} onChange={(e) => updateSetting('eventsIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <textarea rows={2} value={data.settings.eventsIntro?.en || ''} onChange={(e) => updateSetting('eventsIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       {editingEvent ? (
@@ -5494,6 +5779,37 @@ export default function App() {
                         )}
                       </div>
 
+                      {/* Leadership Section Header Settings */}
+                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
+                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <Info size={14} className="text-primary" />
+                          <span>{lang === 'zh' ? '牧者板块顶栏与引言设置' : 'Section Header & Intro Settings'}</span>
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.leadershipBadge?.zh || ''} onChange={(e) => updateSetting('leadershipBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="属灵领袖与关怀同工" />
+                              <input type="text" value={data.settings.leadershipBadge?.en || ''} onChange={(e) => updateSetting('leadershipBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Spiritual Guides & Shepherds" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">板块大标题 Title (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.leadershipTitle?.zh || ''} onChange={(e) => updateSetting('leadershipTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="牧者与事工团队" />
+                              <input type="text" value={data.settings.leadershipTitle?.en || ''} onChange={(e) => updateSetting('leadershipTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Leadership Team" />
+                            </div>
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">板块引言 Intro Description (中文 / EN)</label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <textarea rows={2} value={data.settings.leadershipIntro?.zh || ''} onChange={(e) => updateSetting('leadershipIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <textarea rows={2} value={data.settings.leadershipIntro?.en || ''} onChange={(e) => updateSetting('leadershipIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       {editingLeader ? (
                         <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
                           <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
@@ -5722,6 +6038,37 @@ export default function App() {
                             <span>{lang === 'zh' ? '发布周报' : 'Publish Bulletin'}</span>
                           </button>
                         )}
+                      </div>
+
+                      {/* Bulletins Page Header Settings */}
+                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
+                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <Info size={14} className="text-primary" />
+                          <span>{lang === 'zh' ? '页面顶栏与引言设置' : 'Page Header & Intro Settings'}</span>
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.bulletinsBadge?.zh || ''} onChange={(e) => updateSetting('bulletinsBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="教会资源中心" />
+                              <input type="text" value={data.settings.bulletinsBadge?.en || ''} onChange={(e) => updateSetting('bulletinsBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Church Resource Centre" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.bulletinsTitle?.zh || ''} onChange={(e) => updateSetting('bulletinsTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="周报与讲道库" />
+                              <input type="text" value={data.settings.bulletinsTitle?.en || ''} onChange={(e) => updateSetting('bulletinsTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Bulletins & Sermon Library" />
+                            </div>
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面引言 Intro Description (中文 / EN)</label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <textarea rows={2} value={data.settings.bulletinsIntro?.zh || ''} onChange={(e) => updateSetting('bulletinsIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <textarea rows={2} value={data.settings.bulletinsIntro?.en || ''} onChange={(e) => updateSetting('bulletinsIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       {editingBulletin ? (
@@ -5973,6 +6320,37 @@ export default function App() {
                         )}
                       </div>
 
+                      {/* Services Page Header Settings */}
+                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
+                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <Info size={14} className="text-primary" />
+                          <span>{lang === 'zh' ? '页面顶栏与引言设置' : 'Page Header & Intro Settings'}</span>
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.servicesBadge?.zh || ''} onChange={(e) => updateSetting('servicesBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="崇拜与敬拜 · 完整回顾" />
+                              <input type="text" value={data.settings.servicesBadge?.en || ''} onChange={(e) => updateSetting('servicesBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Services & Worships · Full Replay" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.servicesTitle?.zh || ''} onChange={(e) => updateSetting('servicesTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="崇拜与敬拜" />
+                              <input type="text" value={data.settings.servicesTitle?.en || ''} onChange={(e) => updateSetting('servicesTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Services & Worships" />
+                            </div>
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面引言 Intro Description (中文 / EN)</label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <textarea rows={2} value={data.settings.servicesIntro?.zh || ''} onChange={(e) => updateSetting('servicesIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <textarea rows={2} value={data.settings.servicesIntro?.en || ''} onChange={(e) => updateSetting('servicesIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       {editingService ? (
                         <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
                           <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
@@ -6089,6 +6467,37 @@ export default function App() {
                             <span>{lang === 'zh' ? '添加小组' : 'Add Cell Group'}</span>
                           </button>
                         )}
+                      </div>
+
+                      {/* Cell Groups Page Header Settings */}
+                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
+                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <Info size={14} className="text-primary" />
+                          <span>{lang === 'zh' ? '页面顶栏与引言设置' : 'Page Header & Intro Settings'}</span>
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.cellGroupsBadge?.zh || ''} onChange={(e) => updateSetting('cellGroupsBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="小组生活 · 彼此相顾" />
+                              <input type="text" value={data.settings.cellGroupsBadge?.en || ''} onChange={(e) => updateSetting('cellGroupsBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Community Life · Caring for One Another" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.cellGroupsTitle?.zh || ''} onChange={(e) => updateSetting('cellGroupsTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="细胞小组" />
+                              <input type="text" value={data.settings.cellGroupsTitle?.en || ''} onChange={(e) => updateSetting('cellGroupsTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Cell Groups" />
+                            </div>
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面引言 Intro Description (中文 / EN)</label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <textarea rows={2} value={data.settings.cellGroupsIntro?.zh || ''} onChange={(e) => updateSetting('cellGroupsIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <textarea rows={2} value={data.settings.cellGroupsIntro?.en || ''} onChange={(e) => updateSetting('cellGroupsIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       {editingCellGroup ? (
@@ -6305,6 +6714,37 @@ export default function App() {
                           <Plus size={14} />
                           <span>{lang === 'zh' ? '添加聚会点' : 'Add Location'}</span>
                         </button>
+                      </div>
+
+                      {/* Maps Page Header Settings */}
+                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
+                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <Info size={14} className="text-primary" />
+                          <span>{lang === 'zh' ? '页面顶栏与引言设置' : 'Page Header & Intro Settings'}</span>
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.mapsBadge?.zh || ''} onChange={(e) => updateSetting('mapsBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="找到我们" />
+                              <input type="text" value={data.settings.mapsBadge?.en || ''} onChange={(e) => updateSetting('mapsBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Find Us" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="text" value={data.settings.mapsTitle?.zh || ''} onChange={(e) => updateSetting('mapsTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="教会地图与交通指南" />
+                              <input type="text" value={data.settings.mapsTitle?.en || ''} onChange={(e) => updateSetting('mapsTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Church Map & Directions" />
+                            </div>
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面引言 Intro Description (中文 / EN)</label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              <textarea rows={2} value={data.settings.mapsIntro?.zh || ''} onChange={(e) => updateSetting('mapsIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <textarea rows={2} value={data.settings.mapsIntro?.en || ''} onChange={(e) => updateSetting('mapsIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="space-y-4 pt-4 border-t border-gray-100">
@@ -6797,11 +7237,11 @@ export default function App() {
                   vis.services !== false && { id: 'services', label: lang === 'zh' ? '崇拜与敬拜' : 'Services & Worships' },
                   vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '新朋友' : 'New Friend' },
                   vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
-                  (data.settings.showLoginButton || activeTab === 'admin') && { id: 'admin', label: lang === 'zh' ? '后台管理' : 'Admin Area' }
+                  (data.settings.showLoginButton || isAdminLoggedIn || activeTab === 'admin') && { id: 'admin', label: lang === 'zh' ? (isAdminLoggedIn ? '管理员控制台' : '后台管理') : (isAdminLoggedIn ? 'Admin Console' : 'Admin Area') }
                 ].filter(Boolean).map((lnk) => (
                   <button
                     key={lnk.id}
-                    onClick={() => { setActiveTab(lnk.id); window.scrollTo(0, 0); }}
+                    onClick={() => switchTab(lnk.id)}
                     className="text-left hover:text-white hover:underline transition-all"
                   >
                     {lnk.label}
