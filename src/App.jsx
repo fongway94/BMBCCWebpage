@@ -220,7 +220,6 @@ export default function App() {
   const [adminLoginError, setAdminLoginError] = useState('');
   const [adminActiveSection, setAdminActiveSection] = useState('settings'); // 'settings', 'carousel', 'timetable', 'events', 'ministries', 'backup'
   const [adminSuccessMessage, setAdminSuccessMessage] = useState('');
-  const [logoUploadError, setLogoUploadError] = useState('');
   const [eventPopupOpen, setEventPopupOpen] = useState(false);
   const [eventPopupSlide, setEventPopupSlide] = useState(0);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
@@ -342,7 +341,6 @@ export default function App() {
   const [adminServiceTab, setAdminServiceTab] = useState('service'); // 'service' | 'worship'
   const [aboutLeadershipTab, setAboutLeadershipTab] = useState('pastor'); // 'pastor' | 'coworker' | 'cellleader'
   const [adminLeadershipTab, setAdminLeadershipTab] = useState('all'); // 'all' | 'pastor' | 'coworker' | 'cellleader'
-  const [leaderImageUploadError, setLeaderImageUploadError] = useState('');
   const [importJsonText, setImportJsonText] = useState('');
   const [importError, setImportError] = useState('');
 
@@ -845,95 +843,7 @@ export default function App() {
     saveAllData(updated);
   };
 
-  // Header logo is stored with the rest of the site settings. Images are resized
-  // before saving so LocalStorage/backups/GitHub auto-save remain reasonably small.
-  const handleHeaderLogoUpload = (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    setLogoUploadError('');
-    if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setLogoUploadError(lang === 'zh' ? '请选择图片文件（PNG、JPG、WebP 等）。' : 'Please choose an image file (PNG, JPG, WebP, etc.).');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setLogoUploadError(lang === 'zh' ? '图片不能超过 5MB。' : 'The image must be 5MB or smaller.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onerror = () => setLogoUploadError(lang === 'zh' ? '无法读取该图片，请重试。' : 'Could not read this image. Please try again.');
-    reader.onload = () => {
-      const image = new Image();
-      image.onerror = () => setLogoUploadError(lang === 'zh' ? '该文件不是有效的图片。' : 'This file is not a valid image.');
-      image.onload = () => {
-        const maxDimension = 512;
-        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(image.width * scale));
-        canvas.height = Math.max(1, Math.round(image.height * scale));
-        const context = canvas.getContext('2d');
-        if (!context) return;
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        // PNG preserves transparency, which is especially useful for church marks.
-        const logoDataUrl = canvas.toDataURL('image/png');
-        if (logoDataUrl.length > 900 * 1024) {
-          setLogoUploadError(lang === 'zh' ? '图片压缩后仍然太大，请使用较简单或较小的图片。' : 'The compressed image is still too large. Please use a smaller or simpler image.');
-          return;
-        }
-        updateSetting('headerLogo', null, logoDataUrl);
-        triggerAdminSuccess(lang === 'zh' ? '教会标志已上传并显示在顶部菜单。' : 'Church logo uploaded and shown in the header.');
-      };
-      image.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // Leadership photo upload - saves as base64 data URL into editingLeader state
-  const handleLeaderImageUpload = (event) => {
-    const file = event.target.files?.[0];
-    if (event.target) event.target.value = '';
-    setLeaderImageUploadError('');
-    if (!file || !editingLeader) return;
-
-    if (!file.type.startsWith('image/')) {
-      setLeaderImageUploadError(lang === 'zh' ? '请选择图片文件（PNG、JPG、WebP 等）。' : 'Please choose an image file (PNG, JPG, WebP, etc.).');
-      return;
-    }
-    if (file.size > 8 * 1024 * 1024) {
-      setLeaderImageUploadError(lang === 'zh' ? '图片不能超过 8MB。' : 'The image must be 8MB or smaller.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onerror = () => setLeaderImageUploadError(lang === 'zh' ? '无法读取该图片，请重试。' : 'Could not read this image. Please try again.');
-    reader.onload = () => {
-      const image = new Image();
-      image.onerror = () => setLeaderImageUploadError(lang === 'zh' ? '该文件不是有效的图片。' : 'This file is not a valid image.');
-      image.onload = () => {
-        const maxDimension = 800;
-        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(image.width * scale));
-        canvas.height = Math.max(1, Math.round(image.height * scale));
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-        // Use JPEG for photos to keep size reasonable, except if original was PNG with transparency
-        const dataUrl = canvas.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', 0.85);
-        if (dataUrl.length > 1024 * 1024) {
-          // ~1MB limit for localStorage safety
-          setLeaderImageUploadError(lang === 'zh' ? '压缩后图片仍然太大（>1MB），请选择更小的照片或裁剪后重试。' : 'Compressed image still too large (>1MB). Please choose a smaller photo or crop it.');
-          return;
-        }
-        setEditingLeader({ ...editingLeader, image: dataUrl });
-        triggerAdminSuccess(lang === 'zh' ? '照片已上传到编辑框，请点击保存。' : 'Photo uploaded into editor, click Save to apply.');
-      };
-      image.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  };
 
   // 2. Carousel Actions
   const handleSaveSlide = (slide) => {
