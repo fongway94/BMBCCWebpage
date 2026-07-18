@@ -51,7 +51,8 @@ import {
   Filter,
   Layers,
   PlayCircle,
-  Video
+  Video,
+  ExternalLink
 } from 'lucide-react';
 import { initialData } from './data/initialData';
 
@@ -1780,6 +1781,17 @@ export default function App() {
                               <span className="truncate">{t(evt.location)}</span>
                             </div>
                           </div>
+                          {evt.registrationUrl && (
+                            <a
+                              href={evt.registrationUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-bold transition-all shadow-sm"
+                            >
+                              <ExternalLink size={13} />
+                              <span>{lang === 'zh' ? '📝 立即报名' : '📝 Register Now'}</span>
+                            </a>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1885,14 +1897,14 @@ export default function App() {
                 {data.leadership?.map((leader) => (
                   <div key={leader.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-md transition-all flex flex-col group">
                     <div 
-                      className="relative h-80 sm:h-96 w-full overflow-hidden bg-gradient-to-b from-gray-50 via-gray-100/60 to-gray-200/50 flex items-center justify-center p-3 cursor-zoom-in"
+                      className="relative w-full aspect-[3/4] overflow-hidden bg-gradient-to-b from-gray-50 via-gray-100/60 to-gray-200/50 cursor-zoom-in"
                       onClick={() => setSelectedImage({ url: leader.image, title: `${t(leader.name)} - ${t(leader.role)}` })}
                       title={lang === 'zh' ? '点击放大照片' : 'Click to view full image'}
                     >
                       <img 
                         src={leader.image} 
                         alt={t(leader.name)} 
-                        className="max-h-full max-w-full object-contain rounded-xl drop-shadow-md group-hover:scale-[1.02] transition-transform duration-300"
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-300"
                       />
                     </div>
                     <div className="p-6 flex-grow flex flex-col space-y-3">
@@ -2617,7 +2629,19 @@ export default function App() {
                           <span className="truncate">{t(evt.location)}</span>
                         </div>
                       </div>
-                      <div className="px-6 pb-5 text-xs font-bold text-primary opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                      {evt.registrationUrl && (
+                        <a
+                          href={evt.registrationUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-3 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white text-xs font-bold transition-all shadow-sm"
+                        >
+                          <ExternalLink size={13} />
+                          <span>{lang === 'zh' ? '立即报名' : 'Register Now'}</span>
+                        </a>
+                      )}
+                      <div className="text-xs font-bold text-primary opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 pt-1">
                         {lang === 'zh' ? '点击查看详情 →' : 'Click for full details →'}
                       </div>
                     </div>
@@ -5459,6 +5483,7 @@ export default function App() {
                               location: { zh: '教会礼堂', en: 'Church Hall' },
                               image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=800&q=80',
                               popupEnabled: false,
+                              registrationUrl: '',
                               description: { zh: '在此处填写新活动详情和报名信息。', en: 'Write detail registration or information here.' }
                             })}
                             className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
@@ -5627,6 +5652,20 @@ export default function App() {
                                 <span>{lang === 'zh' ? '在首页弹窗中显示此活动' : 'Show this event in the homepage popup'}</span>
                               </label>
                               <p className="text-[10px] text-gray-400 mt-1 ml-6">{lang === 'zh' ? '仅勾选的活动才会在访客打开网站时以弹窗形式展示' : 'Only events with this checked will appear in the popup when visitors open the website'}</p>
+                            </div>
+
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">
+                                {lang === 'zh' ? '报名链接 (Google Form 等)' : 'Registration URL (Google Form etc.)'}
+                              </label>
+                              <input 
+                                type="text" 
+                                value={editingEvent.registrationUrl || ''} 
+                                onChange={(e) => setEditingEvent({ ...editingEvent, registrationUrl: e.target.value })} 
+                                placeholder="https://docs.google.com/forms/d/..." 
+                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" 
+                              />
+                              <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '💡 填写后可让访客直接从活动页面点击“立即报名”跳转到报名表单。留空则不显示报名按钮。' : '💡 When filled, visitors can click "Register Now" on the event to go directly to the form. Leave empty to hide the button.'}</p>
                             </div>
                           </div>
 
@@ -7528,6 +7567,25 @@ export default function App() {
               <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">{t(selectedEvent.title)}</h2>
               <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-600"><span className="flex items-center gap-1.5"><Calendar size={15} />{selectedEvent.date}</span><span className="flex items-center gap-1.5"><Clock size={15} />{selectedEvent.time}</span><span className="flex items-center gap-1.5"><MapPin size={15} />{t(selectedEvent.location)}</span></div>
               <p className="mt-5 whitespace-pre-line text-sm leading-7 text-gray-600">{t(selectedEvent.description)}</p>
+              <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                {selectedEvent.registrationUrl && (
+                  <a
+                    href={selectedEvent.registrationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary hover:bg-primary-dark text-white text-sm font-bold transition-all shadow-lg shadow-primary/20"
+                  >
+                    <ExternalLink size={18} />
+                    <span>{lang === 'zh' ? '📝 立即报名参加' : '📝 Register Now'}</span>
+                  </a>
+                )}
+                <button
+                  onClick={() => setEventDetailsOpen(false)}
+                  className={`${selectedEvent.registrationUrl ? 'flex-1' : 'w-full'} px-5 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all`}
+                >
+                  {lang === 'zh' ? '关闭' : 'Close'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -7677,6 +7735,20 @@ export default function App() {
                 <h2 className="text-2xl font-extrabold text-gray-900">{t(popupEvent.title)}</h2>
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600"><span className="flex items-center gap-1.5"><Calendar size={15} />{popupEvent.date}</span><span className="flex items-center gap-1.5"><Clock size={15} />{popupEvent.time}</span><span className="flex items-center gap-1.5"><MapPin size={15} />{t(popupEvent.location)}</span></div>
                 <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-gray-600">{t(popupEvent.description)}</p>
+                {popupEvent.registrationUrl && (
+                  <div className="mt-5">
+                    <a
+                      href={popupEvent.registrationUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setEventPopupOpen(false)}
+                      className="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl bg-primary hover:bg-primary-dark text-white text-sm font-bold transition-all shadow-lg shadow-primary/20"
+                    >
+                      <ExternalLink size={18} />
+                      <span>{lang === 'zh' ? '📝 立即报名' : '📝 Register Now'}</span>
+                    </a>
+                  </div>
+                )}
                 {popupEvents.length > 1 && <div className="mt-6 flex items-center justify-between gap-3"><button onClick={() => setEventPopupSlide((eventPopupSlide - 1 + popupEvents.length) % popupEvents.length)} className="rounded-lg border border-gray-200 p-2 hover:bg-gray-50" aria-label="Previous event"><ChevronLeft size={18} /></button><div className="flex gap-1.5">{popupEvents.map((_, i) => <button key={i} onClick={() => setEventPopupSlide(i)} aria-label={`Event ${i + 1}`} className={`h-2 w-2 rounded-full ${i === eventPopupSlide ? 'bg-primary' : 'bg-gray-300'}`} />)}</div><button onClick={() => setEventPopupSlide((eventPopupSlide + 1) % popupEvents.length)} className="rounded-lg border border-gray-200 p-2 hover:bg-gray-50" aria-label="Next event"><ChevronRight size={18} /></button></div>}
               </div>
             </div>
