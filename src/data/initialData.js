@@ -529,7 +529,7 @@ export const initialData = {
       "image": "https://drive.google.com/thumbnail?id=13WvLTpNl_omUTOsF5Z8bbhhO7vDCtkSh&sz=w2000",
       "bio": {
         "zh": "李玉章博士活跃服侍于马来堂和尼泊尔堂，在两堂都服侍讲道",
-        "en": "Dr. Lee"
+        "en": "Dr.Lee actively serves at both the Bahasa and Nepali congregations, ministering through preaching at both."
       },
       "category": "pastor"
     },
