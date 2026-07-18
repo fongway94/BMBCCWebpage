@@ -152,7 +152,7 @@ export const initialData = {
       "en": "BMBCC firmly believes in the calling given by God: to step out of our comfort zones and walk directly into Taman Bukit Minyak community to touch our neighbors' lives."
     },
     "homeVisionPara2": {
-      "zh": "我们透过‘爱邻社区关怀’、‘五饼二鱼’爱心便当等，用实际行动表明：主耶稣是爱他们的，也是在苦难和缺乏中的安慰与倚靠。",
+      "zh": "我们透过‘爱邻社区关怀’、‘社区，用实际行动表明：主耶稣是爱他们的，也是在苦难和缺乏中的安慰与倚靠。",
       "en": "Through our \"Neighborly Community Care\" and \"Five Loaves & Two Fishes\" warm bento service, we demonstrate in deeds: the Lord Jesus loves them and is their solace and provider."
     },
     "yearlyVisionLabel": {
