@@ -432,8 +432,8 @@ export const initialData = {
       },
       "image": "https://drive.google.com/thumbnail?id=1lHBS--ILTphRlxM9LwML1F4KKf_i8l3W&sz=w2000",
       "description": {
-        "zh": "由教会同工与义工团队爱心筹备，为百利镇社区里处于贫困、残疾、孤寡或行动不便的弱势群体，提供每日/每周的营养爱心便当派送服务。透过这份看似微薄的便当，传递神无限的顾念与无限的供给。",
-        "en": "Lovingly prepared by our staff and volunteer teams, this ministry provides nutritious bento meal deliveries to low-income, disabled, solitary elderly, or mobility-impaired individuals. Through these simple boxes of meals, we convey God's unlimited care and provision."
+        "zh": "由教会同工与义工团队爱心筹备，与7979联合为百利镇社区里处于贫困、残疾、孤寡或行动不便的弱势群体，提供日常所需物品派送。透过这份看似微薄的便当，传递神无限的顾念与无限的供给。",
+        "en": "Lovingly prepared by our staff and volunteer teams, this ministry provides necessity deliveries to low-income, disabled, solitary elderly, or mobility-impaired individuals. Through these simple boxes of meals, we convey God's unlimited care and provision."
       }
     },
     {
