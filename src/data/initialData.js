@@ -546,7 +546,7 @@ export const initialData = {
       "image": "https://drive.google.com/thumbnail?id=1lFmXVAaXq-3Yk7-AiFJeOsaopY_YWy4f&sz=w2000",
       "bio": {
         "zh": "邓婉龄传道服侍于BKBC幸福崇拜。同时也是带领着青年团契的组长。",
-        "en": "Pastor Teng"
+        "en": "Pastor Teng serves at the BKBC Happiness service and also leads the youth fellowship group."
       },
       "category": "pastor"
     }
