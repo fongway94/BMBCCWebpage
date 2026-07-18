@@ -588,7 +588,7 @@ export const initialData = {
         },
         "icon": "building",
         "details": {
-          "zh": "银行名称：RHB Bank\n户名：Pertubuhan Penganut Kristian Baptist Bukit Mertajam\n账号：20715800051581\n（转账后请截图或WhatsApp联系教会同工确认）",
+          "zh": "银行名称：RHB Bank\n户名：Pertubuhan Penganut Kristian Baptist Bukit Mertajam\n账号：20715800051581\n(转账后请截图或WhatsApp联系教会同工确认)",
           "en": "Bank Name: RHB Bank\nAccount Name: Pertubuhan Penganut Kristian Baptist Bukit Mertajam\nAccount No: 2071580051581\n(Please screenshot or WhatsApp our staff after transfer for confirmation)"
         },
         "index": 1
