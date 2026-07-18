@@ -763,7 +763,7 @@ export const initialData = {
         "en": ""
       },
       "description": {
-        "zh": "约书亚小组是一个充满活力的青年群体，活跃于百利镇区地区",
+        "zh": "约书亚小组是一个充满活力的青年群体，活跃于百利镇区地区。",
         "en": "The Joshua Group is a vibrant youth group active in the Kota Permai area."
       },
       "image": "https://drive.google.com/thumbnail?id=1uu9BDNuYb3B3a_2Q1S4_GYw0NgRJo1hd&sz=w2000"
