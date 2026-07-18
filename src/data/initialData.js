@@ -153,7 +153,7 @@ export const initialData = {
     },
     "homeVisionPara2": {
       "zh": "我们透过‘爱邻社区关怀’、社区事工，用实际行动表明：主耶稣是爱他们的，也是在苦难和缺乏中的安慰与倚靠。",
-      "en": "Through our \"Neighborly Community Care\" and , we demonstrate in deeds: the Lord Jesus loves them and is their solace and provider."
+      "en": "Through our \"Neighborly Community Care\" and Community Ministry, we demonstrate in deeds: the Lord Jesus loves them and is their solace and provider."
     },
     "yearlyVisionLabel": {
       "zh": "年度主题与异象",
