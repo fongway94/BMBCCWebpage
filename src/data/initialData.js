@@ -148,7 +148,7 @@ export const initialData = {
       "en": "We have fellowship points at multiple locations. Choose the one closest to you."
     },
     "homeVisionPara1": {
-      "zh": "大山脚浸信教会深信神赐予我们的：走出教会的舒适圈，切切实实走入我们所在的百利镇社区，接触身边的邻舍。",
+      "zh": "大山脚浸信教会深信神赐予我们的呼召：走出教会的舒适圈，切切实实走入我们所在的百利镇社区，接触身边的邻舍。",
       "en": "BMBCC firmly believes in the calling given by God: to step out of our comfort zones and walk directly into Taman Bukit Minyak community to touch our neighbors' lives."
     },
     "homeVisionPara2": {
