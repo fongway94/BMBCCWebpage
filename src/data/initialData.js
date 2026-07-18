@@ -100,15 +100,15 @@ export const initialData = {
       "en": "Here, you can learn about our upcoming special worship services, holiday celebrations, welfare activities, and camps. Welcome to register and attend with friends!"
     },
     "bulletinsBadge": {
-      "zh": "周报与讲道库 · 回顾",
+      "zh": "家事与讲道库 · 回顾",
       "en": "Bulletins & Sermons · Replay"
     },
     "bulletinsTitle": {
-      "zh": "周报与讲道库",
+      "zh": "家事与讲道库",
       "en": "Bulletins & Sermon Library"
     },
     "bulletinsIntro": {
-      "zh": "查阅每周周报、代祷事项，或回顾过往讲道信息。",
+      "zh": "查阅每周家事、代祷事项，或回顾过往讲道信息。",
       "en": "Access weekly bulletins, prayer items, and past sermon messages."
     },
     "servicesBadge": {
@@ -498,7 +498,8 @@ export const initialData = {
       "bio": {
         "zh": "杨桔槟牧 - 大山脚浸信教会的主任牧师",
         "en": "Pastor Stanley Yeoh - Senior Pastor of Bukit Mertajam Baptist Church"
-      }
+      },
+      "category": "pastor"
     },
     {
       "id": 2,
@@ -514,7 +515,8 @@ export const initialData = {
       "bio": {
         "zh": "郑金兰传道在教会里服事敬拜团带领，也是诗班的带领者。在教会里是大家的师母。",
         "en": "Pastor Camelia serves as the leader of the worship team and choir in the church. She is known as the pastor's wife in the church."
-      }
+      },
+      "category": "pastor"
     },
     {
       "id": 5,
@@ -530,7 +532,8 @@ export const initialData = {
       "bio": {
         "zh": "李玉章博士",
         "en": "Dr. Lee"
-      }
+      },
+      "category": "pastor"
     },
     {
       "id": 4,
@@ -546,6 +549,41 @@ export const initialData = {
       "bio": {
         "zh": "邓婉龄传道",
         "en": "Pastor Teng"
+      },
+      "category": "pastor"
+    },
+    {
+      "id": 6,
+      "category": "coworker",
+      "name": {
+        "zh": "示例同工",
+        "en": "Sample Co-Worker"
+      },
+      "role": {
+        "zh": "同工",
+        "en": "Co-Worker"
+      },
+      "image": "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&q=80",
+      "bio": {
+        "zh": "这是一个同工示例，您可以在后台替换为真实同工照片与简介。支持本地上传。",
+        "en": "This is a sample co-worker. Replace with real photo and bio in admin. Local upload supported."
+      }
+    },
+    {
+      "id": 7,
+      "category": "cellleader",
+      "name": {
+        "zh": "示例小组长",
+        "en": "Sample Cell Leader"
+      },
+      "role": {
+        "zh": "小组长",
+        "en": "Cell Group Leader"
+      },
+      "image": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80",
+      "bio": {
+        "zh": "这是一个小组长示例，您可以在后台替换为真实小组长照片与简介，上传方式与牧者相同。",
+        "en": "This is a sample cell leader. Replace with real photo and bio. Same upload method as pastor."
       }
     }
   ],

@@ -91,6 +91,25 @@ const getLangBadgeStyle = (langStr) => {
   return 'bg-gray-50 text-gray-700 border-gray-200';
 };
 
+const LEADERSHIP_CATEGORIES = [
+  { id: 'pastor', zh: '牧者', en: 'Pastors', zhLong: '牧者团队', enLong: 'Pastoral Team', descZh: '主任牧师与传道同工', descEn: 'Lead Pastors & Ministers' },
+  { id: 'coworker', zh: '同工', en: 'Co-Workers', zhLong: '同工团队', enLong: 'Co-Workers', descZh: '忠心服事的教会同工', descEn: 'Faithful Serving Co-Workers' },
+  { id: 'cellleader', zh: '小组长', en: 'Cell Leaders', zhLong: '小组长团队', enLong: 'Cell Group Leaders', descZh: '牧养小组的组长们', descEn: 'Cell Group Leaders shepherding groups' },
+];
+
+const getLeaderCategory = (leader) => {
+  const cat = leader?.category;
+  if (cat === 'coworker' || cat === 'cellleader' || cat === 'pastor') return cat;
+  // Backward compatibility: if no category, treat as pastor
+  return 'pastor';
+};
+
+const getLeaderCategoryLabel = (catId, lang) => {
+  const found = LEADERSHIP_CATEGORIES.find(c => c.id === catId);
+  if (!found) return catId;
+  return lang === 'zh' ? found.zh : found.en;
+};
+
 // Theme color map for CSS variable injection
 
 const stripSensitiveData = (siteData) => {
@@ -321,6 +340,9 @@ export default function App() {
   const [serviceMainTab, setServiceMainTab] = useState('all'); // 'all' | 'service' | 'worship'
   const [aboutSettingsTab, setAboutSettingsTab] = useState('about'); // 'about' | 'homeVision' | 'yearlyVision' | 'leaders'
   const [adminServiceTab, setAdminServiceTab] = useState('service'); // 'service' | 'worship'
+  const [aboutLeadershipTab, setAboutLeadershipTab] = useState('pastor'); // 'pastor' | 'coworker' | 'cellleader'
+  const [adminLeadershipTab, setAdminLeadershipTab] = useState('all'); // 'all' | 'pastor' | 'coworker' | 'cellleader'
+  const [leaderImageUploadError, setLeaderImageUploadError] = useState('');
   const [importJsonText, setImportJsonText] = useState('');
   const [importError, setImportError] = useState('');
 
@@ -868,6 +890,51 @@ export default function App() {
     reader.readAsDataURL(file);
   };
 
+  // Leadership photo upload - saves as base64 data URL into editingLeader state
+  const handleLeaderImageUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (event.target) event.target.value = '';
+    setLeaderImageUploadError('');
+    if (!file || !editingLeader) return;
+
+    if (!file.type.startsWith('image/')) {
+      setLeaderImageUploadError(lang === 'zh' ? '请选择图片文件（PNG、JPG、WebP 等）。' : 'Please choose an image file (PNG, JPG, WebP, etc.).');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setLeaderImageUploadError(lang === 'zh' ? '图片不能超过 8MB。' : 'The image must be 8MB or smaller.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => setLeaderImageUploadError(lang === 'zh' ? '无法读取该图片，请重试。' : 'Could not read this image. Please try again.');
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => setLeaderImageUploadError(lang === 'zh' ? '该文件不是有效的图片。' : 'This file is not a valid image.');
+      image.onload = () => {
+        const maxDimension = 800;
+        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        // Use JPEG for photos to keep size reasonable, except if original was PNG with transparency
+        const dataUrl = canvas.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', 0.85);
+        if (dataUrl.length > 1024 * 1024) {
+          // ~1MB limit for localStorage safety
+          setLeaderImageUploadError(lang === 'zh' ? '压缩后图片仍然太大（>1MB），请选择更小的照片或裁剪后重试。' : 'Compressed image still too large (>1MB). Please choose a smaller photo or crop it.');
+          return;
+        }
+        setEditingLeader({ ...editingLeader, image: dataUrl });
+        triggerAdminSuccess(lang === 'zh' ? '照片已上传到编辑框，请点击保存。' : 'Photo uploaded into editor, click Save to apply.');
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
   // 2. Carousel Actions
   const handleSaveSlide = (slide) => {
     const updated = { ...data };
@@ -995,7 +1062,7 @@ export default function App() {
   };
 
   const handleDeleteBulletin = (id) => {
-    if (window.confirm(lang === 'zh' ? '确定要删除此周报吗？' : 'Are you sure you want to delete this bulletin?')) {
+    if (window.confirm(lang === 'zh' ? '确定要删除此家事吗？' : 'Are you sure you want to delete this bulletin?')) {
       const updated = { ...data };
       updated.bulletins = updated.bulletins.filter(b => b.id !== id);
       saveAllData(updated);
@@ -1028,14 +1095,19 @@ export default function App() {
   const handleSaveLeader = (item) => {
     const updated = { ...data };
     if (!updated.leadership) updated.leadership = [];
-    if (item.id === 'new') {
+    const normalized = {
+      ...item,
+      category: getLeaderCategory(item),
+    };
+    if (normalized.id === 'new') {
       const newId = Math.max(...updated.leadership.map(l => l.id), 0) + 1;
-      updated.leadership.push({ ...item, id: newId });
+      updated.leadership.push({ ...normalized, id: newId });
     } else {
-      updated.leadership = updated.leadership.map(l => l.id === item.id ? item : l);
+      updated.leadership = updated.leadership.map(l => l.id === normalized.id ? normalized : l);
     }
     saveAllData(updated);
     setEditingLeader(null);
+    setLeaderImageUploadError('');
   };
 
   const handleDeleteLeader = (id) => {
@@ -1304,7 +1376,7 @@ export default function App() {
                     id: 'resources', 
                     label: lang === 'zh' ? '资源' : 'Resources', 
                     items: [
-                      vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '周报与讲道' : 'Bulletins & Sermons' },
+                      vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '家事与讲道' : 'Bulletins & Sermons' },
                       vis.services !== false && { id: 'services', label: lang === 'zh' ? '崇拜与敬拜' : 'Services & Worships' },
                       vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide' }
                     ].filter(Boolean)
@@ -1466,7 +1538,7 @@ export default function App() {
                   vis.timetable !== false && { id: 'timetable', label: lang === 'zh' ? '  聚会时间' : '  Timetable', sub: true },
                   vis.events !== false && { id: 'events', label: lang === 'zh' ? '  特别活动' : '  Events', sub: true },
                   { id: '__group_resources__', label: lang === 'zh' ? '▸ 资源 / Resources' : '▸ Resources', group: true, disabled: true },
-                  vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '  周报与讲道' : '  Bulletins & Sermons', sub: true },
+                  vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '  家事与讲道' : '  Bulletins & Sermons', sub: true },
                   vis.services !== false && { id: 'services', label: lang === 'zh' ? '  崇拜与敬拜' : '  Services & Worships', sub: true },
                   vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '  新朋友指南' : '  New Friend Guide', sub: true },
                   vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
@@ -1877,7 +1949,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Leadership / Pastor Team */}
+            {/* Leadership / Pastor Team - Now with 3 tabs: Pastors / Co-Workers / Cell Leaders */}
             <div className="space-y-10">
               <div className="text-center max-w-2xl mx-auto space-y-3">
                 <span className="text-primary font-bold uppercase tracking-wider text-xs">
@@ -1893,34 +1965,99 @@ export default function App() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {data.leadership?.map((leader) => (
-                  <div key={leader.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-md transition-all flex flex-col group">
-                    <div 
-                      className="relative w-full aspect-[3/4] overflow-hidden bg-gradient-to-b from-gray-50 via-gray-100/60 to-gray-200/50 cursor-zoom-in"
-                      onClick={() => setSelectedImage({ url: leader.image, title: `${t(leader.name)} - ${t(leader.role)}` })}
-                      title={lang === 'zh' ? '点击放大照片' : 'Click to view full image'}
-                    >
-                      <img 
-                        src={leader.image} 
-                        alt={t(leader.name)} 
-                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-300"
-                      />
-                    </div>
-                    <div className="p-6 flex-grow flex flex-col space-y-3">
-                      <div className="space-y-1.5">
-                        <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider inline-block">
-                          {t(leader.role)}
+              {/* Tabs */}
+              <div className="flex justify-center">
+                <div className="inline-flex p-1 rounded-2xl bg-gray-100 border border-gray-200/80 shadow-inner gap-1">
+                  {LEADERSHIP_CATEGORIES.map(cat => {
+                    const isActive = aboutLeadershipTab === cat.id;
+                    const count = (data.leadership || []).filter(l => getLeaderCategory(l) === cat.id).length;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => setAboutLeadershipTab(cat.id)}
+                        className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                          isActive 
+                            ? 'bg-white text-primary shadow-md border border-primary/10' 
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
+                        }`}
+                      >
+                        <span>{lang === 'zh' ? cat.zh : cat.en}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-primary/10 text-primary' : 'bg-gray-200 text-gray-600'}`}>
+                          {count}
                         </span>
-                        <h4 className="text-xl font-extrabold text-gray-900 leading-snug">{t(leader.name)}</h4>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Tab Description */}
+              <div className="text-center">
+                {(() => {
+                  const cat = LEADERSHIP_CATEGORIES.find(c => c.id === aboutLeadershipTab);
+                  if (!cat) return null;
+                  return (
+                    <p className="text-xs font-medium text-gray-500">
+                      {lang === 'zh' ? cat.descZh : cat.descEn}
+                    </p>
+                  );
+                })()}
+              </div>
+
+              {/* Filtered Grid */}
+              {(() => {
+                const filtered = (data.leadership || []).filter(l => getLeaderCategory(l) === aboutLeadershipTab);
+                if (filtered.length === 0) {
+                  return (
+                    <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center space-y-4 max-w-xl mx-auto">
+                      <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center mx-auto text-gray-400">
+                        <Users size={28} />
                       </div>
-                      <p className="text-gray-600 text-sm font-light leading-relaxed pt-1">
-                        {t(leader.bio)}
+                      <h4 className="text-lg font-bold text-gray-900">
+                        {lang === 'zh' ? `暂无${LEADERSHIP_CATEGORIES.find(c=>c.id===aboutLeadershipTab)?.zh}资料` : `No ${LEADERSHIP_CATEGORIES.find(c=>c.id===aboutLeadershipTab)?.en} yet`}
+                      </h4>
+                      <p className="text-sm text-gray-500 font-light">
+                        {lang === 'zh' 
+                          ? `您可以在后台管理 - 关于我们 - 牧者与领袖标签中，添加${LEADERSHIP_CATEGORIES.find(c=>c.id===aboutLeadershipTab)?.zh}成员，上传照片与简介后将显示在此。`
+                          : `You can add ${LEADERSHIP_CATEGORIES.find(c=>c.id===aboutLeadershipTab)?.en} in Admin Console - About Us - Pastors & Leaders tab. Upload photos and bios to display them here.`}
                       </p>
                     </div>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {filtered.map((leader) => (
+                      <div key={leader.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-md transition-all flex flex-col group">
+                        <div 
+                          className="relative w-full aspect-[3/4] overflow-hidden bg-gradient-to-b from-gray-50 via-gray-100/60 to-gray-200/50 cursor-zoom-in"
+                          onClick={() => setSelectedImage({ url: leader.image, title: `${t(leader.name)} - ${t(leader.role)}` })}
+                          title={lang === 'zh' ? '点击放大照片' : 'Click to view full image'}
+                        >
+                          <img 
+                            src={leader.image} 
+                            alt={t(leader.name)} 
+                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-300"
+                          />
+                          <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur text-white text-[10px] font-bold tracking-wider uppercase border border-white/20">
+                            {getLeaderCategoryLabel(getLeaderCategory(leader), lang)}
+                          </div>
+                        </div>
+                        <div className="p-6 flex-grow flex flex-col space-y-3">
+                          <div className="space-y-1.5">
+                            <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider inline-block">
+                              {t(leader.role)}
+                            </span>
+                            <h4 className="text-xl font-extrabold text-gray-900 leading-snug">{t(leader.name)}</h4>
+                          </div>
+                          <p className="text-gray-600 text-sm font-light leading-relaxed pt-1">
+                            {t(leader.bio)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -2775,11 +2912,11 @@ export default function App() {
                   {t(data.settings.bulletinsBadge) || (lang === 'zh' ? '教会资源中心' : 'Church Resource Centre')}
                 </span>
                 <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                  {t(data.settings.bulletinsTitle) || (lang === 'zh' ? '周报与讲道库' : 'Bulletins & Sermon Library')}
+                  {t(data.settings.bulletinsTitle) || (lang === 'zh' ? '家事与讲道库' : 'Bulletins & Sermon Library')}
                 </h1>
                 <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
                   {t(data.settings.bulletinsIntro) || (lang === 'zh'
-                    ? '查阅每周周报、代祷事项，或回顾过往讲道信息。'
+                    ? '查阅每周家事、代祷事项，或回顾过往讲道信息。'
                     : 'Access weekly bulletins, prayer items, and past sermon messages.')}
                 </p>
               </div>
@@ -2796,7 +2933,7 @@ export default function App() {
                     }`}
                   >
                     <FileText size={16} />
-                    <span>{lang === 'zh' ? '周报下载' : 'Weekly Bulletins'}</span>
+                    <span>{lang === 'zh' ? '家事下载' : 'Weekly Bulletins'}</span>
                     <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-bold">
                       {bulletins.length}
                     </span>
@@ -2831,7 +2968,7 @@ export default function App() {
                           type="text"
                           value={bulletinSearchQuery}
                           onChange={(e) => setBulletinSearchQuery(e.target.value)}
-                          placeholder={lang === 'zh' ? '搜索周报标题、类别、日期或摘要...' : 'Search bulletin title, category, date, or summary...'}
+                          placeholder={lang === 'zh' ? '搜索家事标题、类别、日期或摘要...' : 'Search bulletin title, category, date, or summary...'}
                           className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-250 bg-gray-50/50 text-sm font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-white transition-all"
                         />
                         {bulletinSearchQuery && (
@@ -2914,7 +3051,7 @@ export default function App() {
                         <FileText size={32} />
                       </div>
                       <h3 className="text-xl font-bold text-gray-900">
-                        {lang === 'zh' ? '未找到相关周报' : 'No Matching Bulletins Found'}
+                        {lang === 'zh' ? '未找到相关家事' : 'No Matching Bulletins Found'}
                       </h3>
                       <p className="text-xs text-gray-500 max-w-sm mx-auto">
                         {lang === 'zh'
@@ -2966,7 +3103,7 @@ export default function App() {
                                     <a href={bulletin.fileUrl} target="_blank" rel="noopener noreferrer"
                                       className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all shrink-0">
                                       <Download size={14} />
-                                      <span>{lang === 'zh' ? '下载周报' : 'Download PDF'}</span>
+                                      <span>{lang === 'zh' ? '下载家事' : 'Download PDF'}</span>
                                     </a>
                                   )}
                                 </div>
@@ -2989,7 +3126,7 @@ export default function App() {
                         <div className="flex items-center gap-2">
                           <FileText className="text-primary shrink-0" size={22} />
                           <span className="text-base font-extrabold text-gray-900">
-                            {lang === 'zh' ? '教会周报与月刊列表' : 'Church Bulletins & Newsletters Overview'}
+                            {lang === 'zh' ? '教会家事与月刊列表' : 'Church Bulletins & Newsletters Overview'}
                           </span>
                         </div>
                         <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
@@ -3001,7 +3138,7 @@ export default function App() {
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className="bg-gray-50/90 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                              <th className="py-4 px-6">{lang === 'zh' ? '周报标题' : 'Bulletin Title'}</th>
+                              <th className="py-4 px-6">{lang === 'zh' ? '家事标题' : 'Bulletin Title'}</th>
                               <th className="py-4 px-6">{lang === 'zh' ? '发布日期' : 'Date'}</th>
                               <th className="py-4 px-6">{lang === 'zh' ? '类别' : 'Category'}</th>
                               <th className="py-4 px-6">{lang === 'zh' ? '摘要概览' : 'Summary'}</th>
@@ -3357,7 +3494,7 @@ export default function App() {
                           className="flex-1 py-3 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-md"
                         >
                           <Download size={16} />
-                          <span>{lang === 'zh' ? '下载周报 (PDF)' : 'Download PDF'}</span>
+                          <span>{lang === 'zh' ? '下载家事 (PDF)' : 'Download PDF'}</span>
                         </a>
                       )}
                       <button
@@ -3437,11 +3574,11 @@ export default function App() {
                 </div>
                 <div className="space-y-2 flex-1">
                   <h4 className="font-extrabold text-amber-900 text-sm">
-                    {lang === 'zh' ? '周报与讲道资源温馨提示' : 'Resource Center Notice & Support'}
+                    {lang === 'zh' ? '家事与讲道资源温馨提示' : 'Resource Center Notice & Support'}
                   </h4>
                   <p className="text-xs text-amber-900/80 leading-relaxed">
                     {lang === 'zh'
-                      ? '每周周报通常于每周五或六完成上传；若您在下载 PDF 档案或观看讲道视频时遇到任何问题，或需获取过往月份之内部资料，欢迎随时联系教会行政同工查询。'
+                      ? '每周家事通常于每周五或六完成上传；若您在下载 PDF 档案或观看讲道视频时遇到任何问题，或需获取过往月份之内部资料，欢迎随时联系教会行政同工查询。'
                       : 'Weekly bulletins are updated usually on Friday or Saturday. If you experience issues downloading files or viewing sermon videos, or need archived materials from previous months, please feel free to contact our administrative office.'}
                   </p>
                 </div>
@@ -4161,7 +4298,7 @@ export default function App() {
                         { id: 'ministries', label: lang === 'zh' ? '核心事工管理' : 'Ministries Content', icon: Heart },
                         { id: 'events', label: lang === 'zh' ? '活动内容发布' : 'Events Post', icon: CalendarCheck },
                         { id: 'offerings', label: lang === 'zh' ? '奉献设置' : 'Offerings Settings', icon: HandHeart },
-                        { id: 'bulletins', label: lang === 'zh' ? '周报与讲道库' : 'Bulletins & Sermon Library', icon: BookOpen },
+                        { id: 'bulletins', label: lang === 'zh' ? '家事与讲道库' : 'Bulletins & Sermon Library', icon: BookOpen },
                         { id: 'services', label: lang === 'zh' ? '崇拜与敬拜管理' : 'Services & Worships Manager', icon: Video },
                         { id: 'cellgroups', label: lang === 'zh' ? '小组管理' : 'Cell Groups', icon: Compass },
                         { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide', icon: HelpCircle },
@@ -4585,7 +4722,7 @@ export default function App() {
                               { key: 'timetable', zh: '聚会时间', en: 'Timetable' },
                               { key: 'events', zh: '特别活动', en: 'Events' },
                               { key: 'offerings', zh: '奉献', en: 'Offerings' },
-                              { key: 'bulletins', zh: '周报与讲道', en: 'Bulletins & Sermons' },
+                              { key: 'bulletins', zh: '家事与讲道', en: 'Bulletins & Sermons' },
                               { key: 'services', zh: '崇拜与敬拜', en: 'Services & Worships' },
                               { key: 'cellgroups', zh: '小组', en: 'Cell Groups' },
                               { key: 'newfriend', zh: '新朋友指南', en: 'New Friend Guide' },
@@ -5982,27 +6119,28 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* SECTION: LEADERSHIP / PASTOR EDITOR */}
+                                    {/* SECTION: LEADERSHIP / PASTOR EDITOR - WITH TABS FOR PASTOR / COWORKER / CELL LEADER */}
                   {adminActiveSection === 'about' && aboutSettingsTab === 'leaders' && (
                     <div className="space-y-6">
                       <div className="flex justify-between items-start gap-4">
                         <div>
                           <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '牧者同工编辑' : 'Pastor / Leader Editor'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理牧者、传道、长老及事工负责人的资料与简介' : 'Manage pastors, evangelists, elders, and ministry leaders profiles'}</p>
+                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理牧者、传道、长老及事工负责人的资料与简介 - 支持3个分类标签页' : 'Manage pastors, co-workers, cell leaders - 3 tabs supported, same photo upload as pastor'}</p>
                         </div>
                         {editingLeader === null && (
                           <button
                             onClick={() => setEditingLeader({
                               id: 'new',
-                              name: { zh: '新牧者/同工', en: 'New Leader' },
+                              category: adminLeadershipTab === 'all' ? 'pastor' : adminLeadershipTab,
+                              name: { zh: '新成员', en: 'New Member' },
                               role: { zh: '职务', en: 'Role' },
-                              image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=300&q=80',
-                              bio: { zh: '在此填写牧者/同工的简介。', en: 'Write the leader biography here.' }
+                              image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=400&q=80',
+                              bio: { zh: '在此填写简介。', en: 'Write biography here.' }
                             })}
                             className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
                           >
                             <Plus size={14} />
-                            <span>{lang === 'zh' ? '添加牧者/同工' : 'Add Leader'}</span>
+                            <span>{lang === 'zh' ? `添加${LEADERSHIP_CATEGORIES.find(c=>c.id===(adminLeadershipTab==='all'?'pastor':adminLeadershipTab))?.zh || '成员'}` : `Add ${LEADERSHIP_CATEGORIES.find(c=>c.id===(adminLeadershipTab==='all'?'pastor':adminLeadershipTab))?.en || 'Member'}`}</span>
                           </button>
                         )}
                       </div>
@@ -6038,16 +6176,83 @@ export default function App() {
                         </div>
                       </div>
 
+                      {/* Admin Tabs for Leadership Categories */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="inline-flex p-1 rounded-xl bg-gray-100 border border-gray-200/80 gap-1">
+                          {[{ id: 'all', zh: '全部', en: 'All' }, ...LEADERSHIP_CATEGORIES].map(cat => {
+                            const isActive = adminLeadershipTab === cat.id;
+                            const count = cat.id === 'all' ? (data.leadership || []).length : (data.leadership || []).filter(l => getLeaderCategory(l) === cat.id).length;
+                            return (
+                              <button
+                                key={cat.id}
+                                onClick={() => setAdminLeadershipTab(cat.id)}
+                                className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${isActive ? 'bg-white text-primary shadow-sm border border-primary/10' : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'}`}
+                              >
+                                <span>{lang === 'zh' ? cat.zh : cat.en}</span>
+                                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${isActive ? 'bg-primary/10 text-primary' : 'bg-gray-200 text-gray-600'}`}>{count}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[10px] text-gray-500">
+                          {lang === 'zh' ? '筛选查看不同团队，后台添加时会自动归入当前选中分类（如选“全部”则默认为牧者）' : 'Filter view by team. New members will be added to currently selected tab (defaults to Pastor if All).'}
+                        </p>
+                      </div>
+
                       {editingLeader ? (
                         <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
                           <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingLeader.id === 'new' ? (lang === 'zh' ? '新增牧者/同工' : 'Add New Leader') : (lang === 'zh' ? '编辑牧者/同工' : 'Edit Leader')}
+                            {editingLeader.id === 'new' ? (lang === 'zh' ? '新增成员' : 'Add New Member') : (lang === 'zh' ? '编辑成员' : 'Edit Member')}
                           </h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Category Selector */}
                             <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '照片链接' : 'Photo URL'}</label>
-                              <input type="text" value={editingLeader.image} onChange={(e) => setEditingLeader({ ...editingLeader, image: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '所属团队 / 分类 *' : 'Team / Category *'}</label>
+                              <div className="grid grid-cols-3 gap-2">
+                                {LEADERSHIP_CATEGORIES.map(cat => (
+                                  <button
+                                    key={cat.id}
+                                    type="button"
+                                    onClick={() => setEditingLeader({ ...editingLeader, category: cat.id })}
+                                    className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 ${editingLeader.category === cat.id ? 'bg-primary text-white border-primary shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:border-primary/50 hover:bg-primary/5'}`}
+                                  >
+                                    <span>{lang === 'zh' ? cat.zh : cat.en}</span>
+                                    <span className={`text-[10px] font-normal ${editingLeader.category === cat.id ? 'text-white/80' : 'text-gray-500'}`}>{lang === 'zh' ? cat.zhLong : cat.enLong}</span>
+                                  </button>
+                                ))}
+                              </div>
+                              <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '选择成员属于哪个标签页，与前台显示一致。牧者、同工、小组长都使用相同的照片上传方式。' : 'Choose which tab this member appears in. Same photo upload works for Pastor, Co-Worker, Cell Leader.'}</p>
                             </div>
+
+                            {/* Photo Upload + URL */}
+                            <div className="md:col-span-2 bg-white p-4 rounded-xl border border-gray-200 space-y-3">
+                              <label className="block text-xs font-bold text-gray-700">{lang === 'zh' ? '照片上传（牧者/同工/小组长通用）' : 'Photo Upload (Pastor / Co-Worker / Cell Leader - same method)'}</label>
+                              <div className="flex flex-col sm:flex-row gap-4 items-start">
+                                <div className="w-24 h-32 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0 relative">
+                                  {editingLeader.image ? (
+                                    <img src={editingLeader.image} alt="Preview" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-gray-400"><Users size={24} /></div>
+                                  )}
+                                </div>
+                                <div className="flex-1 space-y-2 w-full">
+                                  <label className="w-full px-4 py-2.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-dark cursor-pointer flex items-center justify-center gap-2 transition-all">
+                                    <Upload size={14} />
+                                    <span>{lang === 'zh' ? '点击上传本地照片' : 'Upload Local Photo'}</span>
+                                    <input type="file" accept="image/*" onChange={handleLeaderImageUpload} className="hidden" />
+                                  </label>
+                                  <p className="text-[10px] text-gray-500">{lang === 'zh' ? '支持 JPG/PNG/WebP，最大8MB，自动压缩至800px、1MB以内，保存为base64无需图床。' : 'JPG/PNG/WebP, max 8MB, auto compress to 800px / <1MB, saved as base64 no image host needed.'}</p>
+                                  {leaderImageUploadError && (
+                                    <div className="text-[11px] text-red-600 bg-red-50 border border-red-100 p-2 rounded">{leaderImageUploadError}</div>
+                                  )}
+                                  <div>
+                                    <label className="block text-[11px] font-bold text-gray-600 mb-1">{lang === 'zh' ? '或直接粘贴图片链接 URL' : 'Or paste image URL directly'}</label>
+                                    <input type="text" value={editingLeader.image} onChange={(e) => setEditingLeader({ ...editingLeader, image: e.target.value })} placeholder="https://..." className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
                             <div>
                               <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '姓名 (中文)' : 'Name (Chinese)'}</label>
                               <input type="text" value={editingLeader.name.zh} onChange={(e) => setEditingLeader({ ...editingLeader, name: { ...editingLeader.name, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
@@ -6058,11 +6263,11 @@ export default function App() {
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '职位/角色 (中文)' : 'Role (Chinese)'}</label>
-                              <input type="text" value={editingLeader.role.zh} onChange={(e) => setEditingLeader({ ...editingLeader, role: { ...editingLeader.role, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <input type="text" value={editingLeader.role.zh} onChange={(e) => setEditingLeader({ ...editingLeader, role: { ...editingLeader.role, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder={lang === 'zh' ? '如：主任牧师 / 同工 / 小组长' : ''} />
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Role (English)' : 'Role (English)'}</label>
-                              <input type="text" value={editingLeader.role.en} onChange={(e) => setEditingLeader({ ...editingLeader, role: { ...editingLeader.role, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <input type="text" value={editingLeader.role.en} onChange={(e) => setEditingLeader({ ...editingLeader, role: { ...editingLeader.role, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="e.g. Lead Pastor / Co-Worker / Cell Leader" />
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '简介 (中文)' : 'Bio (Chinese)'}</label>
@@ -6074,35 +6279,54 @@ export default function App() {
                             </div>
                           </div>
                           <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                            <button onClick={() => setEditingLeader(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
+                            <button onClick={() => { setEditingLeader(null); setLeaderImageUploadError(''); }} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
                             <button onClick={() => handleSaveLeader(editingLeader)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
                           </div>
                         </div>
                       ) : (
                         <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {(data.leadership || []).map((leader, idx) => (
-                            <div key={leader.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                              <div className="flex gap-4 items-center w-full sm:w-3/4">
-                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
-                                <img src={leader.image} alt="Preview" className="w-14 h-14 object-contain rounded-lg shrink-0 border border-gray-200 bg-white p-0.5" />
-                                <div className="space-y-1">
-                                  <h4 className="font-bold text-sm text-gray-900">{leader.name.zh} / {leader.name.en}</h4>
-                                  <p className="text-xs text-primary font-semibold">{leader.role.zh} / {leader.role.en}</p>
-                                  <p className="text-xs text-gray-500 font-light line-clamp-1">{leader.bio.zh}</p>
+                          {(() => {
+                            const filtered = adminLeadershipTab === 'all' ? (data.leadership || []) : (data.leadership || []).filter(l => getLeaderCategory(l) === adminLeadershipTab);
+                            if (filtered.length === 0) {
+                              return (
+                                <div className="bg-white rounded-xl border border-dashed border-gray-300 p-8 text-center space-y-2">
+                                  <p className="text-sm text-gray-500">{lang === 'zh' ? `暂无${adminLeadershipTab === 'all' ? '' : LEADERSHIP_CATEGORIES.find(c=>c.id===adminLeadershipTab)?.zh}成员，点击上方添加` : `No ${adminLeadershipTab === 'all' ? '' : LEADERSHIP_CATEGORIES.find(c=>c.id===adminLeadershipTab)?.en} members, click Add above`}</p>
+                                </div>
+                              );
+                            }
+                            return filtered.map((leader, idx) => {
+                              const trueIdx = (data.leadership || []).findIndex(l => l.id === leader.id);
+                              return (
+                              <div key={leader.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                                <div className="flex gap-4 items-center w-full sm:w-3/4">
+                                  <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{trueIdx + 1}</span>
+                                  <img src={leader.image} alt="Preview" className="w-14 h-20 object-cover rounded-lg shrink-0 border border-gray-200 bg-white" />
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getLeaderCategory(leader)==='pastor' ? 'bg-purple-100 text-purple-700' : getLeaderCategory(leader)==='coworker' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                        {getLeaderCategoryLabel(getLeaderCategory(leader), lang)}
+                                      </span>
+                                      <h4 className="font-bold text-sm text-gray-900">{leader.name.zh} / {leader.name.en}</h4>
+                                    </div>
+                                    <p className="text-xs text-primary font-semibold">{leader.role.zh} / {leader.role.en}</p>
+                                    <p className="text-xs text-gray-500 font-light line-clamp-1">{leader.bio.zh}</p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                  <button onClick={() => handleMoveItem('leadership', trueIdx, 'up')} disabled={trueIdx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
+                                  <button onClick={() => handleMoveItem('leadership', trueIdx, 'down')} disabled={trueIdx === (data.leadership || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
+                                  <button onClick={() => setEditingLeader(leader)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
+                                  <button onClick={() => handleDeleteLeader(leader.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
                                 </div>
                               </div>
-                              <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
-                                <button onClick={() => handleMoveItem('leadership', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
-                                <button onClick={() => handleMoveItem('leadership', idx, 'down')} disabled={idx === (data.leadership || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
-                                <button onClick={() => setEditingLeader(leader)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
-                                <button onClick={() => handleDeleteLeader(leader.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
-                              </div>
-                            </div>
-                          ))}
+                              );
+                            });
+                          })()}
                         </div>
                       )}
                     </div>
                   )}
+
 
                   {/* SECTION: OFFERINGS SETTINGS */}
                   {adminActiveSection === 'offerings' && (
@@ -6246,24 +6470,24 @@ export default function App() {
                     <div className="space-y-6">
                       <div className="flex justify-between items-start gap-4">
                         <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '周报与讲道库管理' : 'Bulletins & Sermon Library Manager'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理教会周报、月刊与讲道视频' : 'Manage church bulletins, newsletters, and sermon videos'}</p>
+                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '家事与讲道库管理' : 'Bulletins & Sermon Library Manager'}</h2>
+                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理教会家事、月刊与讲道视频' : 'Manage church bulletins, newsletters, and sermon videos'}</p>
                         </div>
                         {bulletinsTab === 'bulletins' && editingBulletin === null && (
                           <button
                             onClick={() => setEditingBulletin({
                               id: 'new',
-                              title: { zh: '新周报', en: 'New Bulletin' },
+                              title: { zh: '新家事', en: 'New Bulletin' },
                               date: new Date().toISOString().slice(0, 10),
-                              category: { zh: '周报', en: 'Bulletin' },
+                              category: { zh: '家事', en: 'Bulletin' },
                               fileUrl: '#',
-                              summary: { zh: '周报摘要...', en: 'Bulletin summary...' },
+                              summary: { zh: '家事摘要...', en: 'Bulletin summary...' },
                               highlights: { zh: '• 要点1\n• 要点2', en: '• Point 1\n• Point 2' }
                             })}
                             className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
                           >
                             <Plus size={14} />
-                            <span>{lang === 'zh' ? '发布周报' : 'Publish Bulletin'}</span>
+                            <span>{lang === 'zh' ? '发布家事' : 'Publish Bulletin'}</span>
                           </button>
                         )}
                         {bulletinsTab === 'sermons' && editingSermon === null && (
@@ -6298,7 +6522,7 @@ export default function App() {
                           }`}
                         >
                           <FileText size={14} />
-                          <span>{lang === 'zh' ? '周报/月刊' : 'Bulletins'}</span>
+                          <span>{lang === 'zh' ? '家事/月刊' : 'Bulletins'}</span>
                         </button>
                         <button
                           onClick={() => setBulletinsTab('sermons')}
@@ -6330,7 +6554,7 @@ export default function App() {
                           <div>
                             <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
                             <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.bulletinsTitle?.zh || ''} onChange={(e) => updateSetting('bulletinsTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="周报与讲道库" />
+                              <input type="text" value={data.settings.bulletinsTitle?.zh || ''} onChange={(e) => updateSetting('bulletinsTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="家事与讲道库" />
                               <input type="text" value={data.settings.bulletinsTitle?.en || ''} onChange={(e) => updateSetting('bulletinsTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Bulletins & Sermon Library" />
                             </div>
                           </div>
@@ -6347,7 +6571,7 @@ export default function App() {
                       {bulletinsTab === 'bulletins' && editingBulletin ? (
                         <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
                           <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingBulletin.id === 'new' ? (lang === 'zh' ? '发布新周报' : 'New Bulletin') : (lang === 'zh' ? '编辑周报' : 'Edit Bulletin')}
+                            {editingBulletin.id === 'new' ? (lang === 'zh' ? '发布新家事' : 'New Bulletin') : (lang === 'zh' ? '编辑家事' : 'Edit Bulletin')}
                           </h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -6372,7 +6596,7 @@ export default function App() {
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-600 mb-1">
-                                {lang === 'zh' ? '周报下载链接 (PDF/文件)' : 'Weekly Bulletin Download Link (PDF/File URL)'}
+                                {lang === 'zh' ? '家事下载链接 (PDF/文件)' : 'Weekly Bulletin Download Link (PDF/File URL)'}
                               </label>
                               <input 
                                 type="text" 
@@ -6382,7 +6606,7 @@ export default function App() {
                                 className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" 
                               />
                               <p className="text-[10px] text-gray-400 mt-1">
-                                {lang === 'zh' ? '💡 请粘帖周报的公网下载链接（如 Google Drive, Dropbox 共享链接等）。若填 # 或留空，周报页面将不会显示“下载周报”按钮。' : '💡 Please paste the public download link of your bulletin (e.g. Google Drive, Dropbox link). If set to # or left empty, the "Download PDF" button will be hidden.'}
+                                {lang === 'zh' ? '💡 请粘帖家事的公网下载链接（如 Google Drive, Dropbox 共享链接等）。若填 # 或留空，家事页面将不会显示“下载家事”按钮。' : '💡 Please paste the public download link of your bulletin (e.g. Google Drive, Dropbox link). If set to # or left empty, the "Download PDF" button will be hidden.'}
                               </p>
                             </div>
                             <div className="md:col-span-2">
@@ -6436,7 +6660,7 @@ export default function App() {
                                 <button onClick={() => handleMoveItem('bulletins', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
                                 <button onClick={() => handleMoveItem('bulletins', idx, 'down')} disabled={idx === (data.bulletins || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
                                 {bulletin.fileUrl && bulletin.fileUrl !== '#' && (
-                                  <a href={bulletin.fileUrl} target="_blank" rel="noopener noreferrer" title={lang === 'zh' ? '打开/下载周报' : 'Open/Download Bulletin'} className="p-1.5 rounded border border-green-200 text-green-600 hover:bg-green-50">
+                                  <a href={bulletin.fileUrl} target="_blank" rel="noopener noreferrer" title={lang === 'zh' ? '打开/下载家事' : 'Open/Download Bulletin'} className="p-1.5 rounded border border-green-200 text-green-600 hover:bg-green-50">
                                     <Download size={14} />
                                   </a>
                                 )}
@@ -7790,7 +8014,7 @@ export default function App() {
                   vis.events !== false && { id: 'events', label: lang === 'zh' ? '活动预告' : 'Events' },
                   vis.cellgroups !== false && { id: 'cellgroups', label: lang === 'zh' ? '小组' : 'Cell Groups' },
                   vis.offerings !== false && { id: 'offerings', label: lang === 'zh' ? '奉献' : 'Offerings' },
-                  vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '周报与讲道' : 'Bulletins & Sermons' },
+                  vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '家事与讲道' : 'Bulletins & Sermons' },
                   vis.services !== false && { id: 'services', label: lang === 'zh' ? '崇拜与敬拜' : 'Services & Worships' },
                   vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '新朋友' : 'New Friend' },
                   vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
