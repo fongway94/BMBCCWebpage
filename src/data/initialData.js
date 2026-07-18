@@ -312,7 +312,7 @@ export const initialData = {
         "zh": "星期六",
         "en": "Saturday"
       },
-      "time": "9:30 AM - 11:30 AM",
+      "time": "10:00 AM - 11:30 AM",
       "location": {
         "zh": "BKBC 分堂",
         "en": "BKBC Sanctuary"
