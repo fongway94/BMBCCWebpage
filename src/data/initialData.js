@@ -160,7 +160,7 @@ export const initialData = {
       "en": "Yearly Vision"
     },
     "yearlyVisionTitle": {
-      "zh": "展翅高飞，",
+      "zh": "展翅高飞，广传",
       "en": "Go into the Community, Proclaim Lord's Love"
     },
     "yearlyVisionImage": "https://images.unsplash.com/photo-1557401622-cfc0aa5d146c?fm=jpg&q=60&w=3000&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8Zmx5aW5nJTIwZWFnbGV8ZW58MHx8MHx8fDA%3D",
