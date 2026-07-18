@@ -452,7 +452,7 @@ export default function App() {
     };
   }, [lang, data.settings.fontFamilyZh, data.settings.fontFamilyEn]);
 
-  // Keep the browser tab icon in sync with the uploaded header logo.
+  // Keep the browser tab icon in sync with the custom header logo (set by URL in Admin Settings).
   useEffect(() => {
     const icon = document.querySelector('link[rel="icon"]');
     if (icon) icon.href = data.settings.headerLogo || '/favicon.svg';
@@ -1017,7 +1017,6 @@ export default function App() {
     }
     saveAllData(updated);
     setEditingLeader(null);
-    setLeaderImageUploadError('');
   };
 
   const handleDeleteLeader = (id) => {
@@ -1241,7 +1240,7 @@ export default function App() {
                   />
                 ) : (
                   <div className="bg-primary hover:bg-primary-dark text-white p-2.5 rounded-xl shadow-md shadow-primary/20 transition-all">
-                    {/* Default cross shown until a logo is uploaded in Admin Settings. */}
+                    {/* Default cross shown until a logo URL is set in Admin Settings. */}
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m-6-8h12" />
                     </svg>
@@ -1928,8 +1927,8 @@ export default function App() {
                       </h4>
                       <p className="text-sm text-gray-500 font-light">
                         {lang === 'zh' 
-                          ? `您可以在后台管理 - 关于我们 - 牧者与领袖标签中，添加${LEADERSHIP_CATEGORIES.find(c=>c.id===aboutLeadershipTab)?.zh}成员，上传照片与简介后将显示在此。`
-                          : `You can add ${LEADERSHIP_CATEGORIES.find(c=>c.id===aboutLeadershipTab)?.en} in Admin Console - About Us - Pastors & Leaders tab. Upload photos and bios to display them here.`}
+                          ? `您可以在后台管理 - 关于我们 - 牧者与领袖标签中，添加${LEADERSHIP_CATEGORIES.find(c=>c.id===aboutLeadershipTab)?.zh}成员，填写照片链接与简介后将显示在此。`
+                          : `You can add ${LEADERSHIP_CATEGORIES.find(c=>c.id===aboutLeadershipTab)?.en} in Admin Console - About Us - Pastors & Leaders tab. Add photo URLs and bios to display them here.`}
                       </p>
                     </div>
                   );
@@ -4405,16 +4404,18 @@ export default function App() {
                                 {lang === 'zh' ? '顶部菜单教会标志 / Header Logo' : 'Header Church Logo / 顶部菜单教会标志'}
                               </label>
                               <p className="text-[10px] text-gray-500 leading-relaxed">
-                                {lang === 'zh' ? '上传后将取代顶部左侧的绿色十字标志。支持 PNG、JPG、WebP 或 GIF；图片会自动缩小并随网站设置一同保存。' : 'Uploading replaces the green cross at the top-left. PNG, JPG, WebP, and GIF are supported; the image is resized and saved with the site settings.'}
+                                {lang === 'zh' ? '粘贴图片链接（URL）后将取代顶部左侧的绿色十字标志；清空输入框即可恢复默认十字。设置会随网站内容一同保存。' : 'Paste an image URL to replace the green cross at the top-left. Clear the field to restore the default cross. The setting is saved with the site content.'}
                               </p>
                             </div>
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <label className="cursor-pointer px-3 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold transition-all flex items-center gap-1.5">
-                              <Upload size={14} />
-                              <span>{lang === 'zh' ? '上传标志图片' : 'Upload Logo Image'}</span>
-                              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handleHeaderLogoUpload} className="hidden" />
-                            </label>
+                            <input
+                              type="text"
+                              value={data.settings.headerLogo || ''}
+                              onChange={(e) => updateSetting('headerLogo', null, e.target.value)}
+                              placeholder="https://..."
+                              className="flex-1 min-w-[220px] px-3 py-2 rounded-lg border border-gray-300 text-xs bg-white focus:ring-1 focus:ring-primary focus:outline-none"
+                            />
                             {data.settings.headerLogo && (
                               <button type="button" onClick={() => updateSetting('headerLogo', null, '')} className="px-3 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition-all flex items-center gap-1.5">
                                 <Trash2 size={14} />
@@ -4422,7 +4423,6 @@ export default function App() {
                               </button>
                             )}
                           </div>
-                          {logoUploadError && <p className="text-[11px] text-red-600">{logoUploadError}</p>}
                         </div>
 
                         {/* Church Abbreviation */}
@@ -4903,7 +4903,7 @@ export default function App() {
                       <div className="flex justify-between items-start gap-4">
                         <div>
                           <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '横幅大图轮播管理' : 'Carousel Slide Manager'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '在此管理网站主页顶部的巨型幻灯片轮播图片和文字' : 'Upload or edit image URL and captions of homepage banner slides'}</p>
+                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '在此管理网站主页顶部的巨型幻灯片轮播图片和文字' : 'Add or edit image URLs and captions of homepage banner slides'}</p>
                         </div>
                         {editingSlide === null && (
                           <button
@@ -6035,7 +6035,7 @@ export default function App() {
                       <div className="flex justify-between items-start gap-4">
                         <div>
                           <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '牧者同工编辑' : 'Pastor / Leader Editor'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理牧者、传道、长老及事工负责人的资料与简介 - 支持3个分类标签页' : 'Manage pastors, co-workers, cell leaders - 3 tabs supported, same photo upload as pastor'}</p>
+                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理牧者、传道、长老及事工负责人的资料与简介 - 支持3个分类标签页' : 'Manage pastors, co-workers, cell leaders - 3 tabs supported, same photo URL method for all'}</p>
                         </div>
                         {editingLeader === null && (
                           <button
@@ -6131,12 +6131,12 @@ export default function App() {
                                   </button>
                                 ))}
                               </div>
-                              <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '选择成员属于哪个标签页，与前台显示一致。牧者、同工、小组长都使用相同的照片上传方式。' : 'Choose which tab this member appears in. Same photo upload works for Pastor, Co-Worker, Cell Leader.'}</p>
+                              <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '选择成员属于哪个标签页，与前台显示一致。牧者、同工、小组长都使用相同的照片链接方式。' : 'Choose which tab this member appears in. Same photo URL method works for Pastor, Co-Worker, Cell Leader.'}</p>
                             </div>
 
-                            {/* Photo Upload + URL */}
+                            {/* Photo URL */}
                             <div className="md:col-span-2 bg-white p-4 rounded-xl border border-gray-200 space-y-3">
-                              <label className="block text-xs font-bold text-gray-700">{lang === 'zh' ? '照片上传（牧者/同工/小组长通用）' : 'Photo Upload (Pastor / Co-Worker / Cell Leader - same method)'}</label>
+                              <label className="block text-xs font-bold text-gray-700">{lang === 'zh' ? '照片链接（牧者/同工/小组长通用）' : 'Photo URL (Pastor / Co-Worker / Cell Leader - same method)'}</label>
                               <div className="flex flex-col sm:flex-row gap-4 items-start">
                                 <div className="w-24 h-32 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0 relative">
                                   {editingLeader.image ? (
@@ -6146,19 +6146,11 @@ export default function App() {
                                   )}
                                 </div>
                                 <div className="flex-1 space-y-2 w-full">
-                                  <label className="w-full px-4 py-2.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-dark cursor-pointer flex items-center justify-center gap-2 transition-all">
-                                    <Upload size={14} />
-                                    <span>{lang === 'zh' ? '点击上传本地照片' : 'Upload Local Photo'}</span>
-                                    <input type="file" accept="image/*" onChange={handleLeaderImageUpload} className="hidden" />
-                                  </label>
-                                  <p className="text-[10px] text-gray-500">{lang === 'zh' ? '支持 JPG/PNG/WebP，最大8MB，自动压缩至800px、1MB以内，保存为base64无需图床。' : 'JPG/PNG/WebP, max 8MB, auto compress to 800px / <1MB, saved as base64 no image host needed.'}</p>
-                                  {leaderImageUploadError && (
-                                    <div className="text-[11px] text-red-600 bg-red-50 border border-red-100 p-2 rounded">{leaderImageUploadError}</div>
-                                  )}
                                   <div>
-                                    <label className="block text-[11px] font-bold text-gray-600 mb-1">{lang === 'zh' ? '或直接粘贴图片链接 URL' : 'Or paste image URL directly'}</label>
+                                    <label className="block text-[11px] font-bold text-gray-600 mb-1">{lang === 'zh' ? '粘贴图片链接 URL' : 'Paste image URL'}</label>
                                     <input type="text" value={editingLeader.image} onChange={(e) => setEditingLeader({ ...editingLeader, image: e.target.value })} placeholder="https://..." className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
                                   </div>
+                                  <p className="text-[10px] text-gray-500">{lang === 'zh' ? '建议使用图床或教会网站上的图片直链；链接会即时在左侧预览。' : 'Use a direct image link from an image host or the church website; the preview updates instantly on the left.'}</p>
                                 </div>
                               </div>
                             </div>
@@ -6189,7 +6181,7 @@ export default function App() {
                             </div>
                           </div>
                           <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                            <button onClick={() => { setEditingLeader(null); setLeaderImageUploadError(''); }} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
+                            <button onClick={() => setEditingLeader(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
                             <button onClick={() => handleSaveLeader(editingLeader)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
                           </div>
                         </div>
