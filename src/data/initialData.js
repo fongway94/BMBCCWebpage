@@ -555,7 +555,7 @@ export const initialData = {
       "en": "Thank you for your willingness to support BMBCC's ministry through your tithes and offerings. Every contribution is faithfully used for church operations, community care, missions, and other holy endeavors. We promise transparent and faithful stewardship of every donation."
     },
     "scripture": {
-      "zh": "「你们要将当纳的十分之一全送入仓库，使我家有粮。以此试试我，是否为你们敞开天上的窗户，倾福与你们，甚至无处可容。万军之耶和华说：“我必为你们斥责蝗虫，不容它毁坏你们的土产，你们田间的葡萄树在未熟之先也不掉果子。万军之耶和华说：“万国必称你们为有福的，因你们的地必成为喜乐之地。」—— 玛拉基书 3:10 - 12",
+      "zh": "「你们要将当纳的十分之一全然送入仓库，使我家有粮。以此试试我，是否为你们敞开天上的窗户，倾福与你们，甚至无处可容。万军之耶和华说：“我必为你们斥责蝗虫，不容它毁坏你们的土产，你们田间的葡萄树在未熟之先也不掉果子。万军之耶和华说：“万国必称你们为有福的，因你们的地必成为喜乐之地。」—— 玛拉基书 3:10 - 12",
       "en": "\"Bring the whole tithe into the storehouse, that there may be food in my house. Test me in this, says the Lord Almighty, and see if I will not throw open the floodgates of heaven and pour out so much blessing that there will not be room enough to store it. I will prevent pests from devouring your crops, and the vines in your fields will not drop their fruit before it is ripe,” says the Lord Almighty. “Then all the nations will call you blessed, for yours will be a delightful land,” says the Lord Almighty.\" —— Malachi 3:10 - 12"
     },
     "methods": [
