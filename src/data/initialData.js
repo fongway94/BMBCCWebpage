@@ -169,7 +169,7 @@ export const initialData = {
       "en": "Soar High • Spread Gospel"
     },
     "yearlyVisionScripture": {
-      "zh": "神爱世人，即使把他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。",
+      "zh": "神爱世人，即使把他的独生子赐给他们，叫一切信的，不至灭亡，反得永生。",
       "en": "For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life."
     },
     "yearlyVisionRef": {
