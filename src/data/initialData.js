@@ -585,6 +585,34 @@ export const initialData = {
         "zh": "每周",
         "en": "Weekly"
       }
+    },
+    {
+      "id": 4,
+      "name": {
+        "zh": "亚伯拉罕小组",
+        "en": "Abraham Cell Group"
+      },
+      "day": {
+        "zh": "星期二",
+        "en": "Tuesday"
+      },
+      "time": "8:30 PM - 10:00 PM",
+      "location": {
+        "zh": "阿儿玛",
+        "en": "Alma"
+      },
+      "language": {
+        "zh": "华语",
+        "en": "Chinese"
+      },
+      "frequency": {
+        "zh": "每周",
+        "en": "Weekly"
+      },
+      "picContact": {
+        "zh": "",
+        "en": ""
+      }
     }
   ],
   "ministries": [
