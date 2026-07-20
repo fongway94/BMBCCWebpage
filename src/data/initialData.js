@@ -641,6 +641,34 @@ export const initialData = {
         "zh": "",
         "en": ""
       }
+    },
+    {
+      "id": 6,
+      "name": {
+        "zh": "迦勒小组",
+        "en": "Caleb Cell Group"
+      },
+      "day": {
+        "zh": "星期二",
+        "en": "Tuesday"
+      },
+      "time": "8:30 PM - 10:00 PM",
+      "location": {
+        "zh": "柔府区",
+        "en": "Juru"
+      },
+      "language": {
+        "zh": "华语",
+        "en": "Chinese"
+      },
+      "frequency": {
+        "zh": "每周",
+        "en": "Weekly"
+      },
+      "picContact": {
+        "zh": "",
+        "en": ""
+      }
     }
   ],
   "ministries": [
