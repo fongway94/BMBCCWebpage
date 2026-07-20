@@ -280,6 +280,10 @@ export const initialData = {
       "language": {
         "zh": "华语",
         "en": "Chinese"
+      },
+      "picContact": {
+        "zh": "邓传道 (019-2233445)",
+        "en": "Ps. Teng (019-2233445)"
       }
     },
     {
@@ -300,6 +304,10 @@ export const initialData = {
       "language": {
         "zh": "华语",
         "en": "Chinese"
+      },
+      "picContact": {
+        "zh": "韩组长 (012-1122334)",
+        "en": "Bro. Han (012-1122334)"
       }
     },
     {
@@ -320,6 +328,10 @@ export const initialData = {
       "language": {
         "zh": "华语",
         "en": "Chinese"
+      },
+      "picContact": {
+        "zh": "林组长 (016-3344556)",
+        "en": "Bro. Fong Way (016-3344556)"
       }
     },
     {
@@ -340,6 +352,10 @@ export const initialData = {
       "language": {
         "zh": "华语",
         "en": "Chinese"
+      },
+      "picContact": {
+        "zh": "陈悠儿组长 (016-7788990)",
+        "en": "Sis. Yogie (016-7788990)"
       }
     },
     {
@@ -360,6 +376,10 @@ export const initialData = {
       "language": {
         "zh": "闽南语",
         "en": "Hokkien"
+      },
+      "picContact": {
+        "zh": "杨同工 (016-7788990)",
+        "en": "Ps. Yeoh (016-7788990)"
       }
     },
     {
@@ -380,6 +400,10 @@ export const initialData = {
       "language": {
         "zh": "马来语",
         "en": "Bahasa"
+      },
+      "picContact": {
+        "zh": "陈主任 (012-4455667)",
+        "en": "Mr. Chen (012-4455667)"
       }
     },
     {
@@ -400,6 +424,10 @@ export const initialData = {
       "language": {
         "zh": "尼泊尔语",
         "en": "Nepal"
+      },
+      "picContact": {
+        "zh": "Mr. Nepal (012-1234567)",
+        "en": "Mr. Nepal (012-1234567)"
       }
     },
     {
@@ -420,6 +448,158 @@ export const initialData = {
       "language": {
         "zh": "华语",
         "en": "Chinese"
+      },
+      "picContact": {
+        "zh": "林老师 (013-5566778)",
+        "en": "Sis. Lim (013-5566778)"
+      }
+    }
+  ],
+  "ministryTimetable": [
+    {
+      "id": 1,
+      "name": {
+        "zh": "7979 吗哪食物银行 🐟",
+        "en": "7979 Food Bank 🐟"
+      },
+      "day": {
+        "zh": "星期六",
+        "en": "Saturday"
+      },
+      "time": "9:00 AM - 12:00 PM",
+      "location": {
+        "zh": "BMBCC BKBC",
+        "en": "Church Sanctuary"
+      },
+      "language": {
+        "zh": "华语",
+        "en": "Chinese"
+      },
+      "picContact": {
+        "zh": "陈主任 (012-4455667)",
+        "en": "Director Chen (012-4455667)"
+      }
+    },
+    {
+      "id": 2,
+      "name": {
+        "zh": "爱邻社区关怀",
+        "en": "Neighborly Community Care"
+      },
+      "day": {
+        "zh": "星期四",
+        "en": "Thursday"
+      },
+      "time": "2:00 PM - 4:00 PM",
+      "location": {
+        "zh": "BKBC 社区范围",
+        "en": "BKBC Area"
+      },
+      "language": {
+        "zh": "华语",
+        "en": "Chinese"
+      },
+      "picContact": {
+        "zh": "林同工 (013-5566778)",
+        "en": "Sis. Lim (013-5566778)"
+      }
+    },
+    {
+      "id": 3,
+      "name": {
+        "zh": "恩典之家探访",
+        "en": "Grace Home Visit"
+      },
+      "day": {
+        "zh": "星期三",
+        "en": "Wednesday"
+      },
+      "time": "9:30 AM - 11:30 AM",
+      "location": {
+        "zh": "恩典之家",
+        "en": "Grace Home"
+      },
+      "language": {
+        "zh": "闽南语",
+        "en": "Hokkien"
+      },
+      "picContact": {
+        "zh": "杨牧师 (016-7788990)",
+        "en": "Pastor Yeoh (016-7788990)"
+      }
+    }
+  ],
+  "cellGroupTimetable": [
+    {
+      "id": 1,
+      "name": {
+        "zh": "摩西小组 (Moses)",
+        "en": "Moses Cell Group"
+      },
+      "day": {
+        "zh": "星期二",
+        "en": "Tuesday"
+      },
+      "time": "8:30 PM - 10:00 PM",
+      "location": {
+        "zh": "南美园区",
+        "en": "Taman Sri Rambai"
+      },
+      "language": {
+        "zh": "华语",
+        "en": "Chinese"
+      },
+      "picContact": {
+        "zh": "韩川定组长 & 林美凤组长 (012-1122334)",
+        "en": "Bro. Han & Sis. Lim (012-1122334)"
+      }
+    },
+    {
+      "id": 2,
+      "name": {
+        "zh": "约书亚小组 (Joshua)",
+        "en": "Joshua Cell Group"
+      },
+      "day": {
+        "zh": "星期五",
+        "en": "Friday"
+      },
+      "time": "8:30 PM - 10:00 PM",
+      "location": {
+        "zh": "百利镇区",
+        "en": "Kota Permai Area"
+      },
+      "language": {
+        "zh": "华语",
+        "en": "Chinese"
+      },
+      "picContact": {
+        "zh": "邓婉龄传道 (019-2233445)",
+        "en": "Ps. Teng (019-2233445)"
+      }
+    },
+    {
+      "id": 3,
+      "name": {
+        "zh": "约瑟小组 (Joseph)",
+        "en": "Joseph Cell Group"
+      },
+      "day": {
+        "zh": "星期二",
+        "en": "Tuesday"
+      },
+      "time": "8:30 PM - 10:00 PM",
+      "location": {
+        "zh": "BKBC 教会",
+        "en": "BKBC Church"
+      },
+      "language": {
+        "zh": "华语",
+        "en": "Chinese"
+      },
+      "picContact": {
+        "zh": "林方炜组长 & 陈悠儿组长 (016-3344556)",
+        "en": "Bro. Fong Way & Sis. Yogie (016-3344556)"
       }
     }
   ],
