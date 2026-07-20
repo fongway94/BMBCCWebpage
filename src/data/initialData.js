@@ -1305,7 +1305,7 @@ export const initialData = {
       },
       "landmarks": {
         "zh": "附近地标\n-",
-        "en": "Nearby Landmarks"
+        "en": "Nearby Landmarks\n-"
       }
     }
   ]
