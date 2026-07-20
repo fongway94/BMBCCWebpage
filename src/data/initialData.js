@@ -1296,8 +1296,8 @@ export const initialData = {
       },
       "googleMapsEmbedUrl": "",
       "address": {
-        "zh": "地址",
-        "en": "Address"
+        "zh": "1, Jalan Vervea 6, Pulau Pinang",
+        "en": "1, Jalan Vervea 6, Pulau Pinang"
       },
       "directions": {
         "zh": "交通指南",
