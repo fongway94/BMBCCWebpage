@@ -346,12 +346,16 @@ export default function App() {
 
   // Timetable page states
   const [timetableFilterDay, setTimetableFilterDay] = useState('all');
+  // 'all' | 'weekly' | 'ministry' | 'cellgroup'
+  const [timetableFilterSection, setTimetableFilterSection] = useState('all');
   const [timetableFilterLang, setTimetableFilterLang] = useState('all');
   const [timetableSearchQuery, setTimetableSearchQuery] = useState('');
   const [timetableViewMode, setTimetableViewMode] = useState('cards'); // 'cards', 'timeline', 'table'
   const [selectedTimetableModal, setSelectedTimetableModal] = useState(null);
   const [copiedModalItem, setCopiedModalItem] = useState(false);
   const [adminTimetableSubSection, setAdminTimetableSubSection] = useState('weekly'); // 'weekly', 'ministry', 'cellgroup'
+
+  const openTimetableSection = (section) => { setTimetableFilterSection(section); setActiveTab('timetable'); window.scrollTo(0, 0); };
 
   // Build-time GitHub config (injected by Vite from env vars)
   const GITHUB_PAT_DEFAULT = ''; // Never inject GitHub tokens at build time; enter them in the admin UI only.
@@ -2050,7 +2054,7 @@ export default function App() {
                         <span>{lang === 'zh' ? '查看详情' : 'View Details'}</span>
                       </button>
                       <button 
-                        onClick={() => { setActiveTab('timetable'); window.scrollTo(0, 0); }}
+                        onClick={() => openTimetableSection('ministry')}
                         className="px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-dark transition-all flex items-center gap-1.5 shadow-md shadow-primary/15"
                       >
                         <Clock size={16} />
@@ -2098,9 +2102,9 @@ export default function App() {
             });
           };
 
-          const filteredWeekly = filterList(data.timetable);
-          const filteredMinistry = filterList(data.ministryTimetable);
-          const filteredCellGroup = filterList(data.cellGroupTimetable);
+          const filteredWeekly = timetableFilterSection === 'all' || timetableFilterSection === 'weekly' ? filterList(data.timetable) : [];
+          const filteredMinistry = timetableFilterSection === 'all' || timetableFilterSection === 'ministry' ? filterList(data.ministryTimetable) : [];
+          const filteredCellGroup = timetableFilterSection === 'all' || timetableFilterSection === 'cellgroup' ? filterList(data.cellGroupTimetable) : [];
 
           const totalFilteredCount = filteredWeekly.length + filteredMinistry.length + filteredCellGroup.length;
 
@@ -2440,8 +2444,15 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Day & Language Filter Badges */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-gray-100">
+                {/* Section, day & language filters */}
+                <div className="space-y-3 pt-2 border-t border-gray-100">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1"><Filter size={12} />{lang === 'zh' ? '类别:' : 'Section:'}</span>
+                    {[{ id: 'all', zh: '全部', en: 'All' }, { id: 'weekly', zh: '定期聚会总览', en: 'Regular Weekly Services Overview' }, { id: 'ministry', zh: '事工时间表', en: 'Ministry Timetable' }, { id: 'cellgroup', zh: '小组时间表', en: 'Cellgroup Timetable' }].map(section => (
+                      <button key={section.id} onClick={() => setTimetableFilterSection(section.id)} className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${timetableFilterSection === section.id ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{lang === 'zh' ? section.zh : section.en}</button>
+                    ))}
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   {/* Day Pills */}
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1">
@@ -2505,6 +2516,7 @@ export default function App() {
                       ))}
                     </div>
                   )}
+                  </div>
                 </div>
               </div>
 
@@ -2525,6 +2537,7 @@ export default function App() {
                     onClick={() => {
                       setTimetableSearchQuery('');
                       setTimetableFilterDay('all');
+                      setTimetableFilterSection('all');
                       setTimetableFilterLang('all');
                     }}
                     className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-md hover:bg-primary-dark transition-all"
@@ -3998,14 +4011,9 @@ export default function App() {
                           <span>{t(group.schedule)}</span>
                         </div>
                       </div>
-                      <div className="pt-2">
-                        <button 
-                          onClick={() => setSelectedCellGroup(group)}
-                          className="w-full py-2.5 rounded-lg bg-gray-900 text-white text-xs font-bold hover:bg-black transition-all flex items-center justify-center gap-1.5 shadow-sm"
-                        >
-                          <Info size={14} />
-                          <span>{lang === 'zh' ? '查看详情' : 'View Details'}</span>
-                        </button>
+                      <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button onClick={() => setSelectedCellGroup(group)} className="py-2.5 rounded-lg bg-gray-900 text-white text-xs font-bold hover:bg-black transition-all flex items-center justify-center gap-1.5 shadow-sm"><Info size={14} /><span>{lang === 'zh' ? '查看详情' : 'View Details'}</span></button>
+                        <button onClick={() => openTimetableSection('cellgroup')} className="py-2.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-primary/15"><Clock size={14} /><span>{lang === 'zh' ? '查看聚会时间' : 'View Timetable'}</span></button>
                       </div>
                     </div>
                   </div>
@@ -7908,7 +7916,7 @@ export default function App() {
                 </p>
                 <div className="pt-6 border-t border-gray-100 flex flex-wrap gap-3">
                   <button 
-                    onClick={() => { setSelectedMinistry(null); setActiveTab('timetable'); window.scrollTo(0, 0); }}
+                    onClick={() => { setSelectedMinistry(null); openTimetableSection('ministry'); }}
                     className="flex-1 px-5 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
                   >
                     <Clock size={18} />
@@ -7977,10 +7985,11 @@ export default function App() {
                   {t(selectedCellGroup.description)}
                 </p>
               </div>
-              <div className="pt-4 flex gap-3">
+              <div className="pt-4 flex flex-col sm:flex-row gap-3">
+                <button onClick={() => { setSelectedCellGroup(null); openTimetableSection('cellgroup'); }} className="flex-1 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"><Clock size={18} />{lang === 'zh' ? '查看聚会时间' : 'View Timetable'}</button>
                 <button 
                   onClick={() => { setSelectedCellGroup(null); setActiveTab('about'); window.scrollTo(0, 0); }}
-                  className="w-full py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
+                  className="flex-1 py-3 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-black transition-all"
                 >
                   {lang === 'zh' ? '联系加入小组' : 'Contact to Join'}
                 </button>
