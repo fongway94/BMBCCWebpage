@@ -1111,7 +1111,7 @@ export const initialData = {
       "id": 5,
       "name": {
         "zh": "迦勒小组",
-        "en": "Caleb Group"
+        "en": "Caleb Cell Group"
       },
       "leader": {
         "zh": "黄天胜组长 & 潘康宁组长",
