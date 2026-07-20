@@ -1291,7 +1291,7 @@ export const initialData = {
     {
       "id": 5,
       "name": {
-        "zh": "新聚会点",
+        "zh": "The Hope ",
         "en": "New Fellowship Point"
       },
       "googleMapsEmbedUrl": "",
