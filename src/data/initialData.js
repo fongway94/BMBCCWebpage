@@ -1292,7 +1292,7 @@ export const initialData = {
     {
       "id": 5,
       "name": {
-        "zh": "心灵驿站",
+        "zh": "The Hope 心灵驿站",
         "en": "The Hope"
       },
       "googleMapsEmbedUrl": "https://www.google.com/maps/place/The+Hope/@5.2390041,100.4405334,1225m/data=!3m1!1e3!4m6!3m5!1s0x304ab70074d63953:0xdf25e5f90454fd2f!8m2!3d5.2386205!4d100.4406812!16s%2Fg%2F11wqr6lc_b?entry=ttu&g_ep=EgoyMDI2MDcxNS4wIKXMDSoASAFQAw%3D%3D",
