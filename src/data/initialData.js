@@ -424,6 +424,10 @@ export const initialData = {
       "language": {
         "zh": "尼泊尔语",
         "en": "Nepal"
+      },
+      "frequency": {
+        "zh": "每周",
+        "en": "Weekly"
       }
     },
     {
