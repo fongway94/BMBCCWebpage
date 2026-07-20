@@ -1300,11 +1300,11 @@ export const initialData = {
         "en": "1, Jalan Vervea 6, Pulau Pinang"
       },
       "directions": {
-        "zh": "交通指南",
-        "en": "Directions"
+        "zh": "-",
+        "en": "-"
       },
       "landmarks": {
-        "zh": "附近地标",
+        "zh": "附近地标\n-",
         "en": "Nearby Landmarks"
       }
     }
