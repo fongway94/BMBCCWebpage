@@ -901,23 +901,37 @@ export default function App() {
 
   // 3. Timetable Actions
   const handleSaveTimetable = (item) => {
-    const type = item._type || adminTimetableSubSection;
+    const targetType = item._type || adminTimetableSubSection;
+    const origType = item._originalType || targetType;
     const updated = { ...data };
-    let arrayKey = 'timetable';
-    if (type === 'ministry') arrayKey = 'ministryTimetable';
-    if (type === 'cellgroup') arrayKey = 'cellGroupTimetable';
 
-    if (!updated[arrayKey]) updated[arrayKey] = [];
+    const getArrayKey = (t) => {
+      if (t === 'ministry') return 'ministryTimetable';
+      if (t === 'cellgroup') return 'cellGroupTimetable';
+      return 'timetable';
+    };
 
-    // Strip the temporary _type field before saving to storage
+    const targetKey = getArrayKey(targetType);
+    const origKey = getArrayKey(origType);
+
+    if (!updated[targetKey]) updated[targetKey] = [];
+    if (!updated[origKey]) updated[origKey] = [];
+
+    // Strip temporary flags before saving to storage
     const cleanedItem = { ...item };
     delete cleanedItem._type;
+    delete cleanedItem._originalType;
 
     if (item.id === 'new') {
-      const newId = Math.max(...updated[arrayKey].map(t => t.id), 0) + 1;
-      updated[arrayKey].push({ ...cleanedItem, id: newId });
+      const newId = Math.max(...updated[targetKey].map(t => t.id), 0) + 1;
+      updated[targetKey].push({ ...cleanedItem, id: newId });
+    } else if (targetType !== origType) {
+      // Item moved between timetable categories (e.g. from service to cellgroup)
+      updated[origKey] = updated[origKey].filter(t => t.id !== item.id);
+      const newId = Math.max(...updated[targetKey].map(t => t.id), 0) + 1;
+      updated[targetKey].push({ ...cleanedItem, id: newId });
     } else {
-      updated[arrayKey] = updated[arrayKey].map(t => t.id === item.id ? cleanedItem : t);
+      updated[targetKey] = updated[targetKey].map(t => t.id === item.id ? cleanedItem : t);
     }
     saveAllData(updated);
     setEditingTimetable(null);
@@ -4312,7 +4326,7 @@ export default function App() {
                         { id: 'settings', label: lang === 'zh' ? '基本设置 & 配色' : 'General & Colors', icon: SettingsIcon, group: 'about' },
                         { id: 'about', label: lang === 'zh' ? '关于我们设置' : 'About Us Settings', icon: Users, group: 'about' },
                         { id: 'carousel', label: lang === 'zh' ? '横幅幻灯片' : 'Banner Slides', icon: Sparkles },
-                        { id: 'timetable', label: lang === 'zh' ? '聚会时间表' : 'Timetable Services', icon: Calendar },
+                        { id: 'timetable', label: lang === 'zh' ? '聚会时间表日程管理' : 'Schedule Timetable Manager', icon: Calendar },
                         { id: 'ministries', label: lang === 'zh' ? '核心事工管理' : 'Ministries Content', icon: Heart },
                         { id: 'events', label: lang === 'zh' ? '活动内容发布' : 'Events Post', icon: CalendarCheck },
                         { id: 'offerings', label: lang === 'zh' ? '奉献设置' : 'Offerings Settings', icon: HandHeart },
@@ -5172,8 +5186,8 @@ export default function App() {
                     <div className="space-y-6">
                       <div className="flex justify-between items-start gap-4">
                         <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '聚会时间表日程管理' : 'Weekly Services Manager'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理周间的所有定期崇拜、青年团契、主日学、祷告会等日程时间' : 'Add or modify regular schedules like Sunday combined worship services, prayer meetings'}</p>
+                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '聚会时间表日程管理' : 'Schedule Timetable Manager'}</h2>
+                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理周间的所有定期崇拜、事工聚会与小组聚会日程时间' : 'Add or modify regular service schedules, ministry gatherings, and cell group timetables'}</p>
                         </div>
                         {editingTimetable === null && (
                           <button
@@ -5187,6 +5201,7 @@ export default function App() {
                               setEditingTimetable({
                                 id: 'new',
                                 _type: adminTimetableSubSection,
+                                _originalType: adminTimetableSubSection,
                                 name: defaultName,
                                 day: { zh: '星期日', en: 'Sunday' },
                                 time: '10:00 AM',
@@ -5196,10 +5211,16 @@ export default function App() {
                                 picContact: { zh: '', en: '' }
                               });
                             }}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
                           >
                             <Plus size={14} />
-                            <span>{lang === 'zh' ? '添加新日程' : 'Add New Service'}</span>
+                            <span>
+                              {adminTimetableSubSection === 'ministry'
+                                ? (lang === 'zh' ? '添加事工日程' : 'Add Ministry Schedule')
+                                : adminTimetableSubSection === 'cellgroup'
+                                ? (lang === 'zh' ? '添加小组日程' : 'Add Cellgroup Schedule')
+                                : (lang === 'zh' ? '添加新日程' : 'Add New Schedule')}
+                            </span>
                           </button>
                         )}
                       </div>
@@ -5286,6 +5307,26 @@ export default function App() {
                           </h3>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2 bg-white p-3 rounded-lg border border-gray-200">
+                              <label className="block text-xs font-bold text-gray-700 mb-1">
+                                {lang === 'zh' ? '日程分布类别 / Target Category' : 'Schedule Category / Type'}
+                              </label>
+                              <select
+                                value={editingTimetable._type || adminTimetableSubSection}
+                                onChange={(e) => setEditingTimetable({ ...editingTimetable, _type: e.target.value })}
+                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs font-semibold focus:ring-1 focus:ring-primary focus:outline-none bg-gray-50"
+                              >
+                                <option value="weekly">{lang === 'zh' ? '常规定期崇拜聚会 (Regular Service Schedule)' : 'Regular Weekly Service Schedule'}</option>
+                                <option value="ministry">{lang === 'zh' ? '事工日程 (Ministry Schedule)' : 'Ministry Timetable Schedule'}</option>
+                                <option value="cellgroup">{lang === 'zh' ? '细胞小组日程 (Cell Group Schedule)' : 'Cell Group Timetable Schedule'}</option>
+                              </select>
+                              <p className="text-[10px] text-gray-400 mt-1">
+                                {lang === 'zh'
+                                  ? '可在此选择该日程属于崇拜时间表、事工时间表或小组时间表'
+                                  : 'Select whether this schedule belongs to Service Timetable, Ministry Timetable, or Cellgroup Timetable.'}
+                              </p>
+                            </div>
+
                             <div>
                               <label className="block text-xs font-bold text-gray-600 mb-1">聚会名称 (中文)</label>
                               <input
@@ -5504,7 +5545,7 @@ export default function App() {
                                           <ArrowDown size={13} />
                                         </button>
                                         <button
-                                          onClick={() => setEditingTimetable({ ...item, _type: adminTimetableSubSection })}
+                                          onClick={() => setEditingTimetable({ ...item, _type: adminTimetableSubSection, _originalType: adminTimetableSubSection })}
                                           className="p-1 rounded border border-blue-250 text-blue-600 hover:bg-blue-50"
                                         >
                                           <Edit3 size={13} />
@@ -5519,6 +5560,60 @@ export default function App() {
                                     </td>
                                   </tr>
                                 ));
+                              })()}
+                              {(() => {
+                                let list = data.timetable || [];
+                                if (adminTimetableSubSection === 'ministry') list = data.ministryTimetable || [];
+                                else if (adminTimetableSubSection === 'cellgroup') list = data.cellGroupTimetable || [];
+
+                                if (list.length === 0) {
+                                  return (
+                                    <tr>
+                                      <td colSpan={4} className="p-8 text-center text-gray-400">
+                                        <p className="mb-2 text-xs">
+                                          {adminTimetableSubSection === 'ministry'
+                                            ? (lang === 'zh' ? '暂无事工聚会日程，点击下方按钮添加' : 'No ministry schedules added yet')
+                                            : adminTimetableSubSection === 'cellgroup'
+                                            ? (lang === 'zh' ? '暂无小组聚会日程，点击下方按钮添加' : 'No cellgroup schedules added yet')
+                                            : (lang === 'zh' ? '暂无常规定期崇拜日程，点击下方按钮添加' : 'No regular worship schedules added yet')}
+                                        </p>
+                                        <button
+                                          onClick={() => {
+                                            let defaultName = { zh: '主日崇拜聚会', en: 'Sunday Worship Service' };
+                                            if (adminTimetableSubSection === 'ministry') {
+                                              defaultName = { zh: '新事工聚会', en: 'New Ministry Gathering' };
+                                            } else if (adminTimetableSubSection === 'cellgroup') {
+                                              defaultName = { zh: '新小组聚会', en: 'New Cell Group Schedule' };
+                                            }
+                                            setEditingTimetable({
+                                              id: 'new',
+                                              _type: adminTimetableSubSection,
+                                              _originalType: adminTimetableSubSection,
+                                              name: defaultName,
+                                              day: { zh: '星期日', en: 'Sunday' },
+                                              time: '10:00 AM',
+                                              location: { zh: '教会主堂', en: 'Main Sanctuary' },
+                                              language: { zh: '华语', en: 'Chinese' },
+                                              frequency: { zh: '', en: '' },
+                                              picContact: { zh: '', en: '' }
+                                            });
+                                          }}
+                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all mt-1"
+                                        >
+                                          <Plus size={14} />
+                                          <span>
+                                            {adminTimetableSubSection === 'ministry'
+                                              ? (lang === 'zh' ? '添加事工日程' : 'Add Ministry Schedule')
+                                              : adminTimetableSubSection === 'cellgroup'
+                                              ? (lang === 'zh' ? '添加小组日程' : 'Add Cellgroup Schedule')
+                                              : (lang === 'zh' ? '添加新日程' : 'Add New Schedule')}
+                                          </span>
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                }
+                                return null;
                               })()}
                             </tbody>
                           </table>
