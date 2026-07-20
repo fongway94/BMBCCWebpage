@@ -1274,7 +1274,7 @@ export const initialData = {
         "zh": "恩典之家",
         "en": "Grace Home"
       },
-      "googleMapsEmbedUrl": "https://maps.google.com/maps?q=%E6%81%A9%E5%85%B8%E4%B9%8B%E6%B3%89%20Stream%20of%20Grace&output=embed",
+      "googleMapsEmbedUrl": "https://www.google.com/maps/place/The+Hope/@5.2390041,100.4405334,1225m/data=!3m1!1e3!4m6!3m5!1s0x304ab70074d63953:0xdf25e5f90454fd2f!8m2!3d5.2386205!4d100.4406812!16s%2Fg%2F11wqr6lc_b?entry=ttu&g_ep=EgoyMDI2MDcxNS4wIKXMDSoASAFQAw%3D%3D",
       "address": {
         "zh": "2, Tingkat Binjai 8, Taman Sri Rambai, 14000 Bukit Mertajam, Pulau Pinang",
         "en": "2, Tingkat Binjai 8, Taman Sri Rambai, 14000 Bukit Mertajam, Pulau Pinang"
