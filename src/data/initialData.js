@@ -80,8 +80,8 @@ export const initialData = {
       "en": "Fellowship & Grow Together"
     },
     "timetableTitle": {
-      "zh": "周聚会与崇拜时间表",
-      "en": "Weekly Services & Timetable"
+      "zh": "崇拜时间表",
+      "en": "Service Timetable"
     },
     "timetableIntro": {
       "zh": "我们诚挚地邀请您和您的家人参与我们的周聚会，共同在敬拜、祷告、真理和爱心团契里，经历生命的翻转与复兴。",
