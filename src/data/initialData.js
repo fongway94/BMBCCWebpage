@@ -400,6 +400,10 @@ export const initialData = {
       "language": {
         "zh": "马来语",
         "en": "Bahasa"
+      },
+      "frequency": {
+        "zh": "每周",
+        "en": "Weekly"
       }
     },
     {
