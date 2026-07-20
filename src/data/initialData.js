@@ -1276,8 +1276,8 @@ export const initialData = {
       },
       "googleMapsEmbedUrl": "google.com/maps?vet=10CAAQoqAOahcKEwjoo5m6wOGVAxUAAAAAHQAAAAAQCQ..i&rlz=1C1GCEA_enMY1184MY1184&sca_esv=d51e216af84ce14e&pvq=Cg0vZy8xMWh5dDV2cTZ4Ih0KF-aBqeWFuOS5i-WutiBncmFjZSBob21lEAIYAw&lqi=CifmganlhbjkuYvlrrYgZ3JhY2UgaG9tZSBidWtpdCBtZXJ0YWphbSxI3LH1kvevgIAIWj4QABABEAIQAxAEGAAYARgDGAUYBiIo5oGp5YW4IOS5iyDlrrYgZ3JhY2UgaG9tZSBidWtpdCBtZXJ0YWphbZIBB2xvZGdpbmc&fvr=1&cs=0&um=1&ie=UTF-8&fb=1&gl=my&sa=X&ftid=0x304ac9a163ff73db:0x12656f6daefb41db",
       "address": {
-        "zh": "地址",
-        "en": "Address"
+        "zh": "2, Tingkat Binjai 8, Taman Sri Rambai, 14000 Bukit Mertajam, Pulau Pinang",
+        "en": "2, Tingkat Binjai 8, Taman Sri Rambai, 14000 Bukit Mertajam, Pulau Pinang"
       },
       "directions": {
         "zh": "交通指南",
