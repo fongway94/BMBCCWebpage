@@ -376,6 +376,10 @@ export const initialData = {
       "language": {
         "zh": "闽南语",
         "en": "Hokkien"
+      },
+      "frequency": {
+        "zh": "每周",
+        "en": "Weekly"
       }
     },
     {
