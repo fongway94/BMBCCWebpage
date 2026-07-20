@@ -2345,7 +2345,6 @@ export default function App() {
                                     </span>
                                     <span className="font-bold text-gray-700">{item.time}</span>
                                   </div>
-                                  {t(item.frequency) && <div className="mt-1 text-xs text-gray-500 font-medium">{t(item.frequency)}</div>}
                                 </td>
                                 <td className="py-5 px-3 text-xs font-medium text-gray-600 whitespace-nowrap">{t(item.frequency) || '-'}</td>
                                 <td className="py-4.5 px-6 text-gray-600 font-medium">
