@@ -552,6 +552,10 @@ export const initialData = {
       "picContact": {
         "zh": "邓婉龄传道 (019-2233445)",
         "en": "Ps. Teng (019-2233445)"
+      },
+      "frequency": {
+        "zh": "每周",
+        "en": "Weekly"
       }
     },
     {
