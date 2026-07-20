@@ -1271,10 +1271,10 @@ export const initialData = {
     {
       "id": 4,
       "name": {
-        "zh": "恩典之家",
-        "en": "Grace Home"
+        "zh": "恩典之家 (恩典之泉 Stream of Grace)",
+        "en": "Grace Home (Stream of Grace)"
       },
-      "googleMapsEmbedUrl": "https://maps.google.com/maps?q=%E6%81%A9%E5%85%B8%E4%B9%8B%E6%B3%89%20Stream%20of%20Grace&output=embed",
+      "googleMapsEmbedUrl": "https://www.google.com/maps/place/%E6%81%A9%E5%85%B8%E4%B9%8B%E6%B3%89+Stream+of+Grace/@5.3503825,100.4450346,1225m/data=!3m2!1e3!4b1!4m6!3m5!1s0x304ac9a163ff73db:0x12656f6daefb41db!8m2!3d5.3503825!4d100.4450346!16s%2Fg%2F11hyt5vq6x?entry=ttu&g_ep=EgoyMDI2MDcxNS4wIKXMDSoASAFQAw%3D%3D",
       "address": {
         "zh": "2, Tingkat Binjai 8, Taman Sri Rambai, 14000 Bukit Mertajam, Pulau Pinang",
         "en": "2, Tingkat Binjai 8, Taman Sri Rambai, 14000 Bukit Mertajam, Pulau Pinang"
