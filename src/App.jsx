@@ -4807,13 +4807,21 @@ export default function App() {
 
                         {/* EVENT POP-UP SETTINGS */}
                         <div className="md:col-span-2 pt-4 border-t border-gray-100">
-                          <div className="flex items-start justify-between gap-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                          <div className="flex items-center justify-between gap-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
                             <div>
                               <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide">{lang === 'zh' ? '活动弹窗提醒 / Event Alert Pop-up' : 'Event Alert Pop-up / 活动弹窗提醒'}</label>
                               <p className="mt-1 text-[10px] leading-relaxed text-gray-500">{lang === 'zh' ? '开启后，访客每次打开网站都会看到活动提醒；有多个活动时可左右切换。' : 'When enabled, visitors see an event alert every time they open the website. Multiple events can be browsed like a carousel.'}</p>
                             </div>
-                            <button type="button" role="switch" aria-checked={data.settings.eventPopupEnabled === true} onClick={() => updateSetting('eventPopupEnabled', null, !data.settings.eventPopupEnabled)} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${data.settings.eventPopupEnabled ? 'bg-primary' : 'bg-gray-300'}`}>
-                              <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${data.settings.eventPopupEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={data.settings.eventPopupEnabled === true}
+                              onClick={() => updateSetting('eventPopupEnabled', null, !data.settings.eventPopupEnabled)}
+                              className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${data.settings.eventPopupEnabled ? 'bg-primary' : 'bg-gray-300'}`}
+                            >
+                              <span
+                                className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${data.settings.eventPopupEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+                              />
                             </button>
                           </div>
                         </div>
