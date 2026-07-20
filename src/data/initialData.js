@@ -808,9 +808,10 @@ export const initialData = {
       },
       "image": "https://drive.google.com/thumbnail?id=13WvLTpNl_omUTOsF5Z8bbhhO7vDCtkSh&sz=w2000",
       "bio": {
-        "zh": "李玉章博士",
-        "en": "Dr. Lee"
-      }
+        "zh": "李玉章博士活跃于Bahasa和尼泊尔讲道服侍",
+        "en": "Dr. Lee is active in preaching and ministry in Bahasa and Nepal Service."
+      },
+      "category": "pastor"
     },
     {
       "id": 4,
