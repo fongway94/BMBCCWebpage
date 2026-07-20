@@ -776,9 +776,10 @@ export const initialData = {
       },
       "image": "https://drive.google.com/thumbnail?id=1IYDLB3zQxOv-f53DjI1ks6hz5QEIiltY&sz=w2000",
       "bio": {
-        "zh": "杨桔槟牧 - 大山脚浸信教会的主任牧师",
+        "zh": "杨桔槟牧师 - 大山脚浸信教会的主任牧师",
         "en": "Pastor Stanley Yeoh - Senior Pastor of Bukit Mertajam Baptist Church"
-      }
+      },
+      "category": "pastor"
     },
     {
       "id": 2,
