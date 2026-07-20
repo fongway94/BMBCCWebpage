@@ -1281,10 +1281,10 @@ export const initialData = {
       },
       "directions": {
         "zh": "-",
-        "en": "Directions"
+        "en": "-"
       },
       "landmarks": {
-        "zh": "附近地标",
+        "zh": "",
         "en": "Nearby Landmarks"
       }
     }
