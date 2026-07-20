@@ -466,7 +466,7 @@ export const initialData = {
         "zh": "星期六",
         "en": "Saturday"
       },
-      "time": "9:00 AM - 10:00 PM",
+      "time": "9:00 AM - 10:00 AM",
       "location": {
         "zh": "BMBCC BKBC",
         "en": "Church Sanctuary"
