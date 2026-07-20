@@ -1284,8 +1284,8 @@ export const initialData = {
         "en": "-"
       },
       "landmarks": {
-        "zh": "附近地标：\n• Billion 商业中心 (500米)",
-        "en": "Nearby Landmarks"
+        "zh": "附近地标：\n-",
+        "en": "Nearby Landmarks:\n-"
       }
     }
   ]
