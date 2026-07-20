@@ -2323,7 +2323,8 @@ export default function App() {
                         <thead>
                           <tr className="bg-gray-50/90 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
                             <th className="py-4 px-6">{lang === 'zh' ? '聚会名称' : 'Meeting / Service'}</th>
-                            <th className="py-4 px-6">{lang === 'zh' ? '聚会时间' : 'Day & Time'}</th>
+                            <th className="py-4 px-3">{lang === 'zh' ? '聚会时间' : 'Day & Time'}</th>
+                            <th className="py-4 px-3">{lang === 'zh' ? '频率' : 'Freq'}</th>
                             <th className="py-4 px-6">{lang === 'zh' ? '地点 / 平台' : 'Location / Format'}</th>
                             <th className="py-4 px-6">{lang === 'zh' ? '媒介语言' : 'Language'}</th>
                             <th className="py-4 px-6 text-right">{lang === 'zh' ? '操作' : 'Action'}</th>
@@ -2334,7 +2335,7 @@ export default function App() {
                             const style = getDayBadgeStyle(t(item.day));
                             return (
                               <tr key={item.id} className="hover:bg-primary/5 transition-colors text-sm text-gray-700 group">
-                                <td className="py-4.5 px-6 font-extrabold text-gray-900 group-hover:text-primary transition-colors">
+                                <td className="py-5 px-6 font-extrabold text-gray-900 group-hover:text-primary transition-colors">
                                   {t(item.name)}
                                 </td>
                                 <td className="py-4.5 px-6">
@@ -2346,6 +2347,7 @@ export default function App() {
                                   </div>
                                   {t(item.frequency) && <div className="mt-1 text-xs text-gray-500 font-medium">{t(item.frequency)}</div>}
                                 </td>
+                                <td className="py-5 px-3 text-xs font-medium text-gray-600 whitespace-nowrap">{t(item.frequency) || '-'}</td>
                                 <td className="py-4.5 px-6 text-gray-600 font-medium">
                                   <div className="flex items-center gap-1.5">
                                     <MapPin size={15} className="text-primary/70 shrink-0" />
