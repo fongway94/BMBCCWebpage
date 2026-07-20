@@ -991,7 +991,7 @@ export const initialData = {
     "offerings": true,
     "bulletins": true,
     "cellgroups": true,
-    "newfriend": true,
+    "newfriend": false,
     "maps": true
   },
   "cellGroups": [
