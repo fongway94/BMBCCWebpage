@@ -662,10 +662,31 @@ export default function App() {
 
   const getGoogleMapsEmbedUrl = (church) => {
     const rawUrl = (church?.googleMapsEmbedUrl || '').trim();
-    // Some older/default demo embed URLs point at incomplete placeholder coordinates
-    // and can render as an empty map. Fall back to a reliable query-based embed.
-    const isPlaceholderEmbed = /!1d3966|!1d3967|!2d100\.4!3d5\.3/.test(rawUrl);
-    if (rawUrl && !isPlaceholderEmbed) return rawUrl;
+    if (rawUrl) {
+      if (rawUrl.includes('<iframe')) {
+        const srcMatch = rawUrl.match(/src="([^"]+)"/);
+        if (srcMatch) return srcMatch[1];
+      }
+      if (rawUrl.includes('output=embed') || rawUrl.includes('/maps/embed')) {
+        return rawUrl;
+      }
+      const coordMatch = rawUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (coordMatch) {
+        return `https://maps.google.com/maps?q=${coordMatch[1]},${coordMatch[2]}&output=embed`;
+      }
+      const qMatch = rawUrl.match(/[?&]q=([^&]+)/);
+      if (qMatch) {
+        return `https://maps.google.com/maps?q=${qMatch[1]}&output=embed`;
+      }
+      const placeMatch = rawUrl.match(/\/maps\/place\/([^/@]+)/);
+      if (placeMatch) {
+        return `https://maps.google.com/maps?q=${placeMatch[1]}&output=embed`;
+      }
+      if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+        return `https://maps.google.com/maps?q=${encodeURIComponent(rawUrl)}&output=embed`;
+      }
+      return `https://maps.google.com/maps?q=${encodeURIComponent(rawUrl)}&output=embed`;
+    }
 
     const query = t(church?.address) || t(church?.name) || data.settings.contactAddress;
     return query ? `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed` : '';
