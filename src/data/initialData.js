@@ -582,8 +582,8 @@ export const initialData = {
         "en": "Chinese"
       },
       "picContact": {
-        "zh": "邓婉龄传道 (019-2233445)",
-        "en": "Ps. Teng (019-2233445)"
+        "zh": "杨旎晨组长 & 邓婉龄传道",
+        "en": "Dunedin Yeoh & Ps. Teng"
       },
       "frequency": {
         "zh": "每周",
