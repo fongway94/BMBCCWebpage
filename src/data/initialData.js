@@ -613,6 +613,34 @@ export const initialData = {
         "zh": "",
         "en": ""
       }
+    },
+    {
+      "id": 5,
+      "name": {
+        "zh": " 耶利米小组",
+        "en": "Jeremiah Cell Group"
+      },
+      "day": {
+        "zh": "星期二",
+        "en": "Tuesday"
+      },
+      "time": "8:30 PM - 10:00 PM",
+      "location": {
+        "zh": "居林区",
+        "en": "Kulim"
+      },
+      "language": {
+        "zh": "华语",
+        "en": "Chinese"
+      },
+      "frequency": {
+        "zh": "每周",
+        "en": "Weekly"
+      },
+      "picContact": {
+        "zh": "",
+        "en": ""
+      }
     }
   ],
   "ministries": [
