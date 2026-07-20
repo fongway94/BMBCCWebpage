@@ -1287,6 +1287,26 @@ export const initialData = {
         "zh": "附近地标：\n-",
         "en": "Nearby Landmarks:\n-"
       }
+    },
+    {
+      "id": 5,
+      "name": {
+        "zh": "新聚会点",
+        "en": "New Fellowship Point"
+      },
+      "googleMapsEmbedUrl": "",
+      "address": {
+        "zh": "地址",
+        "en": "Address"
+      },
+      "directions": {
+        "zh": "交通指南",
+        "en": "Directions"
+      },
+      "landmarks": {
+        "zh": "附近地标",
+        "en": "Nearby Landmarks"
+      }
     }
   ]
 };
