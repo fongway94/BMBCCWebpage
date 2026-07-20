@@ -1284,7 +1284,7 @@ export const initialData = {
         "en": "-"
       },
       "landmarks": {
-        "zh": "-",
+        "zh": "附近地标",
         "en": "Nearby Landmarks"
       }
     }
