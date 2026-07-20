@@ -1272,7 +1272,7 @@ export const initialData = {
       "id": 4,
       "name": {
         "zh": "恩典之家",
-        "en": "New Fellowship Point"
+        "en": "Grace Home"
       },
       "googleMapsEmbedUrl": "",
       "address": {
