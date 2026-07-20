@@ -587,10 +587,10 @@ export const initialData = {
       }
     },
     {
-      "id": 4,
+      "id": 5,
       "name": {
-        "zh": "亚伯拉罕小组",
-        "en": "Abraham Cell Group"
+        "zh": " 耶利米小组",
+        "en": "Jeremiah Cell Group"
       },
       "day": {
         "zh": "星期二",
@@ -598,8 +598,8 @@ export const initialData = {
       },
       "time": "8:30 PM - 10:00 PM",
       "location": {
-        "zh": "阿儿玛",
-        "en": "Alma"
+        "zh": "居林区",
+        "en": "Kulim"
       },
       "language": {
         "zh": "华语",
@@ -615,10 +615,10 @@ export const initialData = {
       }
     },
     {
-      "id": 5,
+      "id": 4,
       "name": {
-        "zh": " 耶利米小组",
-        "en": "Jeremiah Cell Group"
+        "zh": "亚伯拉罕小组",
+        "en": "Abraham Cell Group"
       },
       "day": {
         "zh": "星期二",
@@ -626,8 +626,8 @@ export const initialData = {
       },
       "time": "8:30 PM - 10:00 PM",
       "location": {
-        "zh": "居林区",
-        "en": "Kulim"
+        "zh": "阿儿玛",
+        "en": "Alma"
       },
       "language": {
         "zh": "华语",
