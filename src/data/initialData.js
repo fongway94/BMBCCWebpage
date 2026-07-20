@@ -1280,7 +1280,7 @@ export const initialData = {
         "en": "2, Tingkat Binjai 8, Taman Sri Rambai, 14000 Bukit Mertajam, Pulau Pinang"
       },
       "directions": {
-        "zh": "交通指南",
+        "zh": "-",
         "en": "Directions"
       },
       "landmarks": {
