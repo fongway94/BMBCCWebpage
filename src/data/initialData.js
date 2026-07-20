@@ -282,7 +282,8 @@ export const initialData = {
         "en": "Chinese"
       },
       "frequency": {
-        "en": "每周"
+        "en": "Weekly",
+        "zh": "每周"
       }
     },
     {
