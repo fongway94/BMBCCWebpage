@@ -825,9 +825,10 @@ export const initialData = {
       },
       "image": "https://drive.google.com/thumbnail?id=1lFmXVAaXq-3Yk7-AiFJeOsaopY_YWy4f&sz=w2000",
       "bio": {
-        "zh": "邓婉龄传道",
-        "en": "Pastor Teng"
-      }
+        "zh": "邓婉龄传道活跃于BKBC崇拜讲道和带领着年轻小组（约书亚）",
+        "en": "Pastor Teng is active in BKBC worship services, preaching and leading young cell group (Joshua)."
+      },
+      "category": "pastor"
     }
   ],
   "offerings": {
