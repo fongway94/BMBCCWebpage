@@ -2092,9 +2092,10 @@ export default function App() {
               const timeStr = String(item.time || '').toLowerCase();
               const locStr = t(item.location).toLowerCase();
               const langStr = t(item.language).toLowerCase();
+              const frequencyStr = t(item.frequency).toLowerCase();
               const q = timetableSearchQuery.toLowerCase().trim();
 
-              const matchesSearch = !q || nameStr.includes(q) || dayStr.includes(q) || timeStr.includes(q) || locStr.includes(q) || langStr.includes(q);
+              const matchesSearch = !q || nameStr.includes(q) || dayStr.includes(q) || timeStr.includes(q) || locStr.includes(q) || langStr.includes(q) || frequencyStr.includes(q);
               const matchesDay = timetableFilterDay === 'all' || t(item.day) === timetableFilterDay;
               const matchesLang = timetableFilterLang === 'all' || t(item.language) === timetableFilterLang;
 
@@ -2119,7 +2120,7 @@ export default function App() {
           };
 
           const handleCopyInfo = (item) => {
-            const text = `${t(item.name)} | ${t(item.day)} ${item.time} | ${t(item.location)} (${t(item.language)})`;
+            const text = `${t(item.name)} | ${t(item.day)} ${item.time}${t(item.frequency) ? ` | ${t(item.frequency)}` : ''} | ${t(item.location)} (${t(item.language)})`;
             if (navigator.clipboard && navigator.clipboard.writeText) {
               navigator.clipboard.writeText(text);
               setCopiedModalItem(true);
@@ -2194,6 +2195,13 @@ export default function App() {
                                 </div>
                               </div>
                             </div>
+
+                            {t(item.frequency) && (
+                              <div className="flex items-center gap-2.5 text-xs text-gray-600 font-medium">
+                                <CalendarDays size={16} className="text-primary shrink-0" />
+                                <span><span className="font-bold text-gray-700">{lang === 'zh' ? '频率：' : 'Frequency: '}</span>{t(item.frequency)}</span>
+                              </div>
+                            )}
 
                             {/* Location */}
                             <div className="flex items-start gap-2.5 text-xs text-gray-600 font-medium">
@@ -2275,6 +2283,12 @@ export default function App() {
                                         <Clock size={14} className="text-primary" />
                                         <span>{item.time}</span>
                                       </div>
+                                      {t(item.frequency) && (
+                                        <div className="flex items-center gap-1.5">
+                                          <CalendarDays size={14} className="text-gray-400" />
+                                          <span>{t(item.frequency)}</span>
+                                        </div>
+                                      )}
                                       <div className="flex items-center gap-1.5">
                                         <MapPin size={14} className="text-gray-400" />
                                         <span>{t(item.location)}</span>
@@ -2330,6 +2344,7 @@ export default function App() {
                                     </span>
                                     <span className="font-bold text-gray-700">{item.time}</span>
                                   </div>
+                                  {t(item.frequency) && <div className="mt-1 text-xs text-gray-500 font-medium">{t(item.frequency)}</div>}
                                 </td>
                                 <td className="py-4.5 px-6 text-gray-600 font-medium">
                                   <div className="flex items-center gap-1.5">
@@ -2371,7 +2386,7 @@ export default function App() {
                   {t(data.settings.timetableBadge) || (lang === 'zh' ? '与我们一同朝见神与相聚' : 'Fellowship & Grow Together')}
                 </span>
                 <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                  {t(data.settings.timetableTitle) || (lang === 'zh' ? '周聚会与崇拜时间表' : 'Weekly Services & Timetable')}
+                  {t(data.settings.timetableTitle) || (lang === 'zh' ? '崇拜时间表' : 'Service Timetable')}
                 </h1>
                 <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
                   {t(data.settings.timetableIntro) || (lang === 'zh' 
@@ -2448,7 +2463,7 @@ export default function App() {
                 <div className="space-y-3 pt-2 border-t border-gray-100">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1"><Filter size={12} />{lang === 'zh' ? '类别:' : 'Section:'}</span>
-                    {[{ id: 'all', zh: '全部', en: 'All' }, { id: 'weekly', zh: '定期聚会总览', en: 'Regular Weekly Services Overview' }, { id: 'ministry', zh: '事工时间表', en: 'Ministry Timetable' }, { id: 'cellgroup', zh: '小组时间表', en: 'Cellgroup Timetable' }].map(section => (
+                    {[{ id: 'all', zh: '全部', en: 'All' }, { id: 'weekly', zh: '崇拜时间表', en: 'Service Timetable' }, { id: 'ministry', zh: '事工时间表', en: 'Ministry Timetable' }, { id: 'cellgroup', zh: '小组时间表', en: 'Cellgroup Timetable' }].map(section => (
                       <button key={section.id} onClick={() => setTimetableFilterSection(section.id)} className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${timetableFilterSection === section.id ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{lang === 'zh' ? section.zh : section.en}</button>
                     ))}
                   </div>
@@ -2548,7 +2563,7 @@ export default function App() {
               ) : (
                 <div className="space-y-16">
                   {renderSection(
-                    lang === 'zh' ? '定期崇拜与各级团契时间总览' : 'Regular Weekly Services Overview',
+                    lang === 'zh' ? '崇拜时间表' : 'Service Timetable',
                     <CalendarCheck className="text-primary shrink-0" size={22} />,
                     filteredWeekly
                   )}
@@ -2601,6 +2616,16 @@ export default function App() {
                           <div className="font-bold">{selectedTimetableModal.time}</div>
                         </div>
                       </div>
+
+                      {t(selectedTimetableModal.frequency) && (
+                        <div className="flex items-center gap-3 text-gray-800 pt-2 border-t border-gray-200/60">
+                          <CalendarDays className="text-primary shrink-0" size={18} />
+                          <div>
+                            <div className="text-[11px] font-bold text-gray-400 uppercase">{lang === 'zh' ? '聚会频率' : 'Frequency'}</div>
+                            <div className="font-bold">{t(selectedTimetableModal.frequency)}</div>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="flex items-start gap-3 text-gray-800 pt-2 border-t border-gray-200/60">
                         <MapPin className="text-primary shrink-0 mt-0.5" size={18} />
@@ -5166,6 +5191,7 @@ export default function App() {
                                 time: '10:00 AM',
                                 location: { zh: '教会主堂', en: 'Main Sanctuary' },
                                 language: { zh: '华语', en: 'Chinese' },
+                                frequency: { zh: '', en: '' },
                                 picContact: { zh: '', en: '' }
                               });
                             }}
@@ -5194,8 +5220,8 @@ export default function App() {
                           <div>
                             <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
                             <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.timetableTitle?.zh || ''} onChange={(e) => updateSetting('timetableTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="周聚会与崇拜时间表" />
-                              <input type="text" value={data.settings.timetableTitle?.en || ''} onChange={(e) => updateSetting('timetableTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Weekly Services & Timetable" />
+                              <input type="text" value={data.settings.timetableTitle?.zh || ''} onChange={(e) => updateSetting('timetableTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="崇拜时间表" />
+                              <input type="text" value={data.settings.timetableTitle?.en || ''} onChange={(e) => updateSetting('timetableTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Service Timetable" />
                             </div>
                           </div>
                           <div className="md:col-span-2">
@@ -5309,6 +5335,16 @@ export default function App() {
                                 })}
                                 className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
                               />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">聚会频率 (中文 - 例如: 每两周一次、每月两次)</label>
+                              <input type="text" value={editingTimetable.frequency?.zh || ''} onChange={(e) => setEditingTimetable({ ...editingTimetable, frequency: { ...(editingTimetable.frequency || {}), zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="选填" />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">Frequency (English - e.g. Weekly, Once every 2 weeks, Twice a month)</label>
+                              <input type="text" value={editingTimetable.frequency?.en || ''} onChange={(e) => setEditingTimetable({ ...editingTimetable, frequency: { ...(editingTimetable.frequency || {}), en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Optional" />
                             </div>
 
                             <div>
