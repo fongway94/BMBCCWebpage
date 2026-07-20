@@ -1267,6 +1267,26 @@ export const initialData = {
         "zh": "附近地标：\n• Eco Bloom 公寓 (200米)\n• My News 便利店 (100米)",
         "en": "Nearby Landmarks:\n• Eco Bloom Condo (200m)\n• My News Convenience Store (100m)"
       }
+    },
+    {
+      "id": 4,
+      "name": {
+        "zh": "新聚会点",
+        "en": "New Fellowship Point"
+      },
+      "googleMapsEmbedUrl": "",
+      "address": {
+        "zh": "地址",
+        "en": "Address"
+      },
+      "directions": {
+        "zh": "交通指南",
+        "en": "Directions"
+      },
+      "landmarks": {
+        "zh": "附近地标",
+        "en": "Nearby Landmarks"
+      }
     }
   ]
 };
