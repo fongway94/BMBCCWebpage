@@ -554,8 +554,8 @@ export const initialData = {
         "en": "Chinese"
       },
       "picContact": {
-        "zh": "韩川定组长 & 林美凤组长 (012-1122334)",
-        "en": "Bro. Han & Sis. Lim (012-1122334)"
+        "zh": "韩川定组长 & 林美凤组长",
+        "en": "Bro. Han & Sis. Lim"
       },
       "frequency": {
         "en": "Weekly",
