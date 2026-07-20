@@ -582,8 +582,8 @@ export const initialData = {
         "en": "Chinese"
       },
       "picContact": {
-        "zh": "杨旎晨组长 & 邓婉龄传道",
-        "en": "Dunedin Yeoh & Ps. Teng"
+        "zh": "邓婉龄组长 & 杨旎晨组长",
+        "en": "Ps. Teng & Sis Nee Chen"
       },
       "frequency": {
         "zh": "每周",
