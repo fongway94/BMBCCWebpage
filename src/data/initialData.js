@@ -478,6 +478,10 @@ export const initialData = {
       "picContact": {
         "zh": "陈主任 (012-4455667)",
         "en": "Director Chen (012-4455667)"
+      },
+      "frequency": {
+        "zh": "两个月一次",
+        "en": "Once Every Two Months"
       }
     },
     {
