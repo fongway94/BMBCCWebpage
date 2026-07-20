@@ -698,8 +698,8 @@ export const initialData = {
         "en": "Weekly"
       },
       "picContact": {
-        "zh": "",
-        "en": ""
+        "zh": "郑金兰组长 & 钱桂妮组长",
+        "en": "Ps. Camelia & Sis. Chian"
       }
     }
   ],
