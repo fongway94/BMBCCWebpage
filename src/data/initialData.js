@@ -670,8 +670,8 @@ export const initialData = {
         "en": "Weekly"
       },
       "picContact": {
-        "zh": "",
-        "en": ""
+        "zh": "黄天胜组长 & 潘康宁组长",
+        "en": "Bro. Joseph & Sis. Kang Ning"
       }
     },
     {
