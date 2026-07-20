@@ -610,8 +610,8 @@ export const initialData = {
         "en": "Chinese"
       },
       "picContact": {
-        "zh": "林方炜组长 & 陈悠儿组长 (016-3344556)",
-        "en": "Bro. Fong Way & Sis. Yogie (016-3344556)"
+        "zh": "林方炜组长 & 陈悠儿组长",
+        "en": "Bro. Fong Way & Sis. Yogie"
       },
       "frequency": {
         "zh": "每周",
