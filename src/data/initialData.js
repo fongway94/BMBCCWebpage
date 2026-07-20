@@ -998,7 +998,7 @@ export const initialData = {
     {
       "id": 1,
       "name": {
-        "zh": "摩西小组 (Moses)",
+        "zh": "摩西小组",
         "en": "Moses Cell Group"
       },
       "leader": {
