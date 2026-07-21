@@ -244,12 +244,14 @@ export default function App() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [adminLoginError, setAdminLoginError] = useState('');
-  const [adminActiveSection, setAdminActiveSection] = useState('settings'); // 'settings', 'carousel', 'timetable', 'events', 'ministries', 'backup'
+  const [adminActiveSection, setAdminActiveSection] = useState('settings'); // 'settings', 'carousel', 'timetable', 'events', 'ministries', 'fellowshipHighlights', 'backup'
   const [adminSuccessMessage, setAdminSuccessMessage] = useState('');
   const [eventPopupOpen, setEventPopupOpen] = useState(false);
   const [eventPopupSlide, setEventPopupSlide] = useState(0);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedFellowshipHighlight, setSelectedFellowshipHighlight] = useState(null);
+  const [editingFellowshipHighlight, setEditingFellowshipHighlight] = useState(null);
   const [selectedMinistry, setSelectedMinistry] = useState(null);
   const [selectedCellGroup, setSelectedCellGroup] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -1039,6 +1041,29 @@ export default function App() {
     }
   };
 
+  // Fellowship Highlights Actions
+  const handleSaveFellowshipHighlight = (item) => {
+    const updated = { ...data };
+    if (!updated.fellowshipHighlights) updated.fellowshipHighlights = [];
+    if (item.id === 'new') {
+      const newId = Math.max(...updated.fellowshipHighlights.map(h => h.id), 0) + 1;
+      updated.fellowshipHighlights.push({ ...item, id: newId });
+    } else {
+      updated.fellowshipHighlights = updated.fellowshipHighlights.map(h => h.id === item.id ? item : h);
+    }
+    saveAllData(updated);
+    setEditingFellowshipHighlight(null);
+  };
+
+  const handleDeleteFellowshipHighlight = (id) => {
+    if (window.confirm(lang === 'zh' ? '确定要删除此团契精彩集吗？' : 'Are you sure you want to delete this highlight?')) {
+      const updated = { ...data };
+      if (!updated.fellowshipHighlights) updated.fellowshipHighlights = [];
+      updated.fellowshipHighlights = updated.fellowshipHighlights.filter(h => h.id !== id);
+      saveAllData(updated);
+    }
+  };
+
     // 7. Bulletin Actions
   const handleSaveBulletin = (item) => {
     const updated = { ...data };
@@ -1362,7 +1387,8 @@ export default function App() {
                     label: lang === 'zh' ? '聚会' : 'Gatherings', 
                     items: [
                       vis.timetable !== false && { id: 'timetable', label: lang === 'zh' ? '聚会时间' : 'Timetable' },
-                      vis.events !== false && { id: 'events', label: lang === 'zh' ? '特别活动' : 'Events' }
+                      vis.events !== false && { id: 'events', label: lang === 'zh' ? '特别活动' : 'Events' },
+                      { id: 'fellowshipHighlights', label: lang === 'zh' ? '团契精彩' : 'Fellowship Highlights' }
                     ].filter(Boolean)
                   },
                   { 
@@ -4172,6 +4198,79 @@ export default function App() {
           </div>
         )}
 
+        {/* ==================== PAGE: FELLOWSHIP HIGHLIGHTS ==================== */}
+        {activeTab === 'fellowshipHighlights' && (
+          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
+            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+              <span className="text-primary font-bold uppercase tracking-wider text-xs">
+                {lang === 'zh' ? '团契精彩瞬间' : 'Cherished Moments'}
+              </span>
+              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight flex items-center justify-center gap-3">
+                <Camera className="text-primary" size={36} />
+                <span>{lang === 'zh' ? '团契精彩' : 'Fellowship Highlights'}</span>
+              </h1>
+              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
+                {lang === 'zh' 
+                  ? '回顾我们团契生活中的精彩瞬间，一起珍藏这些美好的回忆。' 
+                  : 'Relive the cherished moments from our fellowship life and treasure these beautiful memories together.'}
+              </p>
+            </div>
+
+            {(data.fellowshipHighlights || []).length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {(data.fellowshipHighlights || []).map((highlight) => (
+                  <button
+                    key={highlight.id}
+                    type="button"
+                    onClick={() => setSelectedFellowshipHighlight(highlight)}
+                    className="group text-left bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm flex flex-col hover:shadow-lg hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-all duration-300"
+                  >
+                    <div className="relative h-52 overflow-hidden bg-gray-100">
+                      {highlight.images && highlight.images.length > 0 ? (
+                        <img 
+                          src={highlight.images[0]} 
+                          alt={highlight.title[lang] || highlight.title.zh} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                          <Camera size={48} className="text-primary/40" />
+                        </div>
+                      )}
+                      <div className="absolute top-4 left-4 bg-primary text-white py-1 px-3 rounded-lg font-bold text-xs shadow-md">
+                        {highlight.date}
+                      </div>
+                      <div className="absolute bottom-4 right-4 bg-black/60 text-white px-2 py-0.5 rounded text-xs font-bold">
+                        {highlight.images?.length || 0} {lang === 'zh' ? '张' : 'photos'}
+                      </div>
+                    </div>
+                    <div className="p-6 flex-grow flex flex-col justify-between space-y-4">
+                      <div>
+                        <h3 className="font-extrabold text-lg text-gray-900 leading-tight group-hover:text-primary transition-colors">
+                          {highlight.title[lang] || highlight.title.zh}
+                        </h3>
+                        <p className="text-gray-600 text-xs font-light leading-relaxed mt-2 line-clamp-3">
+                          {highlight.description[lang] || highlight.description.zh}
+                        </p>
+                      </div>
+                      <div className="text-xs font-bold text-primary opacity-0 transition-opacity group-hover:opacity-100 pt-1 flex items-center gap-1">
+                        {lang === 'zh' ? '点击浏览照片 →' : 'Click to browse photos →'}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                <Camera className="mx-auto text-gray-400 mb-3" size={48} />
+                <p className="text-gray-500 font-light text-base">
+                  {lang === 'zh' ? '暂无团契精彩集。' : 'No fellowship highlights yet.'}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ==================== PAGE: MAPS ==================== */}
         {activeTab === 'maps' && (
           <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
@@ -4383,6 +4482,7 @@ export default function App() {
                         { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide', icon: HelpCircle },
                         { id: 'maps', label: lang === 'zh' ? '地图设置' : 'Maps Settings', icon: MapIcon },
                         { id: 'media', label: lang === 'zh' ? '媒体存储管理' : 'Media Storage', icon: HardDrive },
+                        { id: 'fellowshipHighlights', label: lang === 'zh' ? '团契精彩管理' : 'Fellowship Highlights', icon: Camera },
                         { id: 'backup', label: lang === 'zh' ? '数据备份与恢复' : 'Backup & Restore', icon: Download }
                       ].map((sec) => (
                         <button
@@ -7527,6 +7627,111 @@ export default function App() {
                     </div>
                   )}
 
+                  {/* SECTION: FELLOWSHIP HIGHLIGHTS MANAGER */}
+                  {adminActiveSection === 'fellowshipHighlights' && (
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-start gap-4">
+                        <div>
+                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '团契精彩管理' : 'Fellowship Highlights Manager'}</h2>
+                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理团契活动的精彩瞬间照片集' : 'Manage photo highlights from gatherings, services, and events'}</p>
+                        </div>
+                        <button
+                          onClick={() => setEditingFellowshipHighlight({
+                            id: 'new',
+                            title: { zh: '新团契精彩', en: 'New Fellowship Highlight' },
+                            date: new Date().toISOString().slice(0, 10),
+                            description: { zh: '描述...', en: 'Description...' },
+                            images: []
+                          })}
+                          className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                        >
+                          <Plus size={14} />
+                          <span>{lang === 'zh' ? '添加精彩集' : 'Add Highlight'}</span>
+                        </button>
+                      </div>
+
+                      {editingFellowshipHighlight ? (
+                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
+                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
+                            {editingFellowshipHighlight.id === 'new' ? (lang === 'zh' ? '新增团契精彩集' : 'Add New Highlight') : (lang === 'zh' ? '编辑团契精彩集' : 'Edit Highlight')}
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '标题 (中文)' : 'Title (Chinese)'}</label>
+                              <input type="text" value={editingFellowshipHighlight.title.zh} onChange={(e) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, title: { ...editingFellowshipHighlight.title, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Title (English)' : 'Title (English)'}</label>
+                              <input type="text" value={editingFellowshipHighlight.title.en} onChange={(e) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, title: { ...editingFellowshipHighlight.title, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '日期' : 'Date'}</label>
+                              <input type="date" value={editingFellowshipHighlight.date} onChange={(e) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, date: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '描述 (中文)' : 'Description (Chinese)'}</label>
+                              <textarea rows={2} value={editingFellowshipHighlight.description.zh} onChange={(e) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, description: { ...editingFellowshipHighlight.description, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Description (English)' : 'Description (English)'}</label>
+                              <textarea rows={2} value={editingFellowshipHighlight.description.en} onChange={(e) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, description: { ...editingFellowshipHighlight.description, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '照片 (R2 或外部链接)' : 'Photos (R2 or External URLs)'}</label>
+                              <p className="text-[10px] text-gray-400 mb-2">{lang === 'zh' ? '添加照片URL，每行一个。支持R2上传和外部链接。' : 'Add photo URLs, one per line. Supports R2 uploads and external links.'}</p>
+                              <textarea 
+                                rows={5} 
+                                value={(editingFellowshipHighlight.images || []).join('\n')} 
+                                onChange={(e) => setEditingFellowshipHighlight({ 
+                                  ...editingFellowshipHighlight, 
+                                  images: e.target.value.split('\n').filter(url => url.trim()) 
+                                })} 
+                                placeholder="https://...\nhttps://..." 
+                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono" 
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
+                            <button onClick={() => setEditingFellowshipHighlight(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
+                            <button onClick={() => handleSaveFellowshipHighlight(editingFellowshipHighlight)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 pt-4 border-t border-gray-100">
+                          {(data.fellowshipHighlights || []).map((highlight, idx) => (
+                            <div key={highlight.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                              <div className="flex gap-3 items-center w-full sm:w-3/4">
+                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
+                                <div className="w-16 h-12 bg-gray-200 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                                  {highlight.images && highlight.images.length > 0 ? (
+                                    <img src={highlight.images[0]} alt="Preview" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <Camera className="text-gray-400" size={20} />
+                                  )}
+                                </div>
+                                <div className="space-y-1">
+                                  <h4 className="font-bold text-sm text-gray-900">{highlight.title.zh} / {highlight.title.en}</h4>
+                                  <p className="text-xs text-gray-500">{highlight.date} • {highlight.images?.length || 0} {lang === 'zh' ? '张照片' : 'photos'}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
+                                <button onClick={() => handleMoveItem('fellowshipHighlights', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
+                                <button onClick={() => handleMoveItem('fellowshipHighlights', idx, 'down')} disabled={idx === (data.fellowshipHighlights || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
+                                <button onClick={() => setEditingFellowshipHighlight(highlight)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
+                                <button onClick={() => handleDeleteFellowshipHighlight(highlight.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
+                              </div>
+                            </div>
+                          ))}
+                          {(data.fellowshipHighlights || []).length === 0 && (
+                            <div className="text-center py-8 text-gray-400 text-xs border border-dashed border-gray-300 rounded-xl bg-white">
+                              {lang === 'zh' ? '暂无团契精彩集，点击上方按钮添加' : 'No fellowship highlights yet. Click the button above to add one.'}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* SECTION: MAPS SETTINGS */}
                   {adminActiveSection === 'maps' && (
                     <div className="space-y-6">
@@ -8322,6 +8527,61 @@ export default function App() {
           </p>
         </div>
       </footer>
+
+      {/* Fellowship Highlight Lightbox Modal */}
+      {selectedFellowshipHighlight && (
+        <div 
+          className="fixed inset-0 z-[75] bg-gray-950/90 backdrop-blur-sm flex items-center justify-center p-4" 
+          role="dialog" 
+          aria-modal="true"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedFellowshipHighlight(null); }}
+        >
+          <div className="relative w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <button onClick={() => setSelectedFellowshipHighlight(null)} className="absolute right-4 top-4 z-10 rounded-full bg-black/55 p-2 text-white hover:bg-black/75 transition-all"><X size={20} /></button>
+            
+            <div className="p-6 sm:p-8 border-b border-gray-200">
+              <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-primary mb-2">
+                <Calendar size={15} /> {selectedFellowshipHighlight.date}
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-gray-900 leading-tight">
+                {selectedFellowshipHighlight.title[lang] || selectedFellowshipHighlight.title.zh}
+              </h2>
+              <p className="mt-3 text-gray-600 text-sm font-light leading-relaxed whitespace-pre-line">
+                {selectedFellowshipHighlight.description[lang] || selectedFellowshipHighlight.description.zh}
+              </p>
+            </div>
+
+            {/* Photo Gallery */}
+            <div className="p-6 sm:p-8 max-h-[60vh] overflow-y-auto">
+              {selectedFellowshipHighlight.images && selectedFellowshipHighlight.images.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {selectedFellowshipHighlight.images.map((imgUrl, idx) => (
+                    <div 
+                      key={idx} 
+                      className="relative aspect-video overflow-hidden rounded-xl border border-gray-200 cursor-zoom-in hover:border-primary transition-all group"
+                      onClick={() => setSelectedImage({ url: imgUrl, title: `${selectedFellowshipHighlight.title[lang] || selectedFellowshipHighlight.title.zh} - Photo ${idx + 1}` })}
+                    >
+                      <img 
+                        src={imgUrl} 
+                        alt={`Photo ${idx + 1}`} 
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/60 text-white text-xs font-bold">
+                        {idx + 1} / {selectedFellowshipHighlight.images.length}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-400">
+                  <Camera size={48} className="mx-auto mb-3" />
+                  <p>{lang === 'zh' ? '暂无照片' : 'No photos available'}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

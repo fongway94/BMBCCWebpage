@@ -760,7 +760,8 @@ export const initialData = {
         "en": "Calling all youth from Bukit Mertajam and across Malaysia to gather in the Lord's love! At the camp, we'll break down barriers together, engage in exciting outdoor activities, and discover how special you truly are! We look forward to your participation!"
       },
       "popupEnabled": true,
-      "registrationUrl": "https://docs.google.com/forms/d/1E1L4MOPe8XBZfVIcv9RpF-rFsIallHLsNuccCOgfZIw/viewform?pli=1&pli=1&pli=1"
+      "registrationUrl": "https://docs.google.com/forms/d/1E1L4MOPe8XBZfVIcv9RpF-rFsIallHLsNuccCOgfZIw/viewform?pli=1&pli=1&pli=1",
+      "gallery": []
     }
   ],
   "leadership": [
@@ -1228,6 +1229,7 @@ export const initialData = {
       }
     ]
   },
+  "fellowshipHighlights": [],
   "maps": [
     {
       "id": 1,
