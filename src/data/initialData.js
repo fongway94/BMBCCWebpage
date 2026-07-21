@@ -761,8 +761,7 @@ export const initialData = {
         "en": "Calling all youth from Bukit Mertajam and across Malaysia to gather in the Lord's love! At the camp, we'll break down barriers together, engage in exciting outdoor activities, and discover how special you truly are! We look forward to your participation!"
       },
       "popupEnabled": true,
-      "registrationUrl": "https://docs.google.com/forms/d/1E1L4MOPe8XBZfVIcv9RpF-rFsIallHLsNuccCOgfZIw/viewform?pli=1&pli=1&pli=1",
-      "gallery": []
+      "registrationUrl": "https://docs.google.com/forms/d/1E1L4MOPe8XBZfVIcv9RpF-rFsIallHLsNuccCOgfZIw/viewform?pli=1&pli=1&pli=1"
     }
   ],
   "leadership": [
@@ -995,8 +994,7 @@ export const initialData = {
     "bulletins": true,
     "cellgroups": true,
     "newfriend": true,
-    "maps": true,
-    "fellowshipHighlights": true
+    "maps": true
   },
   "cellGroups": [
     {
@@ -1231,7 +1229,24 @@ export const initialData = {
       }
     ]
   },
-  "fellowshipHighlights": [],
+  "fellowshipHighlights": [
+    {
+      "id": 1,
+      "title": {
+        "zh": "事工 1",
+        "en": "Ministry 1"
+      },
+      "date": "2026-07-21",
+      "description": {
+        "zh": "描述...",
+        "en": "Description..."
+      },
+      "images": [
+        "https://drive.google.com/thumbnail?id=1lHBS--ILTphRlxM9LwML1F4KKf_i8l3W&sz=w2000",
+        "https://drive.google.com/thumbnail?id=13IkZl6VS1NdQR9p-TkGSlYOuywtam3ua&sz=w2000"
+      ]
+    }
+  ],
   "maps": [
     {
       "id": 1,
