@@ -760,7 +760,7 @@ export const initialData = {
         "zh": "呼召大山脚与全马各地青少年在主爱里集结！在营会中，我们一起打破藩篱，激动人心的户外拓展，发掘原来自己那么特别！期待你的到来！",
         "en": "Calling all youth from Bukit Mertajam and across Malaysia to gather in the Lord's love! At the camp, we'll break down barriers together, engage in exciting outdoor activities, and discover how special you truly are! We look forward to your participation!"
       },
-      "popupEnabled": true,
+      "popupEnabled": false,
       "registrationUrl": "https://docs.google.com/forms/d/1E1L4MOPe8XBZfVIcv9RpF-rFsIallHLsNuccCOgfZIw/viewform?pli=1&pli=1&pli=1"
     }
   ],
