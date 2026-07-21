@@ -1,6 +1,6 @@
 # Cloudflare R2 media setup
 
-This is phase 1 of the media system: secure R2 image/PDF uploads alongside the existing URL fields. Existing Google Drive, Unsplash, YouTube, and other public URLs are deliberately untouched. Videos remain URL-only.
+This is the media system: secure R2 image/PDF uploads alongside the existing URL fields (**Phase 1**), plus an authenticated Admin **Media Storage** manager with reference-aware cleanup (**Phase 2**). Existing Google Drive, Unsplash, YouTube, and other public URLs are deliberately untouched and are never treated as R2 media. Videos remain URL-only. Phase 2 is additive and independently deployable — it introduces no new bindings and changes no Phase 1 behavior.
 
 ## Create and bind storage
 
@@ -28,6 +28,64 @@ Set a Cloudflare Cache Rule for `media.example.org/*`: **Cache Everything**, Edg
 
 For function testing use `npm run build` then `npx wrangler pages dev dist --port 8788`, with `.dev.vars` copied from `.dev.vars.example`. Wrangler local R2/KV bindings may be configured with `--local` or dashboard remote bindings. Bind the same resources in both Preview and Production; preview URLs can call their own `/media` function while returned assets use the configured custom media domain.
 
-## Retention roadmap
+## Retention model (Phase 1 + Phase 2)
 
-DELETE currently means **move to trash in metadata**, never immediate R2 deletion. It is intentionally reversible. The next independently deployable phase adds inventory, reference scanning against saved site data, restore, 30-day reviewed purge, and unused-upload review. Historical bulletins and galleries must not be automatically purged.
+DELETE means **move to trash in metadata**, never immediate R2 deletion — it is intentionally reversible. **Phase 2** adds the inventory UI, reference scanning against saved site data, restore, a 30-day reviewed purge, and unused-upload review. Permanent deletion is **always** a manual, explicitly confirmed admin action; nothing is ever deleted automatically. Historical bulletins and event galleries are protected and are never purged without an explicit override.
+
+---
+
+# Phase 2 — Admin "Media Storage" manager
+
+## What Phase 2 adds
+
+An authenticated **Media Storage** section in the Admin Console (sidebar → *Media Storage* / *媒体存储管理*). It is served entirely by the existing `/media` Pages Function and the existing HttpOnly `bmbcc_admin` session. **No new bindings, secrets, or environment variables are required** — Phase 2 reuses `MEDIA_BUCKET`, `MEDIA_INDEX`, `MEDIA_PUBLIC_URL`, `JWT_SECRET`, and `ADMIN_PASSWORD` exactly as Phase 1 configured them.
+
+The manager shows:
+
+- Total R2 storage used, remaining capacity up to 7 GB, and clear **5 GB warning** / **7 GB hard-limit** states.
+- Total live file count, trash count and trash size, and a per-category breakdown (bytes + count).
+- For each file: filename/key, image or PDF preview, size, category/media type, upload date, trash status, whether it is currently referenced by website content, and — when determinable — **where it is used** (section + item title + field).
+
+Filters and actions:
+
+- Search by filename/key/type; sort by newest, oldest, largest, smallest; filter by category and by live/trash state.
+- **Find unused uploads** (unreferenced live uploads older than 7 days, plus unreferenced trash).
+- **View where a file is used**, **copy the immutable media URL**, **move to trash**, **restore** a trashed file, and **manual permanent deletion** for eligible trash only.
+- **Reconcile index** — a manual repair that lists the bucket once and re-syncs the KV metadata index.
+
+## Endpoint surface (`/media`, all authenticated)
+
+- `GET` — Phase 1 listing + usage (unchanged fields), plus additive Phase 2 fields: `remaining`, `byCategoryCount`, `trashCount`, `trashUsed`, `percentUsed`, `hardLimitReached`, and `lastScanAt`.
+- `POST` `multipart/form-data` — Phase 1 upload (unchanged).
+- `POST` `application/json` — Phase 2 actions: `{action:'scan', urls[]}`, `{action:'restore', key}`, `{action:'purge', key, confirm, overrideProtected?}`, `{action:'reconcile'}`.
+- `DELETE` `{key}` — Phase 1 reversible move-to-trash (unchanged).
+
+## Cleanup rules & limits (enforced server-side)
+
+The retention policy lives in `src/lib/mediaCore.js` and is enforced **identically** by the API and the UI. The server re-validates every rule, so the browser can never bypass them:
+
+1. **Only trashed objects can be permanently deleted.** Live files are never purgeable — move to trash first.
+2. **Explicit confirmation required.** A purge must send the full object key back verbatim in `confirm`.
+3. **Referenced files are never deleted.** A purge requires a fresh server-side reference scan (≤ 24h old) that does **not** reference the key. Changing a URL in an edit form only changes the *next* scan result — it never triggers a deletion.
+4. **30-day trash retention.** Trashed media stays recoverable for at least `TRASH_RETENTION_DAYS = 30` days before it is even eligible.
+5. **Protected archives.** `bulletins` (PDFs) and `galleries` (historical event galleries) require the explicit `overrideProtected` flag and are **never** deleted automatically.
+6. **Unused uploads are only flagged**, never auto-deleted. Unreferenced live uploads older than `UNUSED_REVIEW_DAYS = 7` days are marked *Review* for human inspection.
+7. **No blind deletions.** The system never deletes the oldest files, referenced files, or anything outside an explicit, confirmed admin purge.
+8. **Capacity limits unchanged:** 5 GiB warning, 7 GiB hard upload ceiling. Usage counts live objects only; trash is reported separately.
+
+## Reference scanning & external URLs
+
+On opening the page (and via *Re-scan references*), the UI collects **every URL** from the currently saved site data (the localStorage / GitHub `initialData` model) and posts it to `{action:'scan'}`. Only an **exact** match of `${MEDIA_PUBLIC_URL}/${key}` counts as a reference. Google Drive, Unsplash, YouTube, and any other external URL can never match an R2 key, so external media is never misidentified, flagged, or touched. If `MEDIA_PUBLIC_URL` is not configured, reference detection and copy-URL are disabled and the UI says so.
+
+## Operations guidance
+
+- **Routine use costs nothing heavy.** Listing, usage, and reference scans read the KV index only — there is **no full R2 listing on page load**.
+- **Use *Reconcile index* sparingly.** It is the only operation that performs a full bucket listing; run it only if the index and bucket drift apart (e.g. an object was edited directly in R2).
+- **Deletion workflow:** Move to trash → wait out the 30-day retention → confirm the file is unreferenced (run a scan) → permanently delete. Protected categories additionally require the override checkbox.
+- **Immutable URLs:** objects keep `Cache-Control: public, max-age=31536000, immutable`. Never rewrite or invalidate a URL — upload a replacement and save its new URL.
+
+## Testing & validation
+
+- `npm test` runs the Node test suite (`tests/mediaCore.test.mjs`) covering usage accounting, the 5 GB/7 GB states, external-URL exclusion, exact-match references, the 30-day purge policy, protected-category override, the 7-day unused-review rule, and search/sort/filter behavior.
+- `npm run build` must pass; the `/media` function is bundled by Wrangler (esbuild) and inlines the shared `mediaCore.js` policy so the API and UI stay in lock-step.
+- Manual check: `npm run build && npx wrangler pages dev dist --port 8788` (with `.dev.vars`), log in to the Admin Console, and open *Media Storage*.

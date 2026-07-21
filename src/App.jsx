@@ -52,9 +52,11 @@ import {
   Layers,
   PlayCircle,
   Video,
-  ExternalLink
+  ExternalLink,
+  HardDrive
 } from 'lucide-react';
 import { initialData } from './data/initialData';
+import MediaStorageManager from './components/MediaStorageManager';
 
 const AUTH_ENDPOINT = '/functions/auth';
 const GITHUB_SETTINGS_ENDPOINT = '/functions/github-settings';
@@ -4380,6 +4382,7 @@ export default function App() {
                         { id: 'cellgroups', label: lang === 'zh' ? '小组管理' : 'Cell Groups', icon: Compass },
                         { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide', icon: HelpCircle },
                         { id: 'maps', label: lang === 'zh' ? '地图设置' : 'Maps Settings', icon: MapIcon },
+                        { id: 'media', label: lang === 'zh' ? '媒体存储管理' : 'Media Storage', icon: HardDrive },
                         { id: 'backup', label: lang === 'zh' ? '数据备份与恢复' : 'Backup & Restore', icon: Download }
                       ].map((sec) => (
                         <button
@@ -7749,6 +7752,11 @@ export default function App() {
                         ))}
                       </div>
                     </div>
+                  )}
+
+                  {/* SECTION: MEDIA STORAGE (Phase 2 R2 media manager) */}
+                  {adminActiveSection === 'media' && (
+                    <MediaStorageManager siteData={data} lang={lang} />
                   )}
 
                   {/* SECTION 6: BACKUP & DATA TRANSFERS */}
