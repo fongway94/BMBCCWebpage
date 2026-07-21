@@ -765,6 +765,45 @@ export default function App() {
     };
   }, []);
 
+  // When mobile drawer is open, lock background scroll so the drawer scrolls independently
+  // and the page behind does not move. This fixes the issue where you have to scroll
+  // the whole page to reach the bottom of the menu.
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      const prevBodyOverflow = document.body.style.overflow;
+      const prevHtmlOverflow = document.documentElement.style.overflow;
+      const prevBodyPaddingRight = document.body.style.paddingRight;
+      // Prevent background scroll; keep drawer scrollable via its own overflow-y-auto
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      // Avoid layout shift when scrollbar disappears (desktop)
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }
+      // Also handle iOS overscroll: touch move on body should not scroll page
+      const preventTouchMove = (e) => {
+        // Allow scrolling inside the drawer
+        const drawer = document.querySelector('[data-mobile-drawer]');
+        if (drawer && drawer.contains(e.target)) return;
+        e.preventDefault();
+      };
+      // Escape key closes drawer
+      const onKeyDown = (e) => {
+        if (e.key === 'Escape') setMobileMenuOpen(false);
+      };
+      document.addEventListener('touchmove', preventTouchMove, { passive: false });
+      document.addEventListener('keydown', onKeyDown);
+      return () => {
+        document.body.style.overflow = prevBodyOverflow;
+        document.documentElement.style.overflow = prevHtmlOverflow;
+        document.body.style.paddingRight = prevBodyPaddingRight;
+        document.removeEventListener('touchmove', preventTouchMove);
+        document.removeEventListener('keydown', onKeyDown);
+      };
+    }
+  }, [mobileMenuOpen]);
+
   // Translate helper
   const t = (obj, key) => {
     if (!obj) return '';
@@ -1629,10 +1668,39 @@ export default function App() {
           </div>
         </div>
 
-        {/* Mobile menu, show/hide based on menu state. */}
+        {/* Mobile menu - Side Drawer with independent scroll */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-b border-gray-150 animate-fade-in-down shadow-inner">
-            <div className="px-4 pt-2 pb-6 space-y-1">
+          <div className="md:hidden fixed inset-0 z-[100] flex justify-end">
+            {/* Backdrop */}
+            <div 
+              className="absolute inset-0 bg-black/45 backdrop-blur-[2px] animate-fade-in"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            {/* Drawer Panel - fixed height, independent scroll */}
+            <div data-mobile-drawer className="relative w-[86vw] max-w-[360px] bg-white h-[100dvh] h-[100vh] shadow-2xl animate-slide-in-right flex flex-col overflow-hidden">
+              {/* Drawer Header */}
+              <div className="shrink-0 flex items-center justify-between px-5 h-20 border-b border-gray-100 bg-white">
+                <div className="flex items-center gap-2.5">
+                  {data.settings.headerLogo ? (
+                    <img src={data.settings.headerLogo} alt="logo" className="w-9 h-9 rounded-lg object-contain border border-gray-100 p-0.5" />
+                  ) : (
+                    <div className="bg-primary text-white p-2 rounded-lg">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m-6-8h12" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex flex-col leading-tight">
+                    <span className="font-bold text-sm text-gray-900 truncate max-w-[150px]">{t(data.settings.churchName)}</span>
+                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{lang==='zh'?'菜单导览':'Navigation'}</span>
+                  </div>
+                </div>
+                <button onClick={()=>setMobileMenuOpen(false)} className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all">
+                  <X size={20} />
+                </button>
+              </div>
+              {/* Scrollable content - this scrolls independently */}
+              <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 space-y-1 pb-[calc(2rem+env(safe-area-inset-bottom))] scrollbar-thin">
                {(() => {
                 const vis = data.pageVisibility || {};
                 const allTabs = [
@@ -1679,7 +1747,10 @@ export default function App() {
                   )
                 ));
               })()}
+              {/* Extra bottom safe space */}
+              <div className="h-6 shrink-0" />
             </div>
+          </div>
           </div>
         )}
       </nav>
