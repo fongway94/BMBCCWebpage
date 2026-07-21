@@ -18,6 +18,19 @@ pages_build_output_dir = "dist"
 binding = "GITHUB_SETTINGS"
 id = "18a69c2611fa49d4aafd594e0d06e58d"
 
+# R2 uploads are handled only by the authenticated /media Pages Function.
+# Create the bucket and KV namespace first, then use their real bindings/IDs.
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "bmbcc-media"
+
+# Metadata index used for quota display and the later media-manager phase. Create a
+# dedicated KV namespace and bind it as MEDIA_INDEX in the Pages dashboard (or add
+# its real ID here; do not commit a placeholder ID).
+
+# Set MEDIA_PUBLIC_URL in Pages (for example https://media.example.org). Do not use
+# an r2.dev URL for production media.
+
 # Custom domain (optional, configure in dashboard)
 # routes = [
 #   { pattern = "bmbcc.example.com/*", zone_name = "example.com" }
