@@ -732,7 +732,7 @@ export const initialData = {
     {
       "id": 3,
       "name": {
-        "zh": "恩典之家老人中心",
+        "zh": "恩典之家乐龄中心",
         "en": "Grace Home Elderly Care Centre"
       },
       "image": "https://drive.google.com/thumbnail?id=13IkZl6VS1NdQR9p-TkGSlYOuywtam3ua&sz=w2000",
