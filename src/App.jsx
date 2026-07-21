@@ -53,7 +53,8 @@ import {
   PlayCircle,
   Video,
   ExternalLink,
-  HardDrive
+  HardDrive,
+  Camera
 } from 'lucide-react';
 import { initialData } from './data/initialData';
 import MediaStorageManager from './components/MediaStorageManager';
@@ -1384,11 +1385,11 @@ export default function App() {
                   },
                   { 
                     id: 'gatherings', 
-                    label: lang === 'zh' ? '聚会' : 'Gatherings', 
+                    label: lang === 'zh' ? '聚会' : 'Fellowship', 
                     items: [
                       vis.timetable !== false && { id: 'timetable', label: lang === 'zh' ? '聚会时间' : 'Timetable' },
                       vis.events !== false && { id: 'events', label: lang === 'zh' ? '特别活动' : 'Events' },
-                      { id: 'fellowshipHighlights', label: lang === 'zh' ? '团契精彩' : 'Fellowship Highlights' }
+                      { id: 'fellowshipHighlights', label: lang === 'zh' ? '聚会点滴' : 'Fellowship Highlights' }
                     ].filter(Boolean)
                   },
                   { 
@@ -1553,9 +1554,10 @@ export default function App() {
                   vis.ministries !== false && { id: 'ministries', label: lang === 'zh' ? '  主要事工' : '  Ministries', sub: true },
                   vis.cellgroups !== false && { id: 'cellgroups', label: lang === 'zh' ? '  小组' : '  Cell Groups', sub: true },
                   vis.offerings !== false && { id: 'offerings', label: lang === 'zh' ? '  奉献' : '  Offerings', sub: true },
-                  { id: '__group_gatherings__', label: lang === 'zh' ? '▸ 聚会 / Gatherings' : '▸ Gatherings', group: true, disabled: true },
+                  { id: '__group_gatherings__', label: lang === 'zh' ? '▸ 聚会 / Fellowship' : '▸ Fellowship', group: true, disabled: true },
                   vis.timetable !== false && { id: 'timetable', label: lang === 'zh' ? '  聚会时间' : '  Timetable', sub: true },
                   vis.events !== false && { id: 'events', label: lang === 'zh' ? '  特别活动' : '  Events', sub: true },
+                  { id: 'fellowshipHighlights', label: lang === 'zh' ? '  聚会点滴' : '  Fellowship Highlights', sub: true },
                   { id: '__group_resources__', label: lang === 'zh' ? '▸ 资源 / Resources' : '▸ Resources', group: true, disabled: true },
                   vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '  家事与讲道' : '  Bulletins & Sermons', sub: true },
                   vis.services !== false && { id: 'services', label: lang === 'zh' ? '  崇拜与敬拜' : '  Services & Worships', sub: true },
