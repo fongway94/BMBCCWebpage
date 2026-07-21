@@ -101,15 +101,15 @@ export const initialData = {
       "en": "Here, you can learn about our upcoming special worship services, holiday celebrations, welfare activities, and camps. Welcome to register and attend with friends!"
     },
     "bulletinsBadge": {
-      "zh": "周报与讲道库 · 回顾",
+      "zh": "家事与讲道库 · 回顾",
       "en": "Bulletins & Sermons · Replay"
     },
     "bulletinsTitle": {
-      "zh": "周报与讲道库",
+      "zh": "家事与讲道库",
       "en": "Bulletins & Sermon Library"
     },
     "bulletinsIntro": {
-      "zh": "查阅每周周报、代祷事项，或回顾过往讲道信息。",
+      "zh": "查阅每周家事、代祷事项，或回顾过往讲道信息。",
       "en": "Access weekly bulletins, prayer items, and past sermon messages."
     },
     "servicesBadge": {
