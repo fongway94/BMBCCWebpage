@@ -247,19 +247,12 @@ const colorsMap = {
 };
 
 export default function App() {
-  // Load data from LocalStorage or fallback to initialData
-  const [data, setData] = useState(() => {
-    const saved = localStorage.getItem('bmbcc_site_data');
-    if (saved) {
-      try {
-        return normalizeLoadedData(JSON.parse(saved));
-      } catch (e) {
-        console.error("Error parsing localstorage data, using defaults", e);
-        return initialData;
-      }
-    }
-    return initialData;
-  });
+  // A saved browser copy is an *admin draft*, not public site content. Loading it
+  // for every visitor meant an administrator's browser could keep showing an old
+  // version forever, even after a successful Pages deploy. Public visits always
+  // start with the deployed data and then refresh from the published GitHub copy.
+  const [data, setData] = useState(initialData);
+  const adminDraftLoadedRef = React.useRef(false);
 
   // Global state
   const [lang, setLang] = useState('zh'); // 'zh' or 'en'
@@ -292,7 +285,23 @@ export default function App() {
           credentials: 'include' 
         });
         const data = await res.json();
-        setIsAdminLoggedIn(data.isAdmin);
+        const isAdmin = data.isAdmin === true;
+        setIsAdminLoggedIn(isAdmin);
+
+        // Keep unfinished admin work available to the authenticated editor, but
+        // never let that browser-only draft replace the public deployed site.
+        if (isAdmin) {
+          const saved = localStorage.getItem('bmbcc_site_data');
+          if (saved) {
+            try {
+              const draft = normalizeLoadedData(JSON.parse(saved));
+              adminDraftLoadedRef.current = true;
+              setData(draft);
+            } catch (e) {
+              console.error('Error parsing local admin draft; using published data', e);
+            }
+          }
+        }
       } catch (err) {
         console.error('Auth check failed:', err);
         setIsAdminLoggedIn(false);
@@ -491,16 +500,14 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', flushPendingAutoSave);
   }, []);
 
-  // Runtime content loader: for regular visitors, fetch the latest published site
-  // data from GitHub's raw CDN so admin edits go live WITHOUT a rebuild (this is what
-  // keeps content edits from consuming the Cloudflare Pages build quota).
-  // Precedence: localStorage (admin working copy) > remote published data > bundled build data.
-  // Any failure falls back silently to whatever was already loaded.
+  // Runtime content loader: fetch the latest published site data from GitHub's raw
+  // CDN so admin edits go live WITHOUT a rebuild. A localStorage copy is used only
+  // after an authenticated admin session has explicitly loaded it above.
+  // Any failure falls back silently to the deployed build data.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        if (localStorage.getItem('bmbcc_site_data')) return; // admin working copy always wins
         const url = 'https://raw.githubusercontent.com/' + GITHUB_REPO_DEFAULT + '/main/src/data/initialData.js';
         const res = await fetch(url, { cache: 'no-cache' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -511,7 +518,9 @@ export default function App() {
         const remote = JSON.parse(text.slice(start, end + 1));
         if (!remote || typeof remote !== 'object' || !remote.settings) throw new Error('invalid site data');
         const merged = normalizeLoadedData(remote);
-        if (cancelled) return;
+        // Do not overwrite an authenticated editor's local, potentially
+        // unpublished draft if the remote request resolves after login.
+        if (cancelled || adminDraftLoadedRef.current) return;
         setData(prev => (JSON.stringify(prev) === JSON.stringify(merged) ? prev : merged));
       } catch (err) {
         console.warn('Remote site data unavailable; using bundled data:', err?.message || err);
