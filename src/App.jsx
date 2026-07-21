@@ -55,6 +55,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { initialData } from './data/initialData';
+import ImageUrlField from './components/ImageUrlField';
 
 const AUTH_ENDPOINT = '/functions/auth';
 const GITHUB_SETTINGS_ENDPOINT = '/functions/github-settings';
@@ -4553,12 +4554,11 @@ export default function App() {
                             </div>
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <input
-                              type="text"
+                            <ImageUrlField
                               value={data.settings.headerLogo || ''}
-                              onChange={(e) => updateSetting('headerLogo', null, e.target.value)}
-                              placeholder="https://..."
-                              className="flex-1 min-w-[220px] px-3 py-2 rounded-lg border border-gray-300 text-xs bg-white focus:ring-1 focus:ring-primary focus:outline-none"
+                              onChange={(value) => updateSetting('headerLogo', null, value)}
+                              lang={lang}
+                              className="flex-1 min-w-[220px]"
                             />
                             {data.settings.headerLogo && (
                               <button type="button" onClick={() => updateSetting('headerLogo', null, '')} className="px-3 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition-all flex items-center gap-1.5">
@@ -5083,12 +5083,7 @@ export default function App() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-600 mb-1">图片链接 / Image URL</label>
-                              <input 
-                                type="text"
-                                value={editingSlide.image}
-                                onChange={(e) => setEditingSlide({ ...editingSlide, image: e.target.value })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
+                              <ImageUrlField value={editingSlide.image} onChange={(value) => setEditingSlide({ ...editingSlide, image: value })} lang={lang} />
                               <p className="text-[10px] text-gray-400 mt-1">
                                 {lang === 'zh' ? '支持直接黏贴Unsplash或任何公网可访问的图片链接' : 'Paste Unsplash or any direct public image URL'}
                               </p>
@@ -5716,12 +5711,7 @@ export default function App() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-600 mb-1">图片链接 / Image URL</label>
-                              <input 
-                                type="text"
-                                value={editingMinistry.image}
-                                onChange={(e) => setEditingMinistry({ ...editingMinistry, image: e.target.value })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
+                              <ImageUrlField value={editingMinistry.image} onChange={(value) => setEditingMinistry({ ...editingMinistry, image: value })} lang={lang} />
                             </div>
 
                             <div>
@@ -5917,12 +5907,7 @@ export default function App() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-600 mb-1">配图链接 / Cover Image URL</label>
-                              <input 
-                                type="text"
-                                value={editingEvent.image}
-                                onChange={(e) => setEditingEvent({ ...editingEvent, image: e.target.value })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
+                              <ImageUrlField value={editingEvent.image} onChange={(value) => setEditingEvent({ ...editingEvent, image: value })} lang={lang} />
                             </div>
 
                             <div>
@@ -6327,7 +6312,7 @@ export default function App() {
 
                         <div className="md:col-span-2">
                           <label className="block text-xs font-bold text-gray-700 mb-1">年度异象图片链接 / Vision Card Image URL</label>
-                          <input type="text" value={data.settings.yearlyVisionImage || ''} onChange={(e) => updateSetting('yearlyVisionImage', null, e.target.value)} placeholder="https://..." className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                          <ImageUrlField value={data.settings.yearlyVisionImage || ''} onChange={(value) => updateSetting('yearlyVisionImage', null, value)} lang={lang} />
                           <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '建议使用 Unsplash 或公网图片链接，例如老鹰展翅图' : 'Use Unsplash or public image URL, e.g. soaring eagle'}</p>
                         </div>
 
@@ -6483,7 +6468,7 @@ export default function App() {
                                 <div className="flex-1 space-y-2 w-full">
                                   <div>
                                     <label className="block text-[11px] font-bold text-gray-600 mb-1">{lang === 'zh' ? '粘贴图片链接 URL' : 'Paste image URL'}</label>
-                                    <input type="text" value={editingLeader.image} onChange={(e) => setEditingLeader({ ...editingLeader, image: e.target.value })} placeholder="https://..." className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                    <ImageUrlField value={editingLeader.image} onChange={(value) => setEditingLeader({ ...editingLeader, image: value })} lang={lang} />
                                   </div>
                                   <p className="text-[10px] text-gray-500">{lang === 'zh' ? '建议使用图床或教会网站上的图片直链；链接会即时在左侧预览。' : 'Use a direct image link from an image host or the church website; the preview updates instantly on the left.'}</p>
                                 </div>
@@ -6661,7 +6646,7 @@ export default function App() {
                                 </div>
                                 <div>
                                   <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '二维码图片链接' : 'QR Code Image URL'}</label>
-                                  <input type="text" value={editingOfferingMethod.qrCodeUrl || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, qrCodeUrl: e.target.value })} placeholder="https://example.com/qrcode.png" className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                  <ImageUrlField value={editingOfferingMethod.qrCodeUrl || ''} onChange={(value) => setEditingOfferingMethod({ ...editingOfferingMethod, qrCodeUrl: value })} lang={lang} placeholder="https://example.com/qrcode.png" />
                                   <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '留空则不显示二维码。可直接粘贴公网图片链接。' : 'Leave empty if no QR code. Paste a direct image URL.'}</p>
                                 </div>
                               </div>
@@ -7348,7 +7333,7 @@ export default function App() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '图片链接' : 'Image URL'}</label>
-                              <input type="text" value={editingCellGroup.image} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, image: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <ImageUrlField value={editingCellGroup.image} onChange={(value) => setEditingCellGroup({ ...editingCellGroup, image: value })} lang={lang} />
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '小组名称 (中文)' : 'Name (Chinese)'}</label>

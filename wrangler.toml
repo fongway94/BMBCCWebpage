@@ -18,6 +18,13 @@ pages_build_output_dir = "dist"
 binding = "GITHUB_SETTINGS"
 id = "18a69c2611fa49d4aafd594e0d06e58d"
 
+# R2 bucket for images uploaded from the admin console.
+# Create it once with Wrangler or in R2 Object Storage in the dashboard.
+# Bindings are sourced from this file; do not add this binding in Pages settings.
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "bmbcc-images"
+
 # Custom domain (optional, configure in dashboard)
 # routes = [
 #   { pattern = "bmbcc.example.com/*", zone_name = "example.com" }

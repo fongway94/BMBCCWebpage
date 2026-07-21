@@ -60,9 +60,35 @@ Go to **Settings** → **Environment variables** → **Add variable**:
 
 ⚠️ **Mark both as "Secret"** (encrypted, not visible in dashboard)
 
-### 2.3 Trigger New Deploy
+### 2.3 Create and bind image storage (R2)
 
-After adding env vars, go to **Deployments** → **Retry deployment** (or push a new commit).
+The admin console can keep using image URLs, and now also has an **Upload image** button. Uploaded files are stored in a private R2 bucket and served by the Pages Function.
+
+1. Create the bucket (once):
+
+   ```bash
+   npx wrangler r2 bucket create bmbcc-images
+   ```
+
+   You can instead create a bucket named `bmbcc-images` under **R2 Object Storage** in the Cloudflare dashboard.
+
+2. No binding needs to be added in the Pages dashboard. This project uses `wrangler.toml` as its configuration source of truth, and it already contains:
+
+   ```toml
+   [[r2_buckets]]
+   binding = "IMAGES"
+   bucket_name = "bmbcc-images"
+   ```
+
+3. Redeploy the Pages project after the bucket exists. Cloudflare will read the binding from `wrangler.toml` during deployment. The bucket does **not** need public access; `/image-upload` securely reads it for website visitors.
+
+If Cloudflare says **“Bindings for this project are being managed through wrangler.toml”**, that is expected. Do not try to add the binding in the dashboard—the only dashboard action needed is creating the R2 bucket with the exact name `bmbcc-images`.
+
+The upload endpoint requires the existing admin login, accepts JPG/PNG/GIF/WebP files, checks their file signature, and limits each image to 10 MB.
+
+### 2.4 Trigger New Deploy
+
+After adding env vars and creating the R2 bucket, go to **Deployments** → **Retry deployment** (or push a new commit).
 
 ---
 
