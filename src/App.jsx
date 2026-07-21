@@ -1401,7 +1401,7 @@ export default function App() {
                     items: [
                       vis.timetable !== false && { id: 'timetable', label: lang === 'zh' ? '聚会时间' : 'Timetable' },
                       vis.events !== false && { id: 'events', label: lang === 'zh' ? '特别活动' : 'Events' },
-                      { id: 'fellowshipHighlights', label: lang === 'zh' ? '聚会点滴' : 'Fellowship Highlights' }
+                      vis.fellowshipHighlights !== false && { id: 'fellowshipHighlights', label: lang === 'zh' ? '聚会点滴' : 'Fellowship Highlights' }
                     ].filter(Boolean)
                   },
                   { 
@@ -1569,7 +1569,7 @@ export default function App() {
                   { id: '__group_gatherings__', label: lang === 'zh' ? '▸ 聚会 / Fellowship' : '▸ Fellowship', group: true, disabled: true },
                   vis.timetable !== false && { id: 'timetable', label: lang === 'zh' ? '  聚会时间' : '  Timetable', sub: true },
                   vis.events !== false && { id: 'events', label: lang === 'zh' ? '  特别活动' : '  Events', sub: true },
-                  { id: 'fellowshipHighlights', label: lang === 'zh' ? '  聚会点滴' : '  Fellowship Highlights', sub: true },
+                  vis.fellowshipHighlights !== false && { id: 'fellowshipHighlights', label: lang === 'zh' ? '  聚会点滴' : '  Fellowship Highlights', sub: true },
                   { id: '__group_resources__', label: lang === 'zh' ? '▸ 资源 / Resources' : '▸ Resources', group: true, disabled: true },
                   vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '  家事与讲道' : '  Bulletins & Sermons', sub: true },
                   vis.services !== false && { id: 'services', label: lang === 'zh' ? '  崇拜与敬拜' : '  Services & Worships', sub: true },
@@ -4916,6 +4916,7 @@ export default function App() {
                               { key: 'ministries', zh: '主要事工', en: 'Ministries' },
                               { key: 'timetable', zh: '聚会时间', en: 'Timetable' },
                               { key: 'events', zh: '特别活动', en: 'Events' },
+                              { key: 'fellowshipHighlights', zh: '聚会点滴', en: 'Fellowship Highlights' },
                               { key: 'offerings', zh: '奉献', en: 'Offerings' },
                               { key: 'bulletins', zh: '家事与讲道', en: 'Bulletins & Sermons' },
                               { key: 'services', zh: '崇拜与敬拜', en: 'Services & Worships' },
