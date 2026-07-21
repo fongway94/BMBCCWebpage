@@ -1,6 +1,10 @@
 # Cloudflare Pages Headers
 # Copied to dist/ by Vite during npm run build.
 
+# Security + caching defaults for everything.
+# Cache-Control: no-cache forces the browser/CDN to revalidate on every
+# request, so a new deploy shows up immediately instead of serving a
+# cached (stale) index.html.
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.github.com; frame-src https://www.google.com https://maps.google.com https://www.youtube.com https://youtube.com; media-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   X-Frame-Options: DENY
@@ -8,7 +12,14 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   X-XSS-Protection: 1; mode=block
+  Cache-Control: no-cache
 
 # Function responses also set same-origin credential headers in functions/auth.ts.
 /functions/auth*
   Cache-Control: no-store
+
+# Hashed build assets (e.g. /assets/index-9f3a2b.js) never change name
+# between builds, so they are safe to cache forever. This rule is more
+# specific than /* so it overrides the no-cache above for these files.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
