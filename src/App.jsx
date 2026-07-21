@@ -77,7 +77,7 @@ function MediaUrlField({ value, onChange, category = 'images', accept = 'image/j
   const inputRef = React.useRef(null);
   const upload = async (file) => {
     if (!uploadsEnabled) {
-      setMessage('R2 uploads are temporarily disabled in Media Storage settings. You can still paste a public URL.');
+      setMessage('Media uploads are temporarily disabled in Media Storage settings. You can still paste a public URL.');
       return;
     }
     if (!file) return;
@@ -94,7 +94,7 @@ function MediaUrlField({ value, onChange, category = 'images', accept = 'image/j
     xhr.onload = () => { try { const result = JSON.parse(xhr.responseText); if (xhr.status < 300 && result.ok) { onChange(result.url); setProgress(100); setMessage('Uploaded. Click the relevant Save button to publish this URL.'); } else { throw new Error(result.error); } } catch (e) { setProgress(0); setMessage(e.message || 'Upload failed.'); } };
     xhr.onerror = () => { setProgress(0); setMessage('Network error while uploading.'); }; xhr.send(body);
   };
-  return <div className="space-y-1"><label className="block text-xs font-bold text-gray-600 mb-1">{label}</label><div className="flex gap-2"><input type="text" value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder="https://…" className="min-w-0 flex-1 px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"/><input ref={inputRef} type="file" accept={accept} className="hidden" onChange={(e) => upload(e.target.files?.[0])}/><button type="button" disabled={!uploadsEnabled} title={uploadsEnabled ? 'Upload to R2' : 'R2 uploads are disabled in Media Storage settings'} onClick={() => inputRef.current?.click()} className="shrink-0 px-3 py-2 rounded bg-primary text-white text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-45">Upload file</button></div>{message && <p className={`text-[10px] ${message.startsWith('Uploaded') ? 'text-green-600' : message.startsWith('Uploading') ? 'text-gray-500' : 'text-red-600'}`}>{message}{progress > 0 && progress < 100 ? ` ${progress}%` : ''}</p>}<p className="text-[10px] text-gray-400">Paste any public URL. {uploadsEnabled ? 'R2 upload only fills this field; save the form to publish it.' : 'R2 uploads are temporarily disabled; enable them in Media Storage after MEDIA_PUBLIC_URL is ready.'}</p></div>;
+  return <div className="space-y-1"><label className="block text-xs font-bold text-gray-600 mb-1">{label}</label><div className="flex gap-2"><input type="text" value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder="https://…" className="min-w-0 flex-1 px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"/><input ref={inputRef} type="file" accept={accept} className="hidden" onChange={(e) => upload(e.target.files?.[0])}/><button type="button" disabled={!uploadsEnabled} title={uploadsEnabled ? 'Upload media' : 'Media uploads are disabled in Media Storage settings'} onClick={() => inputRef.current?.click()} className="shrink-0 px-3 py-2 rounded bg-primary text-white text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-45">Upload file</button></div>{message && <p className={`text-[10px] ${message.startsWith('Uploaded') ? 'text-green-600' : message.startsWith('Uploading') ? 'text-gray-500' : 'text-red-600'}`}>{message}{progress > 0 && progress < 100 ? ` ${progress}%` : ''}</p>}<p className="text-[10px] text-gray-400">Paste any public URL. {uploadsEnabled ? 'Media upload only fills this field; save the form to publish it.' : 'Media uploads are temporarily disabled; enable them in Media Storage after the public media URL is ready.'}</p></div>;
 }
 
 // Helper functions for Timetable styling - standardized to primary emerald theme
@@ -7692,8 +7692,8 @@ export default function App() {
                               <textarea rows={2} value={editingFellowshipHighlight.description.en} onChange={(e) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, description: { ...editingFellowshipHighlight.description, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
                             </div>
                             <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '照片 (R2 或外部链接)' : 'Photos (R2 or External URLs)'}</label>
-                              <p className="text-[10px] text-gray-400 mb-2">{lang === 'zh' ? '添加照片URL，每行一个。支持R2上传和外部链接。' : 'Add photo URLs, one per line. Supports R2 uploads and external links.'}</p>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '照片（云端媒体或外部链接）' : 'Photos (Cloud Media or External URLs)'}</label>
+                              <p className="text-[10px] text-gray-400 mb-2">{lang === 'zh' ? '添加照片 URL，每行一个。支持云端媒体上传和外部链接。' : 'Add photo URLs, one per line. Supports media uploads and external links.'}</p>
                               <MediaUrlField
                                 value=""
                                 onChange={(url) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, images: [...(editingFellowshipHighlight.images || []), url] })}
