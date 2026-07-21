@@ -148,6 +148,38 @@ git push origin main
 # 6. Check deployment at: https://dash.cloudflare.com/pages
 ```
 
+### Content Edits Cost Zero Builds (Runtime Data Loading)
+
+The site loads the latest published site data (`src/data/initialData.js`) directly from
+GitHub's raw CDN at runtime, so **admin panel saves go live for all visitors within
+~5 minutes — no Cloudflare build required**. This keeps content edits from consuming
+the Cloudflare Pages build quota (500 builds/month on Free).
+
+**One-time setup — exclude the data file from triggering builds:**
+
+1. Cloudflare Dashboard → **Pages** → your project → **Settings** → **Builds & deployments**
+2. Under **Build watch paths**, click **Configure** / **Edit**
+3. Set:
+   - **Include paths**: `*`
+   - **Exclude paths**: `src/data/initialData.js`
+4. **Save**
+
+**How it behaves after this:**
+
+| Push type | Builds? | Visitors see it |
+|-----------|---------|-----------------|
+| Auto-save from admin panel (data only) | ❌ Skipped | Within ~5 min (CDN cache) |
+| Code change (any other file) | ✅ Yes | After deploy (~2 min) |
+| Code + data in the same push | ✅ Yes | After deploy (~2 min) |
+
+**Fallback safety:** if GitHub raw is unreachable or the data is invalid, visitors
+silently receive the data bundled at the last build. In the admin's own browser,
+the local working copy (localStorage) always takes precedence over remote data.
+
+⚠️ **The repository must stay public** for runtime loading to work. If you ever make
+it private, visitors fall back to bundled (possibly stale) content — temporarily
+remove the build watch path exclusion until it is public again.
+
 ### Password Rotation
 
 **To change admin password:**
