@@ -25,13 +25,17 @@ const COOKIE_NAME = 'bmbcc_admin';
 const HARD_LIMIT = HARD_LIMIT_BYTES;
 const WARNING_LIMIT = WARNING_LIMIT_BYTES;
 type Category = 'images' | 'bulletins' | 'galleries' | 'logos' | 'qrcodes';
-type Record = { key:string; size:number; category:Category; contentType:string; uploadedAt:string; trash?:boolean; trashAt?:string };
+type Record = { key:string; size:number; category:Category; contentType:string; uploadedAt:string; trash?:boolean; trashAt?:string; fellowshipHighlightId?:string };
 type LastScan = { at:string; referencedKeys:string[] };
 const SCAN_KEY = 'lastReferenceScan';
 const MAX_SCAN_URLS = 20000;
 // A purge must be backed by a reference scan newer than this, so "changed a URL in an
 // edit form" can never race a deletion: the scan always reflects currently saved data.
 const SCAN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+// Fellowship Highlights are stored as protected gallery media, but their quotas
+// are scoped to the individual highlight rather than to the galleries category.
+const FELLOWSHIP_HIGHLIGHT_MAX_IMAGES = 100;
+const FELLOWSHIP_HIGHLIGHT_MAX_BYTES = 100 * 1024 * 1024;
 
 function json(body: unknown, status=200) { return new Response(JSON.stringify(body), {status, headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}}); }
 function token(cookie:string|null) { return cookie?.match(new RegExp(`${COOKIE_NAME}=([^;]+)`))?.[1]; }
@@ -77,7 +81,48 @@ export const onRequestGet:PagesFunction<Env>=async({request,env})=>{ if(!await a
 //  2. application/json    → Phase 2 management actions (scan/restore/purge/reconcile)
 export const onRequestPost:PagesFunction<Env>=async({request,env})=>{ if(!await admin(request,env)) return json({ok:false,error:'Not authenticated'},401); const contentType=request.headers.get('Content-Type')||''; if(contentType.includes('application/json')) return handleAction(request,env); return handleUpload(request,env); };
 
-async function handleUpload(request:Request, env:Env):Promise<Response> { try { const form=await request.formData(); const file=form.get('file'); const cat=category(form.get('category')); if(!(file instanceof File)||!cat) return json({ok:false,error:'A file and valid category are required.'},400); const pdf=cat==='bulletins'; if(pdf ? file.size>15*1024*1024 : file.size>(cat==='galleries'?8:cat==='logos'||cat==='qrcodes'?2:5)*1024*1024) return json({ok:false,error:'File exceeds this category’s pre-processing size limit.'},413); const bytes=new Uint8Array(await file.arrayBuffer()); if(!signature(bytes,pdf?'pdf':'image')) return json({ok:false,error:pdf?'Only real PDF files beginning with %PDF- are accepted.':'Only JPEG, PNG, and WebP images with a valid file signature are accepted.'},415); const type=pdf?'application/pdf':imageType(bytes); const all=await records(env); if(usage(all).used+bytes.byteLength>HARD_LIMIT) return json({ok:false,error:'Upload blocked: the 7 GB R2 storage limit would be exceeded.'},413); const now=new Date(); const ym=`${now.getUTCFullYear()}/${String(now.getUTCMonth()+1).padStart(2,'0')}`; const prefix=pdf?'bulletins':cat==='galleries'?'galleries/events':cat==='images'?'images/website':`images/${cat}`; const extension=pdf?'pdf':type==='image/jpeg'?'jpg':type==='image/png'?'png':'webp'; const key=`${prefix}/${ym}/${crypto.randomUUID()}.${extension}`; await env.MEDIA_BUCKET.put(key,bytes,{httpMetadata:{contentType:type,cacheControl:'public, max-age=31536000, immutable',contentDisposition:pdf?'inline':undefined},customMetadata:{category:cat,uploadedAt:now.toISOString()}}); const row:Record={key,size:bytes.byteLength,category:cat,contentType:type,uploadedAt:now.toISOString()}; all.push(row); await save(env,all); const base=env.MEDIA_PUBLIC_URL?.replace(/\/$/,''); if(!base) return json({ok:false,error:'Upload stored but MEDIA_PUBLIC_URL is not configured. Ask an administrator to configure the R2 custom media domain.'},500); return json({ok:true,url:`${base}/${key}`,file:row,usage:usage(all)}); } catch(e) { console.error(e); return json({ok:false,error:'Upload failed. Please try again.'},500); } }
+async function handleUpload(request:Request, env:Env):Promise<Response> {
+  try {
+    const form=await request.formData();
+    const file=form.get('file');
+    const cat=category(form.get('category'));
+    // The highlight id is deliberately supplied by the authenticated admin client,
+    // not inferred from a filename or URL. Existing gallery uploads omit it and
+    // retain their current behaviour.
+    const fellowshipHighlightId=String(form.get('fellowshipHighlightId') || form.get('highlightId') || '').trim();
+    if(!(file instanceof File)||!cat) return json({ok:false,error:'A file and valid category are required.'},400);
+    const pdf=cat==='bulletins';
+    if(pdf ? file.size>15*1024*1024 : file.size>(cat==='galleries'?8:cat==='logos'||cat==='qrcodes'?2:5)*1024*1024) return json({ok:false,error:'File exceeds this category’s pre-processing size limit.'},413);
+    const bytes=new Uint8Array(await file.arrayBuffer());
+    if(!signature(bytes,pdf?'pdf':'image')) return json({ok:false,error:pdf?'Only real PDF files beginning with %PDF- are accepted.':'Only JPEG, PNG, and WebP images with a valid file signature are accepted.'},415);
+    const type=pdf?'application/pdf':imageType(bytes);
+    const all=await records(env);
+
+    // This check is before the R2 put. Count and bytes include existing records
+    // (including trashed objects, which still consume R2 storage) assigned to this
+    // highlight. A highlight upload must carry an id so an upload cannot evade the
+    // per-highlight quota by using the general galleries category.
+    if (cat==='galleries' && fellowshipHighlightId) {
+      const highlightRecords=all.filter(record => record.category==='galleries' && record.fellowshipHighlightId===fellowshipHighlightId);
+      const highlightBytes=highlightRecords.reduce((total,record) => total + record.size,0);
+      if(highlightRecords.length >= FELLOWSHIP_HIGHLIGHT_MAX_IMAGES) return json({ok:false,error:'Upload blocked: this Fellowship Highlight already contains the maximum of 100 images.'},413);
+      if(highlightBytes + bytes.byteLength > FELLOWSHIP_HIGHLIGHT_MAX_BYTES) return json({ok:false,error:'Upload blocked: this Fellowship Highlight would exceed its 100 MB total image storage limit.'},413);
+    }
+
+    if(usage(all).used+bytes.byteLength>HARD_LIMIT) return json({ok:false,error:'Upload blocked: the 7 GB R2 storage limit would be exceeded.'},413);
+    const now=new Date();
+    const ym=`${now.getUTCFullYear()}/${String(now.getUTCMonth()+1).padStart(2,'0')}`;
+    const prefix=pdf?'bulletins':cat==='galleries'?'galleries/events':cat==='images'?'images/website':`images/${cat}`;
+    const extension=pdf?'pdf':type==='image/jpeg'?'jpg':type==='image/png'?'png':'webp';
+    const key=`${prefix}/${ym}/${crypto.randomUUID()}.${extension}`;
+    await env.MEDIA_BUCKET.put(key,bytes,{httpMetadata:{contentType:type,cacheControl:'public, max-age=31536000, immutable',contentDisposition:pdf?'inline':undefined},customMetadata:{category:cat,uploadedAt:now.toISOString(),...(fellowshipHighlightId?{fellowshipHighlightId}:{})}});
+    const row:Record={key,size:bytes.byteLength,category:cat,contentType:type,uploadedAt:now.toISOString(),...(fellowshipHighlightId?{fellowshipHighlightId}:{})};
+    all.push(row); await save(env,all);
+    const base=env.MEDIA_PUBLIC_URL?.replace(/\/$/,'');
+    if(!base) return json({ok:false,error:'Upload stored but MEDIA_PUBLIC_URL is not configured. Ask an administrator to configure the R2 custom media domain.'},500);
+    return json({ok:true,url:`${base}/${key}`,file:row,usage:usage(all)});
+  } catch(e) { console.error(e); return json({ok:false,error:'Upload failed. Please try again.'},500); }
+}
 
 async function handleAction(request:Request, env:Env):Promise<Response> {
   let body: { action?:string; key?:string; urls?:unknown; confirm?:string; overrideProtected?:boolean };

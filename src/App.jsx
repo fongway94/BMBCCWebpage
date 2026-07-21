@@ -63,7 +63,7 @@ const GITHUB_SETTINGS_ENDPOINT = '/functions/github-settings';
 
 // URL-first media control: R2 uploads only populate the existing URL field. The
 // parent editor remains responsible for its normal Save action.
-function MediaUrlField({ value, onChange, category = 'images', accept = 'image/jpeg,image/png,image/webp', label = 'Image URL' }) {
+function MediaUrlField({ value, onChange, category = 'images', accept = 'image/jpeg,image/png,image/webp', label = 'Image URL', highlightId }) {
   const [message, setMessage] = React.useState('');
   const [progress, setProgress] = React.useState(0);
   const inputRef = React.useRef(null);
@@ -76,7 +76,7 @@ function MediaUrlField({ value, onChange, category = 'images', accept = 'image/j
       try { const bitmap = await createImageBitmap(file); const scale = Math.min(1, 2200 / Math.max(bitmap.width, bitmap.height)); const canvas = document.createElement('canvas'); canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale); canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height); const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', .82)); bitmap.close(); if (blob) file = new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.webp`, { type: 'image/webp' }); } catch { /* server still validates the original upload */ }
     }
     setMessage('Uploading…'); setProgress(5);
-    const body = new FormData(); body.append('file', file); body.append('category', category);
+    const body = new FormData(); body.append('file', file); body.append('category', category); if (highlightId) body.append('fellowshipHighlightId', String(highlightId));
     const xhr = new XMLHttpRequest(); xhr.open('POST', '/media'); xhr.withCredentials = true;
     xhr.upload.onprogress = (e) => e.lengthComputable && setProgress(Math.round(e.loaded / e.total * 100));
     xhr.onload = () => { try { const result = JSON.parse(xhr.responseText); if (xhr.status < 300 && result.ok) { onChange(result.url); setProgress(100); setMessage('Uploaded. Click the relevant Save button to publish this URL.'); } else { throw new Error(result.error); } } catch (e) { setProgress(0); setMessage(e.message || 'Upload failed.'); } };
@@ -1045,9 +1045,9 @@ export default function App() {
   const handleSaveFellowshipHighlight = (item) => {
     const updated = { ...data };
     if (!updated.fellowshipHighlights) updated.fellowshipHighlights = [];
-    if (item.id === 'new') {
-      const newId = Math.max(...updated.fellowshipHighlights.map(h => h.id), 0) + 1;
-      updated.fellowshipHighlights.push({ ...item, id: newId });
+    if (item.isNew) {
+      const { isNew, ...savedItem } = item;
+      updated.fellowshipHighlights.push(savedItem);
     } else {
       updated.fellowshipHighlights = updated.fellowshipHighlights.map(h => h.id === item.id ? item : h);
     }
@@ -7637,7 +7637,8 @@ export default function App() {
                         </div>
                         <button
                           onClick={() => setEditingFellowshipHighlight({
-                            id: 'new',
+                            id: Math.max(...(data.fellowshipHighlights || []).map(h => h.id), 0) + 1,
+                            isNew: true,
                             title: { zh: '新团契精彩', en: 'New Fellowship Highlight' },
                             date: new Date().toISOString().slice(0, 10),
                             description: { zh: '描述...', en: 'Description...' },
@@ -7653,7 +7654,7 @@ export default function App() {
                       {editingFellowshipHighlight ? (
                         <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
                           <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingFellowshipHighlight.id === 'new' ? (lang === 'zh' ? '新增团契精彩集' : 'Add New Highlight') : (lang === 'zh' ? '编辑团契精彩集' : 'Edit Highlight')}
+                            {editingFellowshipHighlight.isNew ? (lang === 'zh' ? '新增团契精彩集' : 'Add New Highlight') : (lang === 'zh' ? '编辑团契精彩集' : 'Edit Highlight')}
                           </h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -7679,6 +7680,13 @@ export default function App() {
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '照片 (R2 或外部链接)' : 'Photos (R2 or External URLs)'}</label>
                               <p className="text-[10px] text-gray-400 mb-2">{lang === 'zh' ? '添加照片URL，每行一个。支持R2上传和外部链接。' : 'Add photo URLs, one per line. Supports R2 uploads and external links.'}</p>
+                              <MediaUrlField
+                                value=""
+                                onChange={(url) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, images: [...(editingFellowshipHighlight.images || []), url] })}
+                                category="galleries"
+                                highlightId={editingFellowshipHighlight.id}
+                                label={lang === 'zh' ? '上传照片到此精彩集' : 'Upload a photo to this highlight'}
+                              />
                               <textarea 
                                 rows={5} 
                                 value={(editingFellowshipHighlight.images || []).join('\n')} 
