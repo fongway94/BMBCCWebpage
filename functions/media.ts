@@ -91,6 +91,9 @@ async function handleUpload(request:Request, env:Env):Promise<Response> {
     // retain their current behaviour.
     const fellowshipHighlightId=String(form.get('fellowshipHighlightId') || form.get('highlightId') || '').trim();
     if(!(file instanceof File)||!cat) return json({ok:false,error:'A file and valid category are required.'},400);
+    // Never store an orphaned object: uploads are only useful when the configured
+    // R2 custom domain can produce the URL that the editor will save.
+    if(!env.MEDIA_PUBLIC_URL?.trim()) return json({ok:false,error:'Uploads are temporarily unavailable because MEDIA_PUBLIC_URL is not configured. Configure the R2 custom media domain first.'},503);
     const pdf=cat==='bulletins';
     if(pdf ? file.size>15*1024*1024 : file.size>(cat==='galleries'?8:cat==='logos'||cat==='qrcodes'?2:5)*1024*1024) return json({ok:false,error:'File exceeds this category’s pre-processing size limit.'},413);
     const bytes=new Uint8Array(await file.arrayBuffer());

@@ -32,8 +32,9 @@ id = "d3e26fe020c347ae8641b978bec81d04"
 # dedicated KV namespace and bind it as MEDIA_INDEX in the Pages dashboard (or add
 # its real ID here; do not commit a placeholder ID).
 
-# Set MEDIA_PUBLIC_URL in Pages (for example https://media.example.org). Do not use
-# an r2.dev URL for production media.
+# Once the approved R2 custom media domain is active, add the non-secret public
+# URL under [vars], for example MEDIA_PUBLIC_URL = "https://media.example.org".
+# Do not use an r2.dev URL for production media.
 
 # Custom domain (optional, configure in dashboard)
 # routes = [

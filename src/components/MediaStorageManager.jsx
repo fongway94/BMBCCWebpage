@@ -446,7 +446,13 @@ function WhereUsedModal({ file, locations, L, onClose }) {
 // Main component
 // ---------------------------------------------------------------------------
 
-export default function MediaStorageManager({ siteData, lang, mediaEndpoint = '/media' }) {
+export default function MediaStorageManager({
+  siteData,
+  lang,
+  mediaEndpoint = '/media',
+  uploadsEnabled = false,
+  onUploadsEnabledChange,
+}) {
   const L = useL(lang);
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [error, setError] = useState('');
@@ -675,6 +681,36 @@ export default function MediaStorageManager({ siteData, lang, mediaEndpoint = '/
       </div>
 
       <Toast toast={toast} onClose={() => setToast(null)} />
+
+      <section className={`rounded-xl border p-4 ${uploadsEnabled ? 'border-emerald-200 bg-emerald-50/60' : 'border-amber-200 bg-amber-50/70'}`}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-1">
+            <h3 className="text-xs font-extrabold text-gray-900 flex items-center gap-2">
+              <HardDrive size={15} className={uploadsEnabled ? 'text-emerald-600' : 'text-amber-600'} />
+              {L('R2 上传按钮', 'R2 upload buttons')}
+              <span className={`px-2 py-0.5 rounded-full text-[10px] ${uploadsEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                {uploadsEnabled ? L('已启用', 'Enabled') : L('暂时停用', 'Temporarily disabled')}
+              </span>
+            </h3>
+            <p className="text-[11px] text-gray-600 leading-relaxed max-w-2xl">
+              {uploadsEnabled
+                ? L('上传按钮已启用。请确认 Cloudflare Pages 的 MEDIA_PUBLIC_URL 已指向可用的 R2 自定义媒体域名。', 'Upload buttons are enabled. Confirm that Cloudflare Pages MEDIA_PUBLIC_URL points to a working R2 custom media domain.')
+                : L('在媒体域名准备好前，所有编辑表单的“上传文件”按钮都会保持停用；粘贴现有或外部公开 URL 不受影响。', 'Until the media domain is ready, every editor’s “Upload file” button stays disabled. Pasting existing or external public URLs is unaffected.')}
+            </p>
+          </div>
+          <label className="inline-flex items-center gap-3 cursor-pointer shrink-0">
+            <span className="text-xs font-bold text-gray-700">{L('启用上传', 'Enable uploads')}</span>
+            <input
+              type="checkbox"
+              checked={uploadsEnabled}
+              onChange={(event) => onUploadsEnabledChange?.(event.target.checked)}
+              disabled={!onUploadsEnabledChange}
+              className="sr-only peer"
+            />
+            <span className="relative w-11 h-6 rounded-full bg-gray-300 peer-checked:bg-emerald-600 peer-disabled:opacity-50 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5" />
+          </label>
+        </div>
+      </section>
 
       {status === 'error' && (
         <div className="bg-red-50 text-red-700 border border-red-200 rounded-xl p-4 text-xs font-semibold flex items-center justify-between gap-3">
