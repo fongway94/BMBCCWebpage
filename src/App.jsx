@@ -62,13 +62,24 @@ import MediaStorageManager from './components/MediaStorageManager';
 const AUTH_ENDPOINT = '/functions/auth';
 const GITHUB_SETTINGS_ENDPOINT = '/functions/github-settings';
 
+// A site-data setting controlled from Admin → Media Storage. It defaults to off
+// so the existing URL-first workflow remains available while the R2 public domain
+// is awaiting setup. It is only a UI safeguard; the /media function still enforces
+// its own authentication, validation, quota, and MEDIA_PUBLIC_URL requirements.
+const MediaUploadContext = React.createContext(false);
+
 // URL-first media control: R2 uploads only populate the existing URL field. The
 // parent editor remains responsible for its normal Save action.
 function MediaUrlField({ value, onChange, category = 'images', accept = 'image/jpeg,image/png,image/webp', label = 'Image URL', highlightId }) {
+  const uploadsEnabled = React.useContext(MediaUploadContext);
   const [message, setMessage] = React.useState('');
   const [progress, setProgress] = React.useState(0);
   const inputRef = React.useRef(null);
   const upload = async (file) => {
+    if (!uploadsEnabled) {
+      setMessage('Media uploads are temporarily disabled in Media Storage settings. You can still paste a public URL.');
+      return;
+    }
     if (!file) return;
     // JPEG photographs are re-encoded client-side before transit: this strips EXIF/GPS,
     // caps the long edge at 2200px, and creates an efficient WebP. PNG/WebP graphics,
@@ -83,7 +94,7 @@ function MediaUrlField({ value, onChange, category = 'images', accept = 'image/j
     xhr.onload = () => { try { const result = JSON.parse(xhr.responseText); if (xhr.status < 300 && result.ok) { onChange(result.url); setProgress(100); setMessage('Uploaded. Click the relevant Save button to publish this URL.'); } else { throw new Error(result.error); } } catch (e) { setProgress(0); setMessage(e.message || 'Upload failed.'); } };
     xhr.onerror = () => { setProgress(0); setMessage('Network error while uploading.'); }; xhr.send(body);
   };
-  return <div className="space-y-1"><label className="block text-xs font-bold text-gray-600 mb-1">{label}</label><div className="flex gap-2"><input type="text" value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder="https://…" className="min-w-0 flex-1 px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"/><input ref={inputRef} type="file" accept={accept} className="hidden" onChange={(e) => upload(e.target.files?.[0])}/><button type="button" onClick={() => inputRef.current?.click()} className="shrink-0 px-3 py-2 rounded bg-primary text-white text-xs font-semibold">Upload file</button></div>{message && <p className={`text-[10px] ${message.startsWith('Uploaded') ? 'text-green-600' : message.startsWith('Uploading') ? 'text-gray-500' : 'text-red-600'}`}>{message}{progress > 0 && progress < 100 ? ` ${progress}%` : ''}</p>}<p className="text-[10px] text-gray-400">Paste any public URL or upload to R2. Uploading does not save this form.</p></div>;
+  return <div className="space-y-1"><label className="block text-xs font-bold text-gray-600 mb-1">{label}</label><div className="flex gap-2"><input type="text" value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder="https://…" className="min-w-0 flex-1 px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"/><input ref={inputRef} type="file" accept={accept} className="hidden" onChange={(e) => upload(e.target.files?.[0])}/><button type="button" disabled={!uploadsEnabled} title={uploadsEnabled ? 'Upload media' : 'Media uploads are disabled in Media Storage settings'} onClick={() => inputRef.current?.click()} className="shrink-0 px-3 py-2 rounded bg-primary text-white text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-45">Upload file</button></div>{message && <p className={`text-[10px] ${message.startsWith('Uploaded') ? 'text-green-600' : message.startsWith('Uploading') ? 'text-gray-500' : 'text-red-600'}`}>{message}{progress > 0 && progress < 100 ? ` ${progress}%` : ''}</p>}<p className="text-[10px] text-gray-400">Paste any public URL. {uploadsEnabled ? 'Media upload only fills this field; save the form to publish it.' : 'Media uploads are temporarily disabled; enable them in Media Storage after the public media URL is ready.'}</p></div>;
 }
 
 // Helper functions for Timetable styling - standardized to primary emerald theme
@@ -1057,7 +1068,7 @@ export default function App() {
   };
 
   const handleDeleteFellowshipHighlight = (id) => {
-    if (window.confirm(lang === 'zh' ? '确定要删除此团契精彩集吗？' : 'Are you sure you want to delete this highlight?')) {
+    if (window.confirm(lang === 'zh' ? '确定要删除此聚会点滴集吗？' : 'Are you sure you want to delete this highlight?')) {
       const updated = { ...data };
       if (!updated.fellowshipHighlights) updated.fellowshipHighlights = [];
       updated.fellowshipHighlights = updated.fellowshipHighlights.filter(h => h.id !== id);
@@ -1294,7 +1305,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans" style={{ fontFamily: 'var(--site-font-family)' }}>
+    <MediaUploadContext.Provider value={data.settings?.mediaUploadsEnabled === true}>
+      <div className="min-h-screen flex flex-col font-sans" style={{ fontFamily: 'var(--site-font-family)' }}>
       
       {/* ADMIN SESSION ACTIVE TOP BANNER - Appears when logged in as admin but viewing live site */}
       {isAdminLoggedIn && activeTab !== 'admin' && (
@@ -4205,11 +4217,11 @@ export default function App() {
           <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
             <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
               <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {lang === 'zh' ? '团契精彩瞬间' : 'Cherished Moments'}
+                {lang === 'zh' ? '聚会点滴瞬间' : 'Cherished Moments'}
               </span>
               <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight flex items-center justify-center gap-3">
                 <Camera className="text-primary" size={36} />
-                <span>{lang === 'zh' ? '团契精彩' : 'Fellowship Highlights'}</span>
+                <span>{lang === 'zh' ? '聚会点滴' : 'Fellowship Highlights'}</span>
               </h1>
               <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
                 {lang === 'zh' 
@@ -4266,7 +4278,7 @@ export default function App() {
               <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
                 <Camera className="mx-auto text-gray-400 mb-3" size={48} />
                 <p className="text-gray-500 font-light text-base">
-                  {lang === 'zh' ? '暂无团契精彩集。' : 'No fellowship highlights yet.'}
+                  {lang === 'zh' ? '暂无聚会点滴集。' : 'No fellowship highlights yet.'}
                 </p>
               </div>
             )}
@@ -4484,7 +4496,7 @@ export default function App() {
                         { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide', icon: HelpCircle },
                         { id: 'maps', label: lang === 'zh' ? '地图设置' : 'Maps Settings', icon: MapIcon },
                         { id: 'media', label: lang === 'zh' ? '媒体存储管理' : 'Media Storage', icon: HardDrive },
-                        { id: 'fellowshipHighlights', label: lang === 'zh' ? '团契精彩管理' : 'Fellowship Highlights', icon: Camera },
+                        { id: 'fellowshipHighlights', label: lang === 'zh' ? '聚会点滴管理' : 'Fellowship Highlights', icon: Camera },
                         { id: 'backup', label: lang === 'zh' ? '数据备份与恢复' : 'Backup & Restore', icon: Download }
                       ].map((sec) => (
                         <button
@@ -7634,14 +7646,14 @@ export default function App() {
                     <div className="space-y-6">
                       <div className="flex justify-between items-start gap-4">
                         <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '团契精彩管理' : 'Fellowship Highlights Manager'}</h2>
+                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '聚会点滴管理' : 'Fellowship Highlights Manager'}</h2>
                           <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理团契活动的精彩瞬间照片集' : 'Manage photo highlights from gatherings, services, and events'}</p>
                         </div>
                         <button
                           onClick={() => setEditingFellowshipHighlight({
                             id: Math.max(...(data.fellowshipHighlights || []).map(h => h.id), 0) + 1,
                             isNew: true,
-                            title: { zh: '新团契精彩', en: 'New Fellowship Highlight' },
+                            title: { zh: '新聚会点滴', en: 'New Fellowship Highlight' },
                             date: new Date().toISOString().slice(0, 10),
                             description: { zh: '描述...', en: 'Description...' },
                             images: []
@@ -7656,7 +7668,7 @@ export default function App() {
                       {editingFellowshipHighlight ? (
                         <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
                           <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingFellowshipHighlight.isNew ? (lang === 'zh' ? '新增团契精彩集' : 'Add New Highlight') : (lang === 'zh' ? '编辑团契精彩集' : 'Edit Highlight')}
+                            {editingFellowshipHighlight.isNew ? (lang === 'zh' ? '新增聚会点滴集' : 'Add New Highlight') : (lang === 'zh' ? '编辑聚会点滴集' : 'Edit Highlight')}
                           </h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -7680,8 +7692,8 @@ export default function App() {
                               <textarea rows={2} value={editingFellowshipHighlight.description.en} onChange={(e) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, description: { ...editingFellowshipHighlight.description, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
                             </div>
                             <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '照片 (R2 或外部链接)' : 'Photos (R2 or External URLs)'}</label>
-                              <p className="text-[10px] text-gray-400 mb-2">{lang === 'zh' ? '添加照片URL，每行一个。支持R2上传和外部链接。' : 'Add photo URLs, one per line. Supports R2 uploads and external links.'}</p>
+                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '照片（云端媒体或外部链接）' : 'Photos (Cloud Media or External URLs)'}</label>
+                              <p className="text-[10px] text-gray-400 mb-2">{lang === 'zh' ? '添加照片 URL，每行一个。支持云端媒体上传和外部链接。' : 'Add photo URLs, one per line. Supports media uploads and external links.'}</p>
                               <MediaUrlField
                                 value=""
                                 onChange={(url) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, images: [...(editingFellowshipHighlight.images || []), url] })}
@@ -7734,7 +7746,7 @@ export default function App() {
                           ))}
                           {(data.fellowshipHighlights || []).length === 0 && (
                             <div className="text-center py-8 text-gray-400 text-xs border border-dashed border-gray-300 rounded-xl bg-white">
-                              {lang === 'zh' ? '暂无团契精彩集，点击上方按钮添加' : 'No fellowship highlights yet. Click the button above to add one.'}
+                              {lang === 'zh' ? '暂无聚会点滴集，点击上方按钮添加' : 'No fellowship highlights yet. Click the button above to add one.'}
                             </div>
                           )}
                         </div>
@@ -7971,7 +7983,15 @@ export default function App() {
 
                   {/* SECTION: MEDIA STORAGE (Phase 2 R2 media manager) */}
                   {adminActiveSection === 'media' && (
-                    <MediaStorageManager siteData={data} lang={lang} />
+                    <MediaStorageManager
+                      siteData={data}
+                      lang={lang}
+                      uploadsEnabled={data.settings?.mediaUploadsEnabled === true}
+                      onUploadsEnabledChange={(enabled) => saveAllData({
+                        ...data,
+                        settings: { ...data.settings, mediaUploadsEnabled: enabled },
+                      })}
+                    />
                   )}
 
                   {/* SECTION 6: BACKUP & DATA TRANSFERS */}
@@ -8593,6 +8613,7 @@ export default function App() {
         </div>
       )}
 
-    </div>
+      </div>
+    </MediaUploadContext.Provider>
   );
 }

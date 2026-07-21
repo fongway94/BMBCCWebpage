@@ -148,7 +148,7 @@ function StorageMeter({ meta, L }) {
         <div className="flex items-center gap-2">
           <HardDrive size={16} className="text-primary" />
           <span className="text-xs font-extrabold text-gray-800 uppercase tracking-wider">
-            {L('R2 存储用量', 'R2 Storage Usage')}
+            {L('云端媒体存储用量', 'Cloud Media Storage Usage')}
           </span>
         </div>
         <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${stateStyle}`}>{stateLabel}</span>
@@ -307,8 +307,8 @@ function ConfirmDialog({ config, L, onCancel, onConfirm, busy }) {
       <ModalShell title={L('重建媒体索引', 'Reconcile media index')} icon={Database} tone="gray" onClose={onCancel}>
         <p className="text-xs text-gray-600 leading-relaxed">
           {L(
-            '这会完整列出 R2 存储桶并修复元数据索引（补回缺失记录、移除已不存在的记录）。这是一次较重的操作，仅在索引与存储桶不一致时手动使用。',
-            'This performs a full R2 bucket listing to repair the metadata index (re-adds missing records, drops records whose objects are gone). It is a heavier operation — use it only when the index and bucket are out of sync.'
+            '这会完整列出云端媒体存储并修复元数据索引（补回缺失记录、移除已不存在的记录）。这是一次较重的操作，仅在索引与存储不一致时手动使用。',
+            'This lists all cloud media storage objects to repair the metadata index (re-adds missing records, drops records whose objects are gone). It is a heavier operation — use it only when the index and storage are out of sync.'
           )}
         </p>
         <DialogButtons onCancel={onCancel} busy={busy} cancelLabel={L('取消', 'Cancel')} confirmLabel={L('开始重建', 'Reconcile now')} confirmClass="bg-primary hover:bg-primary-dark" onConfirm={onConfirm} />
@@ -330,7 +330,7 @@ function PurgeDialog({ file, referenced, L, onCancel, onConfirm, busy }) {
     <ModalShell title={L('永久删除', 'Permanently delete')} icon={AlertTriangle} tone="red" onClose={onCancel}>
       <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2 leading-relaxed">
         <AlertTriangle size={15} className="shrink-0 mt-0.5" />
-        {L('此操作不可撤销。文件将从 R2 存储桶和媒体索引中永久删除。', 'This is irreversible. The object will be permanently removed from the R2 bucket and the media index.')}
+        {L('此操作不可撤销。文件将从云端媒体存储和媒体索引中永久删除。', 'This is irreversible. The object will be permanently removed from cloud media storage and the media index.')}
       </p>
 
       <div className="text-xs bg-gray-50 border border-gray-200 rounded-lg p-2.5 font-mono break-all text-gray-700">{file.key}</div>
@@ -446,7 +446,13 @@ function WhereUsedModal({ file, locations, L, onClose }) {
 // Main component
 // ---------------------------------------------------------------------------
 
-export default function MediaStorageManager({ siteData, lang, mediaEndpoint = '/media' }) {
+export default function MediaStorageManager({
+  siteData,
+  lang,
+  mediaEndpoint = '/media',
+  uploadsEnabled = false,
+  onUploadsEnabledChange,
+}) {
   const L = useL(lang);
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [error, setError] = useState('');
@@ -668,13 +674,43 @@ export default function MediaStorageManager({ siteData, lang, mediaEndpoint = '/
         <h2 className="text-xl font-extrabold text-gray-900">{L('媒体存储管理', 'Media Storage')}</h2>
         <p className="text-xs text-gray-500 font-light mt-1 leading-relaxed">
           {L(
-            '管理上传到 Cloudflare R2 的图片与家事 PDF。外部链接（Google Drive、Unsplash、YouTube 等）不受此处管理，也不会被误判为 R2 媒体。',
-            'Manage images and bulletin PDFs uploaded to Cloudflare R2. External links (Google Drive, Unsplash, YouTube, etc.) are not managed here and are never treated as R2 media.'
+            '管理上传到云端媒体存储的图片与家事 PDF。外部链接（Google Drive、Unsplash、YouTube 等）不受此处管理，也不会被误判为云端媒体。',
+            'Manage images and bulletin PDFs uploaded to cloud media storage. External links (Google Drive, Unsplash, YouTube, etc.) are not managed here and are never treated as cloud media.'
           )}
         </p>
       </div>
 
       <Toast toast={toast} onClose={() => setToast(null)} />
+
+      <section className={`rounded-xl border p-4 ${uploadsEnabled ? 'border-emerald-200 bg-emerald-50/60' : 'border-amber-200 bg-amber-50/70'}`}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-1">
+            <h3 className="text-xs font-extrabold text-gray-900 flex items-center gap-2">
+              <HardDrive size={15} className={uploadsEnabled ? 'text-emerald-600' : 'text-amber-600'} />
+              {L('媒体上传功能', 'Media Uploads')}
+              <span className={`px-2 py-0.5 rounded-full text-[10px] ${uploadsEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                {uploadsEnabled ? L('已启用', 'Enabled') : L('暂时停用', 'Temporarily disabled')}
+              </span>
+            </h3>
+            <p className="text-[11px] text-gray-600 leading-relaxed max-w-2xl">
+              {uploadsEnabled
+                ? L('媒体上传已启用。请确认 Cloudflare Pages 的 MEDIA_PUBLIC_URL 已指向可用的云端媒体域名。', 'Media uploads are enabled. Confirm that Cloudflare Pages MEDIA_PUBLIC_URL points to a working public media domain.')
+                : L('在媒体域名准备好前，所有编辑表单的“上传文件”按钮都会保持停用；粘贴现有或外部公开 URL 不受影响。', 'Until the media domain is ready, every editor’s “Upload file” button stays disabled. Pasting existing or external public URLs is unaffected.')}
+            </p>
+          </div>
+          <label className="inline-flex items-center gap-3 cursor-pointer shrink-0">
+            <span className="text-xs font-bold text-gray-700">{L('启用媒体上传', 'Enable Media Uploads')}</span>
+            <input
+              type="checkbox"
+              checked={uploadsEnabled}
+              onChange={(event) => onUploadsEnabledChange?.(event.target.checked)}
+              disabled={!onUploadsEnabledChange}
+              className="sr-only peer"
+            />
+            <span className="relative w-11 h-6 rounded-full bg-gray-300 peer-checked:bg-emerald-600 peer-disabled:opacity-50 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5" />
+          </label>
+        </div>
+      </section>
 
       {status === 'error' && (
         <div className="bg-red-50 text-red-700 border border-red-200 rounded-xl p-4 text-xs font-semibold flex items-center justify-between gap-3">
@@ -691,8 +727,8 @@ export default function MediaStorageManager({ siteData, lang, mediaEndpoint = '/
         <div className="bg-amber-50 text-amber-700 border border-amber-200 rounded-xl p-3.5 text-xs font-semibold flex items-start gap-2">
           <Info size={15} className="shrink-0 mt-0.5" />
           {L(
-            '未配置 MEDIA_PUBLIC_URL，文件没有公开 URL，引用检测与复制 URL 已停用。请在 Cloudflare Pages 配置 R2 自定义媒体域名。',
-            'MEDIA_PUBLIC_URL is not configured, so files have no public URL and reference detection / copy-URL are disabled. Configure the R2 custom media domain in Cloudflare Pages.'
+            '未配置 MEDIA_PUBLIC_URL，文件没有公开 URL，引用检测与复制 URL 已停用。请在 Cloudflare Pages 配置云端媒体自定义域名。',
+            'MEDIA_PUBLIC_URL is not configured, so files have no public URL and reference detection / copy-URL are disabled. Configure the custom public media domain in Cloudflare Pages.'
           )}
         </div>
       )}
@@ -724,8 +760,8 @@ export default function MediaStorageManager({ siteData, lang, mediaEndpoint = '/
                 </div>
                 <p className="text-[11px] text-gray-500 leading-relaxed">
                   {L(
-                    '比对当前保存的网站内容，识别哪些 R2 文件正在被使用。受引用文件永远不会被永久删除。',
-                    'Compares the currently saved site content to detect which R2 files are in use. Referenced files can never be permanently deleted.'
+                    '比对当前保存的网站内容，识别哪些云端媒体文件正在被使用。受引用文件永远不会被永久删除。',
+                    'Compares the currently saved site content to detect which cloud media files are in use. Referenced files can never be permanently deleted.'
                   )}
                 </p>
                 <div className="text-[11px] text-gray-600 space-y-1">
@@ -821,7 +857,7 @@ export default function MediaStorageManager({ siteData, lang, mediaEndpoint = '/
               <Archive size={28} />
               <p className="text-xs font-semibold">
                 {files.length === 0
-                  ? L('还没有上传任何媒体。在任意编辑表单中使用“Upload file”即可上传到 R2。', 'No media uploaded yet. Use “Upload file” in any edit form to upload to R2.')
+                  ? L('还没有上传任何媒体。在任意编辑表单中使用“Upload file”即可上传到云端媒体存储。', 'No media uploaded yet. Use “Upload file” in any edit form to upload to cloud media storage.')
                   : L('没有符合当前筛选条件的文件。', 'No files match the current filters.')}
               </p>
             </div>

@@ -10,6 +10,20 @@ This is the media system: secure R2 image/PDF uploads alongside the existing URL
 4. Pages project → **Settings → Environment variables**: add `MEDIA_PUBLIC_URL=https://media.example.org` as a plain server-side variable for Preview and Production. It is a public URL, not a credential. `ADMIN_PASSWORD` and `JWT_SECRET` remain Secrets.
 5. Add `media.example.org` under the R2 bucket’s **Custom Domains** tab, then create/accept the Cloudflare DNS record and wait for HTTPS to become active. Do not use `r2.dev` in production.
 
+## When the media domain is ready
+
+1. Confirm the site is deployed by **Cloudflare Pages**, not only the repository’s GitHub Pages workflow: Pages Functions (`/media`) and the R2/KV bindings do not run on GitHub Pages.
+2. In R2 → `bmbcc-media` → **Custom Domains**, attach the approved hostname (for example `media.churchdomain.org`), accept/create the DNS record, and wait until Cloudflare reports HTTPS as active. Open a known test object or use the domain’s HTTPS status before continuing.
+3. In `wrangler.toml`, add the public, non-secret value and deploy Cloudflare Pages:
+   ```toml
+   [vars]
+   MEDIA_PUBLIC_URL = "https://media.churchdomain.org"
+   ```
+   Keep `ADMIN_PASSWORD` and `JWT_SECRET` as Cloudflare Pages encrypted secrets only. Keep both `GITHUB_SETTINGS` and `MEDIA_INDEX` KV bindings, plus the `MEDIA_BUCKET` R2 binding.
+4. In Cloudflare Pages, make sure the same bindings and secrets exist for **Production and Preview**. Add a Cloudflare Cache Rule for `media.churchdomain.org/*`: **Cache Everything** with a one-year browser/edge TTL (or respect the existing one-year immutable origin header).
+5. Deploy, sign in to the Cloudflare Pages site, then open **Admin → Media Storage**. The page has an **R2 upload buttons** switch, which defaults to off. First verify that an upload returns an `https://media.churchdomain.org/...` URL and that the object opens publicly. Then enable the switch. This enables only the editor upload buttons; it does not alter any existing URL fields.
+6. Test one image and one PDF. Confirm each URL populates its editor field, click that editor’s ordinary **Save** button, refresh the public page, and confirm the asset loads. Leave external URLs, Google Drive, Unsplash, and YouTube entries unchanged.
+
 The function writes immutable keys such as `images/website/2026/07/<uuid>.webp`, `galleries/events/2026/07/<uuid>.webp`, and `bulletins/2026/07/<uuid>.pdf`. Source/content data remains in GitHub/localStorage; only uploaded binaries are in R2.
 
 ## Security and validation
