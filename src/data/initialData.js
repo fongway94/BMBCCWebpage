@@ -1229,6 +1229,7 @@ export const initialData = {
       }
     ]
   },
+  "fellowshipHighlights": [],
   "maps": [
     {
       "id": 1,
