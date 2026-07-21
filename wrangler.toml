@@ -24,6 +24,10 @@ id = "18a69c2611fa49d4aafd594e0d06e58d"
 binding = "MEDIA_BUCKET"
 bucket_name = "bmbcc-media"
 
+[[kv_namespaces]]
+binding = "MEDIA_INDEX"
+id = "d3e26fe020c347ae8641b978bec81d04"
+
 # Metadata index used for quota display and the later media-manager phase. Create a
 # dedicated KV namespace and bind it as MEDIA_INDEX in the Pages dashboard (or add
 # its real ID here; do not commit a placeholder ID).
