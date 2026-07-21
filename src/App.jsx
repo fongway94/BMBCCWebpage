@@ -162,6 +162,55 @@ const stripSensitiveData = (siteData) => {
   return sanitized;
 };
 
+// Repo whose raw CDN serves the latest published site data at runtime.
+const GITHUB_REPO_DEFAULT = import.meta.env?.VITE_GITHUB_REPO || 'fongway94/BMBCCWebpage';
+
+// Debounce for GitHub auto-save: groups rapid edits into one commit.
+// A visibilitychange flush pushes immediately if the tab is hidden/closed.
+const AUTO_SAVE_DEBOUNCE_MS = 30000;
+
+// Settings keys that are merged field-by-field so new bilingual fields
+// (aboutIntro, etc.) are not lost when loading data saved by an older build.
+const SETTINGS_MERGE_KEYS = [
+  'churchName','slogan','description','themeYear',
+  'aboutBadge','aboutTitle','aboutIntro','aboutVision','aboutMission',
+  'leadershipBadge','leadershipTitle','leadershipIntro',
+  'ministriesBadge','ministriesTitle','ministriesIntro',
+  'timetableBadge','timetableTitle','timetableIntro',
+  'eventsBadge','eventsTitle','eventsIntro',
+  'bulletinsBadge','bulletinsTitle','bulletinsIntro',
+  'servicesBadge','servicesTitle','servicesIntro',
+  'cellGroupsBadge','cellGroupsTitle','cellGroupsIntro',
+  'mapsBadge','mapsTitle','mapsIntro',
+  'homeVisionPara1','homeVisionPara2','yearlyVisionLabel','yearlyVisionTitle',
+  'yearlyVisionBadge','yearlyVisionScripture','yearlyVisionRef','ctaTitle',
+  'ctaDescription','footerCopyright','footerTagline','churchTagline','headerLogo'
+];
+
+const mergeBilingualField = (initial, parsedObj) => {
+  if (!parsedObj) return initial;
+  if (typeof initial !== 'object' || initial === null) return parsedObj;
+  // if bilingual object {zh,en}
+  if ('zh' in initial || 'en' in initial) {
+    return { ...initial, ...parsedObj };
+  }
+  return parsedObj;
+};
+
+// Merge any externally loaded site data (localStorage or remote GitHub copy)
+// over the bundled defaults so missing/new fields fall back gracefully.
+const normalizeLoadedData = (parsed) => {
+  const mergedSettings = { ...initialData.settings, ...(parsed.settings || {}) };
+  delete mergedSettings.adminPassword;
+  SETTINGS_MERGE_KEYS.forEach(k => {
+    if (initialData.settings[k]) {
+      mergedSettings[k] = mergeBilingualField(initialData.settings[k], parsed.settings?.[k]);
+    }
+  });
+  // Ensure standard structure is present
+  return stripSensitiveData({ ...initialData, ...parsed, settings: mergedSettings });
+};
+
 const hexToRgb = (hex) => {
   const value = String(hex || '').replace('#', '').trim();
   const normalized = value.length === 3 ? value.split('').map(c => c + c).join('') : value;
@@ -203,41 +252,7 @@ export default function App() {
     const saved = localStorage.getItem('bmbcc_site_data');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        // Deep merge settings to ensure new fields (aboutIntro, etc.) are not lost if user has old LocalStorage
-        const mergeBilingual = (initial, parsedObj) => {
-          if (!parsedObj) return initial;
-          if (typeof initial !== 'object' || initial === null) return parsedObj;
-          // if bilingual object {zh,en}
-          if ('zh' in initial || 'en' in initial) {
-            return { ...initial, ...parsedObj };
-          }
-          return parsedObj;
-        };
-        const settingsKeys = [
-          'churchName','slogan','description','themeYear',
-          'aboutBadge','aboutTitle','aboutIntro','aboutVision','aboutMission',
-          'leadershipBadge','leadershipTitle','leadershipIntro',
-          'ministriesBadge','ministriesTitle','ministriesIntro',
-          'timetableBadge','timetableTitle','timetableIntro',
-          'eventsBadge','eventsTitle','eventsIntro',
-          'bulletinsBadge','bulletinsTitle','bulletinsIntro',
-          'servicesBadge','servicesTitle','servicesIntro',
-          'cellGroupsBadge','cellGroupsTitle','cellGroupsIntro',
-          'mapsBadge','mapsTitle','mapsIntro',
-          'homeVisionPara1','homeVisionPara2','yearlyVisionLabel','yearlyVisionTitle',
-          'yearlyVisionBadge','yearlyVisionScripture','yearlyVisionRef','ctaTitle',
-          'ctaDescription','footerCopyright','footerTagline','churchTagline','headerLogo'
-        ];
-        const mergedSettings = { ...initialData.settings, ...(parsed.settings || {}) };
-        delete mergedSettings.adminPassword;
-        settingsKeys.forEach(k => {
-          if (initialData.settings[k]) {
-            mergedSettings[k] = mergeBilingual(initialData.settings[k], parsed.settings?.[k]);
-          }
-        });
-        // Ensure standard structure is present
-        return stripSensitiveData({ ...initialData, ...parsed, settings: mergedSettings });
+        return normalizeLoadedData(JSON.parse(saved));
       } catch (e) {
         console.error("Error parsing localstorage data, using defaults", e);
         return initialData;
@@ -399,7 +414,7 @@ export default function App() {
 
   // Build-time GitHub config (injected by Vite from env vars)
   const GITHUB_PAT_DEFAULT = ''; // Never inject GitHub tokens at build time; enter them in the admin UI only.
-  const GITHUB_REPO_DEFAULT = import.meta.env?.VITE_GITHUB_REPO || 'fongway94/BMBCCWebpage';
+  // GITHUB_REPO_DEFAULT is defined at module level; it is also used by the runtime data loader.
   const AUTO_SAVE_GITHUB_DEFAULT = import.meta.env?.VITE_AUTO_SAVE_GITHUB === 'true';
 
   // Auto-save to GitHub state (direct API - no server needed)
@@ -449,6 +464,7 @@ export default function App() {
   const isPushingRef = React.useRef(false);
   const autoSaveTimeoutRef = React.useRef(null);
   const latestDataRef = React.useRef(null);
+  const pendingPushRef = React.useRef(null); // pending debounced push, flushed on tab hide
 
   // Cleanup auto-save timeout on unmount
   useEffect(() => {
@@ -457,6 +473,51 @@ export default function App() {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
+  }, []);
+
+  // Flush a pending debounced auto-save immediately when the tab is hidden or
+  // about to close, so the 30s debounce never loses an edit.
+  useEffect(() => {
+    const flushPendingAutoSave = () => {
+      if (document.visibilityState === 'hidden' && autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+        autoSaveTimeoutRef.current = null;
+        const pending = pendingPushRef.current;
+        pendingPushRef.current = null;
+        if (pending) pending();
+      }
+    };
+    document.addEventListener('visibilitychange', flushPendingAutoSave);
+    return () => document.removeEventListener('visibilitychange', flushPendingAutoSave);
+  }, []);
+
+  // Runtime content loader: for regular visitors, fetch the latest published site
+  // data from GitHub's raw CDN so admin edits go live WITHOUT a rebuild (this is what
+  // keeps content edits from consuming the Cloudflare Pages build quota).
+  // Precedence: localStorage (admin working copy) > remote published data > bundled build data.
+  // Any failure falls back silently to whatever was already loaded.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (localStorage.getItem('bmbcc_site_data')) return; // admin working copy always wins
+        const url = 'https://raw.githubusercontent.com/' + GITHUB_REPO_DEFAULT + '/main/src/data/initialData.js';
+        const res = await fetch(url, { cache: 'no-cache' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const text = await res.text();
+        const start = text.indexOf('{');
+        const end = text.lastIndexOf('}');
+        if (start < 0 || end <= start) throw new Error('unexpected data format');
+        const remote = JSON.parse(text.slice(start, end + 1));
+        if (!remote || typeof remote !== 'object' || !remote.settings) throw new Error('invalid site data');
+        const merged = normalizeLoadedData(remote);
+        if (cancelled) return;
+        setData(prev => (JSON.stringify(prev) === JSON.stringify(merged) ? prev : merged));
+      } catch (err) {
+        console.warn('Remote site data unavailable; using bundled data:', err?.message || err);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // Apply the selected preset or freely chosen custom brand color.
@@ -532,7 +593,7 @@ export default function App() {
       setAutoSaveStatus('saving');
       setAutoSaveMessage(lang === 'zh' ? '正在同步到 GitHub...' : 'Syncing to GitHub...');
 
-      autoSaveTimeoutRef.current = setTimeout(() => {
+      const triggerPushNow = () => {
         const doGithubPush = async () => {
           const dataToPush = latestDataRef.current;
           if (!dataToPush) return;
@@ -639,7 +700,13 @@ export default function App() {
         };
 
         doGithubPush();
-      }, 1500);
+      };
+
+      pendingPushRef.current = triggerPushNow;
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        pendingPushRef.current = null;
+        triggerPushNow();
+      }, AUTO_SAVE_DEBOUNCE_MS);
     }
   };
 
