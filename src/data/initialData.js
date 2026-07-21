@@ -469,7 +469,7 @@ export const initialData = {
       },
       "time": "9:00 AM - 10:00 AM",
       "location": {
-        "zh": "BMBCC BKBC",
+        "zh": "BMBCC",
         "en": "Church Sanctuary"
       },
       "language": {
