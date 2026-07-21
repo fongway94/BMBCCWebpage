@@ -1245,6 +1245,21 @@ export const initialData = {
         "https://drive.google.com/thumbnail?id=1lHBS--ILTphRlxM9LwML1F4KKf_i8l3W&sz=w2000",
         "https://drive.google.com/thumbnail?id=13IkZl6VS1NdQR9p-TkGSlYOuywtam3ua&sz=w2000"
       ]
+    },
+    {
+      "id": 2,
+      "title": {
+        "zh": "事工 2",
+        "en": "Ministry 2"
+      },
+      "date": "2026-07-21",
+      "description": {
+        "zh": "描述...",
+        "en": "Description..."
+      },
+      "images": [
+        "https://drive.google.com/thumbnail?id=1tB7Zb7qGUtxz_TCC6cI3hcJKcoti9FBV&sz=w2000"
+      ]
     }
   ],
   "maps": [
