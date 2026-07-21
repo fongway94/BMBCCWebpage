@@ -84,6 +84,24 @@ On opening the page (and via *Re-scan references*), the UI collects **every URL*
 - **Deletion workflow:** Move to trash → wait out the 30-day retention → confirm the file is unreferenced (run a scan) → permanently delete. Protected categories additionally require the override checkbox.
 - **Immutable URLs:** objects keep `Cache-Control: public, max-age=31536000, immutable`. Never rewrite or invalidate a URL — upload a replacement and save its new URL.
 
+## Phase 3 — Fellowship Highlights operation
+
+Fellowship Highlights is a **separate top-level array** (`fellowshipHighlights[]`) in the site data model, independent of the `events[]` announcements array.
+
+- Each highlight entry contains `title`, `date`, `description`, and an `images[]` array.
+- Any R2 media URL inside `images[]` is reported as **referenced by that highlight** during a reference scan.
+- Removing a highlight (or an individual image URL from it) only **detaches** the R2 objects; they become unreferenced and follow the normal 30-day trash retention + manual purge workflow.
+- Protected-category rules (`galleries`) apply to Fellowship Highlights just like historical event galleries.
+
+**Upload limits** (enforced server-side via the existing `/media` endpoint):
+- Maximum **100 images** per highlight.
+- Maximum **100 MB** total R2 storage per highlight.
+- Per-image limits follow the existing `galleries` category rules (8 MB pre-processing, optimized to WebP).
+
+**Thumbnail behavior**: The client may request a thumbnail key (`<uuid>-thumb.webp`) alongside the full-size object. Both keys are stored under `galleries/events/YYYY/MM/`. The admin UI shows the first image as the card preview.
+
+**Retention guidance**: Highlights are archival church records. They are covered by the `galleries` protected category and require the `overrideProtected` flag for permanent deletion, even after the 30-day trash period.
+
 ## Testing & validation
 
 - `npm test` runs the Node test suite (`tests/mediaCore.test.mjs`) covering usage accounting, the 5 GB/7 GB states, external-URL exclusion, exact-match references, the 30-day purge policy, protected-category override, the 7-day unused-review rule, and search/sort/filter behavior.
