@@ -3,3 +3,5 @@
 
 ADMIN_PASSWORD=replace-with-local-admin-password
 JWT_SECRET=replace-with-local-jwt-secret
+# Public custom domain for R2 objects; this is safe to expose in returned URLs.
+MEDIA_PUBLIC_URL=https://media.example.org

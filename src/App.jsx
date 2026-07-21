@@ -59,6 +59,30 @@ import { initialData } from './data/initialData';
 const AUTH_ENDPOINT = '/functions/auth';
 const GITHUB_SETTINGS_ENDPOINT = '/functions/github-settings';
 
+// URL-first media control: R2 uploads only populate the existing URL field. The
+// parent editor remains responsible for its normal Save action.
+function MediaUrlField({ value, onChange, category = 'images', accept = 'image/jpeg,image/png,image/webp', label = 'Image URL' }) {
+  const [message, setMessage] = React.useState('');
+  const [progress, setProgress] = React.useState(0);
+  const inputRef = React.useRef(null);
+  const upload = async (file) => {
+    if (!file) return;
+    // JPEG photographs are re-encoded client-side before transit: this strips EXIF/GPS,
+    // caps the long edge at 2200px, and creates an efficient WebP. PNG/WebP graphics,
+    // logos and QR codes stay lossless.
+    if (file.type === 'image/jpeg' && category !== 'logos' && category !== 'qrcodes') {
+      try { const bitmap = await createImageBitmap(file); const scale = Math.min(1, 2200 / Math.max(bitmap.width, bitmap.height)); const canvas = document.createElement('canvas'); canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale); canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height); const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', .82)); bitmap.close(); if (blob) file = new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.webp`, { type: 'image/webp' }); } catch { /* server still validates the original upload */ }
+    }
+    setMessage('Uploading…'); setProgress(5);
+    const body = new FormData(); body.append('file', file); body.append('category', category);
+    const xhr = new XMLHttpRequest(); xhr.open('POST', '/media'); xhr.withCredentials = true;
+    xhr.upload.onprogress = (e) => e.lengthComputable && setProgress(Math.round(e.loaded / e.total * 100));
+    xhr.onload = () => { try { const result = JSON.parse(xhr.responseText); if (xhr.status < 300 && result.ok) { onChange(result.url); setProgress(100); setMessage('Uploaded. Click the relevant Save button to publish this URL.'); } else { throw new Error(result.error); } } catch (e) { setProgress(0); setMessage(e.message || 'Upload failed.'); } };
+    xhr.onerror = () => { setProgress(0); setMessage('Network error while uploading.'); }; xhr.send(body);
+  };
+  return <div className="space-y-1"><label className="block text-xs font-bold text-gray-600 mb-1">{label}</label><div className="flex gap-2"><input type="text" value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder="https://…" className="min-w-0 flex-1 px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"/><input ref={inputRef} type="file" accept={accept} className="hidden" onChange={(e) => upload(e.target.files?.[0])}/><button type="button" onClick={() => inputRef.current?.click()} className="shrink-0 px-3 py-2 rounded bg-primary text-white text-xs font-semibold">Upload file</button></div>{message && <p className={`text-[10px] ${message.startsWith('Uploaded') ? 'text-green-600' : message.startsWith('Uploading') ? 'text-gray-500' : 'text-red-600'}`}>{message}{progress > 0 && progress < 100 ? ` ${progress}%` : ''}</p>}<p className="text-[10px] text-gray-400">Paste any public URL or upload to R2. Uploading does not save this form.</p></div>;
+}
+
 // Helper functions for Timetable styling - standardized to primary emerald theme
 const getDayBadgeStyle = (dayStr) => {
   return {
@@ -5082,13 +5106,7 @@ export default function App() {
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">图片链接 / Image URL</label>
-                              <input 
-                                type="text"
-                                value={editingSlide.image}
-                                onChange={(e) => setEditingSlide({ ...editingSlide, image: e.target.value })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
+                              <MediaUrlField value={editingSlide.image} onChange={(image) => setEditingSlide({ ...editingSlide, image })} category="images" label="图片链接 / Image URL" />
                               <p className="text-[10px] text-gray-400 mt-1">
                                 {lang === 'zh' ? '支持直接黏贴Unsplash或任何公网可访问的图片链接' : 'Paste Unsplash or any direct public image URL'}
                               </p>
@@ -5716,12 +5734,7 @@ export default function App() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-600 mb-1">图片链接 / Image URL</label>
-                              <input 
-                                type="text"
-                                value={editingMinistry.image}
-                                onChange={(e) => setEditingMinistry({ ...editingMinistry, image: e.target.value })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
+                              <MediaUrlField value={editingMinistry.image} onChange={(image) => setEditingMinistry({ ...editingMinistry, image })} category="images" />
                             </div>
 
                             <div>
@@ -5917,12 +5930,7 @@ export default function App() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-600 mb-1">配图链接 / Cover Image URL</label>
-                              <input 
-                                type="text"
-                                value={editingEvent.image}
-                                onChange={(e) => setEditingEvent({ ...editingEvent, image: e.target.value })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
+                              <MediaUrlField value={editingEvent.image} onChange={(image) => setEditingEvent({ ...editingEvent, image })} category="galleries" />
                             </div>
 
                             <div>
@@ -6483,7 +6491,7 @@ export default function App() {
                                 <div className="flex-1 space-y-2 w-full">
                                   <div>
                                     <label className="block text-[11px] font-bold text-gray-600 mb-1">{lang === 'zh' ? '粘贴图片链接 URL' : 'Paste image URL'}</label>
-                                    <input type="text" value={editingLeader.image} onChange={(e) => setEditingLeader({ ...editingLeader, image: e.target.value })} placeholder="https://..." className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                                    <MediaUrlField value={editingLeader.image} onChange={(image) => setEditingLeader({ ...editingLeader, image })} category="images" />
                                   </div>
                                   <p className="text-[10px] text-gray-500">{lang === 'zh' ? '建议使用图床或教会网站上的图片直链；链接会即时在左侧预览。' : 'Use a direct image link from an image host or the church website; the preview updates instantly on the left.'}</p>
                                 </div>
@@ -6832,16 +6840,7 @@ export default function App() {
                               <input type="text" value={editingBulletin.category.en} onChange={(e) => setEditingBulletin({ ...editingBulletin, category: { ...editingBulletin.category, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
                             </div>
                             <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">
-                                {lang === 'zh' ? '家事下载链接 (PDF/文件)' : 'Weekly Bulletin Download Link (PDF/File URL)'}
-                              </label>
-                              <input 
-                                type="text" 
-                                value={editingBulletin.fileUrl} 
-                                onChange={(e) => setEditingBulletin({ ...editingBulletin, fileUrl: e.target.value })} 
-                                placeholder={lang === 'zh' ? '例如: https://drive.google.com/... 或 http://...' : 'e.g., https://drive.google.com/... or http://...'} 
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" 
-                              />
+                              <MediaUrlField value={editingBulletin.fileUrl} onChange={(fileUrl) => setEditingBulletin({ ...editingBulletin, fileUrl })} category="bulletins" accept="application/pdf" label={lang === 'zh' ? '家事下载链接 (PDF/文件)' : 'Weekly Bulletin Download Link (PDF/File URL)'} />
                               <p className="text-[10px] text-gray-400 mt-1">
                                 {lang === 'zh' ? '💡 请粘帖家事的公网下载链接（如 Google Drive, Dropbox 共享链接等）。若填 # 或留空，家事页面将不会显示“下载家事”按钮。' : '💡 Please paste the public download link of your bulletin (e.g. Google Drive, Dropbox link). If set to # or left empty, the "Download PDF" button will be hidden.'}
                               </p>
@@ -7348,7 +7347,7 @@ export default function App() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '图片链接' : 'Image URL'}</label>
-                              <input type="text" value={editingCellGroup.image} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, image: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
+                              <MediaUrlField value={editingCellGroup.image} onChange={(image) => setEditingCellGroup({ ...editingCellGroup, image })} category="images" />
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '小组名称 (中文)' : 'Name (Chinese)'}</label>
