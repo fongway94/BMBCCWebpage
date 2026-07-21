@@ -2130,7 +2130,7 @@ export default function App() {
                       <div key={leader.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-md transition-all flex flex-col group">
                         <div 
                           className="relative w-full aspect-[3/4] overflow-hidden bg-gradient-to-b from-gray-50 via-gray-100/60 to-gray-200/50 cursor-zoom-in"
-                          onClick={() => setSelectedImage({ url: leader.image, title: `${t(leader.name)} - ${t(leader.role)}` })}
+                          onClick={() => setSelectedImage({ url: leader.image, title: `${t(leader.name)} - ${t(leader.role)}`, images: [leader.image], index: 0 })}
                           title={lang === 'zh' ? '点击放大照片' : 'Click to view full image'}
                         >
                           <img 
@@ -8470,28 +8470,103 @@ export default function App() {
         </div>
       )}
 
-      {/* Enlarged QR Code / Image Modal */}
-      {selectedImage && (
-        <div 
-          className="fixed inset-0 z-[80] bg-gray-950/90 backdrop-blur-md flex items-center justify-center p-4" 
-          role="dialog" 
-          aria-modal="true" 
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedImage(null); }}
-        >
-          <div className="relative max-w-2xl w-full flex flex-col items-center gap-6">
-            <button onClick={() => setSelectedImage(null)} className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white transition-colors"><X size={32} /></button>
-            <div className="bg-white p-4 sm:p-8 rounded-3xl shadow-2xl w-full max-w-sm sm:max-w-md">
-              <img src={selectedImage.url} alt="Enlarged" className="w-full h-auto rounded-xl shadow-inner" />
+      {/* Enlarged Image Lightbox — supports multi-photo navigation when an
+          image list was passed in via setSelectedImage({ images, index }). */}
+      {selectedImage && (() => {
+        // Normalize: if the caller didn't pass a list, treat the single url as a one-item gallery.
+        const gallery = Array.isArray(selectedImage.images) && selectedImage.images.length > 0
+          ? selectedImage.images
+          : [selectedImage.url];
+        const total = gallery.length;
+        const currentIndex = Math.min(Math.max(selectedImage.index || 0, 0), total - 1);
+        const currentUrl = gallery[currentIndex];
+
+        const goPrev = () => {
+          const next = (currentIndex - 1 + total) % total;
+          setSelectedImage({ ...selectedImage, url: gallery[next], index: next });
+        };
+        const goNext = () => {
+          const next = (currentIndex + 1) % total;
+          setSelectedImage({ ...selectedImage, url: gallery[next], index: next });
+        };
+
+        return (
+          <div
+            className="fixed inset-0 z-[80] bg-gray-950/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-6"
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedImage(null); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setSelectedImage(null);
+              else if (e.key === 'ArrowLeft' && total > 1) goPrev();
+              else if (e.key === 'ArrowRight' && total > 1) goNext();
+            }}
+            tabIndex={-1}
+            ref={(el) => { if (el) el.focus(); }}
+          >
+            {/* Top bar: close + photo counter */}
+            <div className="absolute top-3 right-3 sm:top-5 sm:right-5 z-20 flex items-center gap-2">
+              {total > 1 && (
+                <span className="px-3 py-1.5 rounded-full bg-black/60 text-white text-xs font-bold tracking-wider border border-white/15 backdrop-blur-sm">
+                  {currentIndex + 1} / {total}
+                </span>
+              )}
+              <button
+                onClick={() => setSelectedImage(null)}
+                aria-label={lang === 'zh' ? '关闭' : 'Close'}
+                className="p-2 rounded-full bg-black/60 hover:bg-black/85 text-white border border-white/15 backdrop-blur-sm transition-all"
+              >
+                <X size={20} />
+              </button>
             </div>
-            {selectedImage.title && (
-              <h3 className="text-white text-xl font-bold tracking-wide">{selectedImage.title}</h3>
+
+            {/* Previous button — only when there is more than one photo */}
+            {total > 1 && (
+              <button
+                onClick={goPrev}
+                aria-label={lang === 'zh' ? '上一张' : 'Previous photo'}
+                className="absolute left-2 sm:left-5 top-1/2 -translate-y-1/2 z-20 p-3 sm:p-3.5 rounded-full bg-black/55 hover:bg-black/85 text-white border border-white/15 backdrop-blur-sm transition-all shadow-xl"
+              >
+                <ChevronLeft size={26} />
+              </button>
             )}
-            <p className="text-white/60 text-xs uppercase font-bold tracking-[0.2em]">
-              {lang === 'zh' ? '点击背景或关闭按钮退出' : 'Click background or close to exit'}
-            </p>
+
+            {/* Next button */}
+            {total > 1 && (
+              <button
+                onClick={goNext}
+                aria-label={lang === 'zh' ? '下一张' : 'Next photo'}
+                className="absolute right-2 sm:right-5 top-1/2 -translate-y-1/2 z-20 p-3 sm:p-3.5 rounded-full bg-black/55 hover:bg-black/85 text-white border border-white/15 backdrop-blur-sm transition-all shadow-xl"
+              >
+                <ChevronRight size={26} />
+              </button>
+            )}
+
+            {/* Main image — sized to fill the viewport while preserving the photo's aspect ratio */}
+            <div className="relative w-full h-full flex flex-col items-center justify-center pointer-events-none">
+              <img
+                src={currentUrl}
+                alt={selectedImage.title || 'Enlarged'}
+                className="pointer-events-auto max-w-[95vw] max-h-[82vh] sm:max-h-[85vh] w-auto h-auto object-contain rounded-xl shadow-2xl bg-black/40"
+              />
+              {selectedImage.title && (
+                <h3 className="pointer-events-auto mt-3 sm:mt-4 text-white text-sm sm:text-base font-bold tracking-wide text-center px-4 max-w-3xl line-clamp-2">
+                  {selectedImage.title}
+                </h3>
+              )}
+              {total > 1 ? (
+                <p className="mt-1 text-white/60 text-[11px] uppercase font-bold tracking-[0.18em] text-center">
+                  {lang === 'zh' ? '← → 切换照片 · ESC 退出' : '← → navigate · ESC to close'}
+                </p>
+              ) : (
+                <p className="mt-1 text-white/60 text-[11px] uppercase font-bold tracking-[0.18em] text-center">
+                  {lang === 'zh' ? '点击背景或 ESC 退出' : 'Click background or press ESC to close'}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {eventPopupOpen && (() => {
         const popupEvents = (data.events || []).filter(e => e.popupEnabled);
@@ -8657,7 +8732,12 @@ export default function App() {
                     <div 
                       key={idx} 
                       className="relative aspect-video overflow-hidden rounded-xl border border-gray-200 cursor-zoom-in hover:border-primary transition-all group"
-                      onClick={() => setSelectedImage({ url: imgUrl, title: `${selectedFellowshipHighlight.title[lang] || selectedFellowshipHighlight.title.zh} - Photo ${idx + 1}` })}
+                      onClick={() => setSelectedImage({
+                        url: imgUrl,
+                        title: `${selectedFellowshipHighlight.title[lang] || selectedFellowshipHighlight.title.zh} - Photo ${idx + 1}`,
+                        images: selectedFellowshipHighlight.images,
+                        index: idx,
+                      })}
                     >
                       <img 
                         src={imgUrl} 
