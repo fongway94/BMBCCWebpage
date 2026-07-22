@@ -57,7 +57,7 @@ test('computeUsage: live-only accounting with Phase 1 fields preserved', () => {
   assert.equal(usage.remaining, HARD_LIMIT_BYTES - 350);
 });
 
-test('computeUsage: warning state at 5 GB and hard-limit state at 7 GB', () => {
+test('computeUsage: warning state at 7 GB and hard-limit state at 9 GB', () => {
   const at5 = computeUsage([rec({ size: WARNING_LIMIT_BYTES })]);
   assert.equal(at5.warning, true);
   assert.equal(at5.hardLimitReached, false);

@@ -27,6 +27,8 @@ import {
   PROTECTED_CATEGORIES,
   TRASH_RETENTION_DAYS,
   UNUSED_REVIEW_DAYS,
+  HARD_LIMIT_BYTES,
+  WARNING_LIMIT_BYTES,
   formatBytes,
   fileName,
   referenceMap,
@@ -125,17 +127,17 @@ function Toast({ toast, onClose }) {
 
 function StorageMeter({ meta, L }) {
   const used = meta?.used || 0;
-  const hardLimit = meta?.hardLimit || 7 * 1024 ** 3;
-  const warningLimit = meta?.warningLimit || 5 * 1024 ** 3;
+  const hardLimit = meta?.hardLimit || HARD_LIMIT_BYTES;
+  const warningLimit = meta?.warningLimit || WARNING_LIMIT_BYTES;
   const remaining = Math.max(0, hardLimit - used);
   const percent = Math.min(100, (used / hardLimit) * 100);
   const hard = used >= hardLimit;
   const warn = used >= warningLimit;
   const barColor = hard ? 'bg-red-500' : warn ? 'bg-amber-500' : 'bg-emerald-500';
   const stateLabel = hard
-    ? L('已达 7 GB 上限：上传已被阻止', '7 GB hard limit reached: uploads are blocked')
+    ? L('已达 9 GB 上限：上传已被阻止', '9 GB hard limit reached: uploads are blocked')
     : warn
-    ? L('已超过 5 GB 警告线', 'Past the 5 GB warning threshold')
+    ? L('已超过 7 GB 警告线', 'Past the 7 GB warning threshold')
     : L('存储空间正常', 'Storage healthy');
   const stateStyle = hard
     ? 'bg-red-50 text-red-700 border-red-200'
@@ -168,10 +170,10 @@ function StorageMeter({ meta, L }) {
       <div className="flex items-center gap-3 text-[10px] font-semibold text-gray-400">
         <span>{percent.toFixed(1)}% {L('已用', 'used')}</span>
         <span className="inline-flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-amber-400" /> {L('5 GB 警告', '5 GB warn')}
+          <span className="w-2 h-2 rounded-full bg-amber-400" /> {L('7 GB 警告', '7 GB warn')}
         </span>
         <span className="inline-flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-red-500" /> {L('7 GB 上限', '7 GB limit')}
+          <span className="w-2 h-2 rounded-full bg-red-500" /> {L('9 GB 上限', '9 GB limit')}
         </span>
       </div>
     </div>
