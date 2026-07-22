@@ -27,6 +27,8 @@ import {
   PROTECTED_CATEGORIES,
   TRASH_RETENTION_DAYS,
   UNUSED_REVIEW_DAYS,
+  HARD_LIMIT_BYTES,
+  WARNING_LIMIT_BYTES,
   formatBytes,
   fileName,
   referenceMap,
@@ -125,8 +127,8 @@ function Toast({ toast, onClose }) {
 
 function StorageMeter({ meta, L }) {
   const used = meta?.used || 0;
-  const hardLimit = meta?.hardLimit || 9 * 1024 ** 3;
-  const warningLimit = meta?.warningLimit || 7 * 1024 ** 3;
+  const hardLimit = meta?.hardLimit || HARD_LIMIT_BYTES;
+  const warningLimit = meta?.warningLimit || WARNING_LIMIT_BYTES;
   const remaining = Math.max(0, hardLimit - used);
   const percent = Math.min(100, (used / hardLimit) * 100);
   const hard = used >= hardLimit;
