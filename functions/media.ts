@@ -95,7 +95,8 @@ async function handleUpload(request:Request, env:Env):Promise<Response> {
     // R2 custom domain can produce the URL that the editor will save.
     if(!env.MEDIA_PUBLIC_URL?.trim()) return json({ok:false,error:'Uploads are temporarily unavailable because MEDIA_PUBLIC_URL is not configured. Configure the R2 custom media domain first.'},503);
     const pdf=cat==='bulletins';
-    if(pdf ? file.size>15*1024*1024 : file.size>(cat==='galleries'?8:cat==='logos'||cat==='qrcodes'?2:5)*1024*1024) return json({ok:false,error:'File exceeds this category’s pre-processing size limit.'},413);
+    const categoryMaxMB=pdf?15:cat==='galleries'?8:cat==='logos'||cat==='qrcodes'?2:5;
+    if(file.size>categoryMaxMB*1024*1024) return json({ok:false,error:`File exceeds this category’s pre-processing size limit (maximum ${categoryMaxMB} MB).`},413);
     const bytes=new Uint8Array(await file.arrayBuffer());
     if(!signature(bytes,pdf?'pdf':'image')) return json({ok:false,error:pdf?'Only real PDF files beginning with %PDF- are accepted.':'Only JPEG, PNG, and WebP images with a valid file signature are accepted.'},415);
     const type=pdf?'application/pdf':imageType(bytes);
@@ -112,7 +113,7 @@ async function handleUpload(request:Request, env:Env):Promise<Response> {
       if(highlightBytes + bytes.byteLength > FELLOWSHIP_HIGHLIGHT_MAX_BYTES) return json({ok:false,error:'Upload blocked: this Fellowship Highlight would exceed its 100 MB total image storage limit.'},413);
     }
 
-    if(usage(all).used+bytes.byteLength>HARD_LIMIT) return json({ok:false,error:'Upload blocked: the 7 GB R2 storage limit would be exceeded.'},413);
+    if(usage(all).used+bytes.byteLength>HARD_LIMIT) return json({ok:false,error:'Upload blocked: the 9 GB R2 storage limit would be exceeded.'},413);
     const now=new Date();
     const ym=`${now.getUTCFullYear()}/${String(now.getUTCMonth()+1).padStart(2,'0')}`;
     const prefix=pdf?'bulletins':cat==='galleries'?'galleries/events':cat==='images'?'images/website':`images/${cat}`;

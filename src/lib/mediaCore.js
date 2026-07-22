@@ -13,11 +13,11 @@
 // Limits & retention policy (Phase 1 quotas preserved; Phase 2 cleanup rules)
 // ---------------------------------------------------------------------------
 
-/** Hard operational ceiling for live (non-trash) media. 7 GiB. */
-export const HARD_LIMIT_BYTES = 7 * 1024 ** 3;
+/** Hard operational ceiling for live (non-trash) media. 9 GiB. */
+export const HARD_LIMIT_BYTES = 9 * 1024 ** 3;
 
-/** Soft warning threshold shown in the admin UI and API status. 5 GiB. */
-export const WARNING_LIMIT_BYTES = 5 * 1024 ** 3;
+/** Soft warning threshold shown in the admin UI and API status. 7 GiB. */
+export const WARNING_LIMIT_BYTES = 7 * 1024 ** 3;
 
 /** R2 upload categories. Videos are intentionally URL-only (no uploads). */
 export const CATEGORIES = ['images', 'bulletins', 'galleries', 'logos', 'qrcodes'];
