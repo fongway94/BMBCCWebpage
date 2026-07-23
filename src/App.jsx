@@ -1,8847 +1,2377 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Menu, 
-  X, 
-  Languages, 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  Shield, 
-  ChevronLeft, 
-  ChevronRight, 
-  Plus, 
-  Trash2, 
-  Edit3, 
-  Save, 
-  Download, 
-  Upload, 
-  Lock, 
-  Check, 
-  Settings as SettingsIcon, 
-  Heart, 
-  BookOpen, 
-  Users, 
-  Sparkles, 
-  ArrowRight,
-  Info,
-  CalendarCheck,
-  CheckCircle,
-  AlertTriangle,
-  LogOut,
-  ArrowUp,
-  ArrowDown,
-  ChevronDown,
-  FileText,
-  Gift,
-  Map as MapIcon,
-  Building,
-  Smartphone,
-  HandHeart,
-  Compass,
-  HelpCircle,
-  Navigation,
-  Search,
-  LayoutGrid,
-  ListFilter,
-  CalendarDays,
-  Copy,
-  Globe,
-  Filter,
-  Layers,
-  PlayCircle,
-  Video,
-  ExternalLink,
-  HardDrive,
-  Camera
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  Menu, X, Languages, ShoppingCart, ShoppingBag, Heart, User, Search, Plus, Minus,
+  Trash2, Edit3, Save, Download, Upload, Shield, LogOut, ChevronLeft, ChevronRight,
+  ArrowRight, ArrowUp, ArrowDown, Star, Gift, Tag, Package, Truck, CreditCard,
+  MapPin, Phone, Mail, Calendar, Clock, Check, CheckCircle, AlertTriangle, Info,
+  Filter, LayoutGrid, ExternalLink, Sparkles, Award, Users, DollarSign, Percent,
+  Copy, Settings as SettingsIcon, Layers, FileText, Eye, EyeOff, Home, Grid,
+  Zap, Crown, Bell, RefreshCw, Image as ImageIcon, List, ChevronDown, Globe,
+  Camera, PlayCircle
 } from 'lucide-react';
 import { initialData } from './data/initialData';
 import MediaStorageManager from './components/MediaStorageManager';
+import { formatPrice as fmtPriceUtil, calcSubtotal, getMembershipTier, calcPoints, isBirthdayMonth, checkGWP, applyCoupon, generateOrderId, generateReferralCode } from './lib/ecommerceUtils';
 
 const AUTH_ENDPOINT = '/functions/auth';
 const GITHUB_SETTINGS_ENDPOINT = '/functions/github-settings';
-
-// A site-data setting controlled from Admin → Media Storage. It defaults to off
-// so the existing URL-first workflow remains available while the R2 public domain
-// is awaiting setup. It is only a UI safeguard; the /media function still enforces
-// its own authentication, validation, quota, and MEDIA_PUBLIC_URL requirements.
-const MediaUploadContext = React.createContext(false);
-
-// URL-first media control: R2 uploads only populate the existing URL field. The
-// parent editor remains responsible for its normal Save action.
-function MediaUrlField({ value, onChange, category = 'images', accept = 'image/jpeg,image/png,image/webp', label = 'Image URL', highlightId }) {
-  const uploadsEnabled = React.useContext(MediaUploadContext);
-  const [message, setMessage] = React.useState('');
-  const [progress, setProgress] = React.useState(0);
-  const inputRef = React.useRef(null);
-  const upload = async (file) => {
-    if (!uploadsEnabled) {
-      setMessage('Media uploads are temporarily disabled in Media Storage settings. You can still paste a public URL.');
-      return;
-    }
-    if (!file) return;
-    // JPEG photographs are re-encoded client-side before transit: this strips EXIF/GPS,
-    // caps the long edge at 2200px, and creates an efficient WebP. PNG/WebP graphics,
-    // logos and QR codes stay lossless.
-    if (file.type === 'image/jpeg' && category !== 'logos' && category !== 'qrcodes') {
-      try { const bitmap = await createImageBitmap(file); const scale = Math.min(1, 2200 / Math.max(bitmap.width, bitmap.height)); const canvas = document.createElement('canvas'); canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale); canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height); const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', .82)); bitmap.close(); if (blob) file = new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.webp`, { type: 'image/webp' }); } catch { /* server still validates the original upload */ }
-    }
-    setMessage('Uploading…'); setProgress(5);
-    const body = new FormData(); body.append('file', file); body.append('category', category); if (highlightId) body.append('fellowshipHighlightId', String(highlightId));
-    const xhr = new XMLHttpRequest(); xhr.open('POST', '/media'); xhr.withCredentials = true;
-    xhr.upload.onprogress = (e) => e.lengthComputable && setProgress(Math.round(e.loaded / e.total * 100));
-    xhr.onload = () => { try { const result = JSON.parse(xhr.responseText); if (xhr.status < 300 && result.ok) { onChange(result.url); setProgress(100); setMessage('Uploaded. Click the relevant Save button to publish this URL.'); } else { throw new Error(result.error); } } catch (e) { setProgress(0); setMessage(e.message || 'Upload failed.'); } };
-    xhr.onerror = () => { setProgress(0); setMessage('Network error while uploading.'); }; xhr.send(body);
-  };
-  return <div className="space-y-1"><label className="block text-xs font-bold text-gray-600 mb-1">{label}</label><div className="flex gap-2"><input type="text" value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder="https://…" className="min-w-0 flex-1 px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"/><input ref={inputRef} type="file" accept={accept} className="hidden" onChange={(e) => upload(e.target.files?.[0])}/><button type="button" disabled={!uploadsEnabled} title={uploadsEnabled ? 'Upload media' : 'Media uploads are disabled in Media Storage settings'} onClick={() => inputRef.current?.click()} className="shrink-0 px-3 py-2 rounded bg-primary text-white text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-45">Upload file</button></div>{message && <p className={`text-[10px] ${message.startsWith('Uploaded') ? 'text-green-600' : message.startsWith('Uploading') ? 'text-gray-500' : 'text-red-600'}`}>{message}{progress > 0 && progress < 100 ? ` ${progress}%` : ''}</p>}<p className="text-[10px] text-gray-400">Paste any public URL. {uploadsEnabled ? 'Media upload only fills this field; save the form to publish it.' : 'Media uploads are temporarily disabled; enable them in Media Storage after the public media URL is ready.'}</p></div>;
-}
-
-// Helper functions for Timetable styling - standardized to primary emerald theme
-const getDayBadgeStyle = (dayStr) => {
-  return {
-    bg: 'bg-emerald-50/80 hover:bg-emerald-100/90',
-    text: 'text-emerald-700',
-    border: 'border-emerald-200/80',
-    gradient: 'from-primary to-primary-dark',
-    pill: 'bg-emerald-100 text-emerald-800 font-semibold',
-    dot: 'bg-primary'
-  };
-};
-
-const getLangBadgeStyle = (langStr) => {
-  const str = String(langStr || '').toLowerCase();
-  if (str.includes('华') || str.includes('中') || str.includes('chinese') || str.includes('mandarin')) {
-    return 'bg-emerald-50 text-emerald-700 border-emerald-200/80 ring-emerald-500/20';
-  }
-  if (str.includes('闽') || str.includes('福') || str.includes('hokkien')) {
-    return 'bg-violet-50 text-violet-700 border-violet-200/80 ring-violet-500/20';
-  }
-  if (str.includes('马') || str.includes('bahasa') || str.includes('malay')) {
-    return 'bg-amber-50 text-amber-800 border-amber-200/80 ring-amber-500/20';
-  }
-  if (str.includes('尼') || str.includes('nepal')) {
-    return 'bg-rose-50 text-rose-700 border-rose-200/80 ring-rose-500/20';
-  }
-  if (str.includes('英') || str.includes('english')) {
-    return 'bg-blue-50 text-blue-700 border-blue-200/80 ring-blue-500/20';
-  }
-  return 'bg-gray-50 text-gray-700 border-gray-200';
-};
-
-const LEADERSHIP_CATEGORIES = [
-  { id: 'pastor', zh: '牧者', en: 'Pastors', zhLong: '牧者团队', enLong: 'Pastoral Team', descZh: '主任牧师与传道同工', descEn: 'Lead Pastors & Ministers' },
-  { id: 'coworker', zh: '同工', en: 'Co-Workers', zhLong: '同工团队', enLong: 'Co-Workers', descZh: '忠心服事的教会同工', descEn: 'Faithful Serving Co-Workers' },
-  { id: 'cellleader', zh: '小组长', en: 'Cell Leaders', zhLong: '小组长团队', enLong: 'Cell Group Leaders', descZh: '牧养小组的组长们', descEn: 'Cell Group Leaders shepherding groups' },
-];
-
-const getLeaderCategory = (leader) => {
-  const cat = leader?.category;
-  if (cat === 'coworker' || cat === 'cellleader' || cat === 'pastor') return cat;
-  // Backward compatibility: if no category, treat as pastor
-  return 'pastor';
-};
-
-const getLeaderCategoryLabel = (catId, lang) => {
-  const found = LEADERSHIP_CATEGORIES.find(c => c.id === catId);
-  if (!found) return catId;
-  return lang === 'zh' ? found.zh : found.en;
-};
-
-// Theme color map for CSS variable injection
-
-const stripSensitiveData = (siteData) => {
-  const sanitized = {
-    ...siteData,
-    settings: { ...(siteData?.settings || {}) }
-  };
-
-  // Older localStorage/backups may contain a client-side adminPassword field.
-  // Never keep it in state, exports, localStorage, or GitHub auto-save commits.
-  delete sanitized.settings.adminPassword;
-  return sanitized;
-};
-
-// Repo whose raw CDN serves the latest published site data at runtime.
 const GITHUB_REPO_DEFAULT = import.meta.env?.VITE_GITHUB_REPO || 'fongway94/BMBCCWebpage';
-
-// Debounce for GitHub auto-save: groups rapid edits into one commit.
-// A visibilitychange flush pushes immediately if the tab is hidden/closed.
 const AUTO_SAVE_DEBOUNCE_MS = 30000;
 
-// Settings keys that are merged field-by-field so new bilingual fields
-// (aboutIntro, etc.) are not lost when loading data saved by an older build.
-const SETTINGS_MERGE_KEYS = [
-  'churchName','slogan','description','themeYear',
-  'aboutBadge','aboutTitle','aboutIntro','aboutVision','aboutMission',
-  'leadershipBadge','leadershipTitle','leadershipIntro',
-  'ministriesBadge','ministriesTitle','ministriesIntro',
-  'timetableBadge','timetableTitle','timetableIntro',
-  'eventsBadge','eventsTitle','eventsIntro',
-  'bulletinsBadge','bulletinsTitle','bulletinsIntro',
-  'servicesBadge','servicesTitle','servicesIntro',
-  'cellGroupsBadge','cellGroupsTitle','cellGroupsIntro',
-  'mapsBadge','mapsTitle','mapsIntro',
-  'homeVisionPara1','homeVisionPara2','yearlyVisionLabel','yearlyVisionTitle',
-  'yearlyVisionBadge','yearlyVisionScripture','yearlyVisionRef','ctaTitle',
-  'ctaDescription','footerCopyright','footerTagline','churchTagline','headerLogo'
-];
-
-const mergeBilingualField = (initial, parsedObj) => {
-  if (!parsedObj) return initial;
-  if (typeof initial !== 'object' || initial === null) return parsedObj;
-  // if bilingual object {zh,en}
-  if ('zh' in initial || 'en' in initial) {
-    return { ...initial, ...parsedObj };
-  }
-  return parsedObj;
-};
-
-// Merge any externally loaded site data (localStorage or remote GitHub copy)
-// over the bundled defaults so missing/new fields fall back gracefully.
-const normalizeLoadedData = (parsed) => {
-  const mergedSettings = { ...initialData.settings, ...(parsed.settings || {}) };
-  delete mergedSettings.adminPassword;
-  SETTINGS_MERGE_KEYS.forEach(k => {
-    if (initialData.settings[k]) {
-      mergedSettings[k] = mergeBilingualField(initialData.settings[k], parsed.settings?.[k]);
+// --- Media upload context (same as before) ---
+const MediaUploadContext = React.createContext(false);
+function MediaUrlField({ value, onChange, category='images', accept='image/jpeg,image/png,image/webp', label='Image URL', highlightId }) {
+  const uploadsEnabled = React.useContext(MediaUploadContext);
+  const [message, setMessage] = useState('');
+  const [progress, setProgress] = useState(0);
+  const inputRef = useRef(null);
+  const upload = async (file) => {
+    if (!uploadsEnabled) { setMessage('Media uploads disabled in Media Storage settings. Paste URL.'); return; }
+    if (!file) return;
+    if (file.type === 'image/jpeg' && category !== 'logos' && category !== 'qrcodes') {
+      try {
+        const bitmap = await createImageBitmap(file);
+        const scale = Math.min(1, 2200 / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(bitmap.width*scale); canvas.height = Math.round(bitmap.height*scale);
+        canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);
+        const blob = await new Promise(r=>canvas.toBlob(r,'image/webp',.82));
+        bitmap.close();
+        if (blob) file = new File([blob], `${file.name.replace(/\.[^.]+$/,'')}.webp`, {type:'image/webp'});
+      } catch {}
     }
-  });
-  // Ensure standard structure is present
-  return stripSensitiveData({ ...initialData, ...parsed, settings: mergedSettings });
+    setMessage('Uploading…'); setProgress(5);
+    const body = new FormData(); body.append('file', file); body.append('category', category);
+    if (highlightId) body.append('fellowshipHighlightId', String(highlightId));
+    const xhr = new XMLHttpRequest(); xhr.open('POST','/media'); xhr.withCredentials=true;
+    xhr.upload.onprogress = e=> e.lengthComputable && setProgress(Math.round(e.loaded/e.total*100));
+    xhr.onload = ()=>{ try{ const res=JSON.parse(xhr.responseText); if(xhr.status<300 && res.ok){ onChange(res.url); setProgress(100); setMessage('Uploaded. Save form to publish.'); } else throw new Error(res.error);}catch(e){ setProgress(0); setMessage(e.message||'Upload failed'); } };
+    xhr.onerror = ()=>{ setProgress(0); setMessage('Network error'); };
+    xhr.send(body);
+  };
+  return <div className="space-y-1"><label className="block text-xs font-bold text-gray-600 mb-1">{label}</label><div className="flex gap-2"><input type="text" value={value||''} onChange={e=>onChange(e.target.value)} placeholder="https://…" className="min-w-0 flex-1 px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"/><input ref={inputRef} type="file" accept={accept} className="hidden" onChange={e=>upload(e.target.files?.[0])}/><button type="button" disabled={!uploadsEnabled} onClick={()=>inputRef.current?.click()} className="shrink-0 px-3 py-2 rounded bg-primary text-white text-xs font-semibold disabled:opacity-45">Upload</button></div>{message && <p className={`text-[10px] ${message.startsWith('Uploaded')?'text-green-600':message.startsWith('Uploading')?'text-gray-500':'text-red-600'}`}>{message} {progress>0&&progress<100?`${progress}%`:''}</p>}</div>;
+}
+
+// --- Helpers ---
+const stripSensitiveData = (siteData) => {
+  const s = { ...siteData, settings: { ...(siteData?.settings||{}) } };
+  delete s.settings.adminPassword;
+  return s;
 };
 
 const hexToRgb = (hex) => {
-  const value = String(hex || '').replace('#', '').trim();
-  const normalized = value.length === 3 ? value.split('').map(c => c + c).join('') : value;
-  if (!/^[0-9a-f]{6}$/i.test(normalized)) return null;
-  return { r: parseInt(normalized.slice(0, 2), 16), g: parseInt(normalized.slice(2, 4), 16), b: parseInt(normalized.slice(4, 6), 16) };
+  const v = String(hex||'').replace('#','').trim();
+  const norm = v.length===3 ? v.split('').map(c=>c+c).join('') : v;
+  if (!/^[0-9a-f]{6}$/i.test(norm)) return null;
+  return { r: parseInt(norm.slice(0,2),16), g: parseInt(norm.slice(2,4),16), b: parseInt(norm.slice(4,6),16) };
 };
-const rgbString = (rgb) => `${rgb.r} ${rgb.g} ${rgb.b}`;
+const rgbString = rgb => `${rgb.r} ${rgb.g} ${rgb.b}`;
 
+// Expanded font options - fixing missing Chinese fonts issue
 const fontFamilyOptions = {
   zh: [
-    { value: 'noto-sans-sc', label: 'Noto Sans SC / 思源黑体', family: '"Noto Sans SC", "Microsoft YaHei", "PingFang SC", "Heiti SC", sans-serif' },
-    { value: 'system-sans', label: 'System Sans / 系统无衬线', family: '"Microsoft YaHei", "PingFang SC", Arial, sans-serif' },
-    { value: 'serif', label: 'Noto Serif SC / 思源宋体', family: '"Noto Serif SC", "Songti SC", SimSun, serif' },
-    { value: 'kai', label: 'KaiTi / 楷体', family: 'KaiTi, STKaiti, "Kaiti SC", serif' }
+    { value: 'noto-sans-sc', label: 'Noto Sans SC 思源黑體 簡 (推薦)', family: '"Noto Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif' },
+    { value: 'noto-sans-tc', label: 'Noto Sans TC 思源黑體 繁', family: '"Noto Sans TC", "Microsoft JhengHei", "PingFang TC", sans-serif' },
+    { value: 'noto-serif-sc', label: 'Noto Serif SC 思源宋體 簡', family: '"Noto Serif SC", "Songti SC", SimSun, serif' },
+    { value: 'noto-serif-tc', label: 'Noto Serif TC 思源宋體 繁', family: '"Noto Serif TC", "Songti TC", serif' },
+    { value: 'zcool-xiaowei', label: 'ZCOOL XiaoWei 小薇邏輯體 文藝', family: '"ZCOOL XiaoWei", "Noto Serif SC", serif' },
+    { value: 'ma-shan-zheng', label: 'Ma Shan Zheng 馬善政楷 手寫', family: '"Ma Shan Zheng", "Kaiti SC", cursive' },
+    { value: 'zcool-kuaile', label: 'ZCOOL KuaiLe 快樂體 可愛', family: '"ZCOOL KuaiLe", "Noto Sans SC", sans-serif' },
+    { value: 'long-cang', label: 'Long Cang 龍藏 書法', family: '"Long Cang", "KaiTi", cursive' },
+    { value: 'kai', label: 'KaiTi 楷體 傳統', family: 'KaiTi, STKaiti, "Kaiti SC", serif' },
+    { value: 'system-sans', label: 'System Sans 系統黑體', family: '"Microsoft YaHei", "PingFang SC", Arial, sans-serif' },
+    { value: 'system-serif', label: 'System Serif 系統宋體', family: 'SimSun, "Songti SC", serif' },
   ],
   en: [
-    { value: 'inter', label: 'Inter / Modern Sans', family: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
-    { value: 'system-sans', label: 'System Sans', family: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif' },
-    { value: 'serif', label: 'Georgia / Serif', family: 'Georgia, "Times New Roman", serif' },
-    { value: 'rounded', label: 'Rounded Sans', family: '"Arial Rounded MT Bold", "Trebuchet MS", ui-sans-serif, sans-serif' }
+    { value: 'poppins', label: 'Poppins Modern Friendly', family: 'Poppins, Inter, sans-serif' },
+    { value: 'inter', label: 'Inter Clean Sans', family: 'Inter, ui-sans-serif, system-ui, sans-serif' },
+    { value: 'montserrat', label: 'Montserrat Elegant', family: 'Montserrat, sans-serif' },
+    { value: 'playfair', label: 'Playfair Display Luxury Serif', family: '"Playfair Display", Georgia, serif' },
+    { value: 'lora', label: 'Lora Soft Serif', family: 'Lora, Georgia, serif' },
+    { value: 'system-sans', label: 'System Sans', family: 'ui-sans-serif, system-ui, sans-serif' },
+    { value: 'rounded', label: 'Rounded Comfortable', family: '"Arial Rounded MT Bold", "Trebuchet MS", sans-serif' },
   ]
 };
-
-const getFontFamily = (language, fontKey) =>
-  fontFamilyOptions[language].find(font => font.value === fontKey)?.family || fontFamilyOptions[language][0].family;
+const getFontFamily = (lang, key) => fontFamilyOptions[lang]?.find(f=>f.value===key)?.family || fontFamilyOptions[lang]?.[0]?.family;
 
 const colorsMap = {
-  emerald: { primary: '16 185 129', dark: '5 150 105', light: '209 250 229', name: 'Emerald / 翡翠绿' },
-  indigo: { primary: '99 102 241', dark: '79 70 229', light: '224 231 255', name: 'Indigo / 靛青蓝' },
-  blue: { primary: '59 130 246', dark: '37 99 235', light: '219 234 254', name: 'Blue / 蔚蓝色' },
-  violet: { primary: '139 92 246', dark: '124 58 237', light: '237 233 254', name: 'Violet / 罗兰紫' },
-  amber: { primary: '245 158 11', dark: '217 119 6', light: '254 243 199', name: 'Amber / 琥珀黄' },
-  rose: { primary: '244 63 94', dark: '225 29 72', light: '254 228 230', name: 'Rose / 玫瑰红' }
+  cs12rose: { primary: '212 165 165', dark: '181 131 131', light: '245 214 214', name: 'CS12 Rose / 乾燥玫瑰', secondary: '168 195 176', accent: '232 201 160' },
+  emerald: { primary: '16 185 129', dark: '5 150 105', light: '209 250 229', name: 'Emerald / 翡翠綠', secondary: '110 231 183', accent: '252 211 77' },
+  sakura: { primary: '244 114 182', dark: '219 39 119', light: '252 231 243', name: 'Sakura Pink / 櫻花粉', secondary: '251 207 232', accent: '253 224 71' },
+  matcha: { primary: '132 204 2', dark: '101 163 13', light: '233 252 212', name: 'Matcha Green / 抹茶綠', secondary: '190 242 100', accent: '254 249 195' },
+  indigo: { primary: '99 102 241', dark: '79 70 229', light: '224 231 255', name: 'Indigo / 靛青藍', secondary: '165 180 252', accent: '253 224 71' },
+  violet: { primary: '139 92 246', dark: '124 58 237', light: '237 233 254', name: 'Violet / 羅蘭紫', secondary: '196 181 253', accent: '252 211 77' },
+  amber: { primary: '245 158 11', dark: '217 119 6', light: '254 243 199', name: 'Amber / 琥珀黃', secondary: '252 211 77', accent: '110 231 183' },
+  ocean: { primary: '6 182 212', dark: '8 145 178', light: '207 250 254', name: 'Ocean Blue / 海洋藍', secondary: '103 232 249', accent: '253 224 71' },
+};
+
+// Admin translation dictionary - fixes missing Chinese translation
+const ADMIN_I18N = {
+  zh: {
+    adminPanel: "管理後台",
+    dashboard: "儀表板",
+    generalSettings: "通用設置",
+    appearance: "外觀主題",
+    banners: "首頁橫幅",
+    categories: "分類管理",
+    products: "產品管理",
+    bundles: "套裝促銷",
+    coupons: "優惠券",
+    gwp: "滿贈禮遇",
+    orders: "訂單管理",
+    customers: "客戶CRM",
+    membership: "會員積分",
+    reviews: "評價管理",
+    media: "媒體庫",
+    backup: "備份同步",
+    siteName: "網站名稱",
+    logo: "Logo / 標誌",
+    contact: "聯繫資訊",
+    currency: "貨幣",
+    shipping: "運費設置",
+    theme: "主題配色",
+    fonts: "字體設置",
+    colorPresets: "預設配色",
+    customColor: "自訂顏色",
+    customPalette: "進階調色板",
+    primary: "主色",
+    secondary: "次色",
+    accent: "強調色",
+    background: "背景色",
+    textColor: "文字色",
+    textScale: "文字大小",
+    zhFont: "中文字體",
+    enFont: "英文字體",
+    preview: "預覽",
+    save: "保存",
+    cancel: "取消",
+    add: "新增",
+    edit: "編輯",
+    delete: "刪除",
+    actions: "操作",
+    active: "啟用",
+    inactive: "停用",
+    nameZh: "名稱 (中文)",
+    nameEn: "Name (EN)",
+    titleZh: "標題 (中文)",
+    titleEn: "Title (EN)",
+    descZh: "描述 (中文)",
+    descEn: "Description (EN)",
+    price: "價格",
+    stock: "庫存",
+    category: "分類",
+    status: "狀態",
+    search: "搜尋",
+    noData: "暫無數據",
+    totalProducts: "產品總數",
+    totalOrders: "訂單總數",
+    totalCustomers: "客戶總數",
+    totalRevenue: "總營收",
+    lowStock: "低庫存提醒",
+    recentOrders: "最近訂單",
+    topProducts: "熱銷產品",
+    membershipTiers: "會員等級",
+    points: "積分",
+    gwpRules: "滿贈規則",
+    couponCode: "優惠碼",
+    discount: "折扣",
+    minSpend: "最低消費",
+    valid: "有效期",
+    used: "已使用",
+    customer: "客戶",
+    tier: "等級",
+    totalSpent: "累計消費",
+    birthday: "生日",
+    referral: "推薦碼",
+    orderId: "訂單號",
+    orderDate: "下單日期",
+    payment: "付款",
+    fulfillment: "發貨",
+    confirmDelete: "確定要刪除嗎？",
+    saved: "保存成功！",
+    addProduct: "新增產品",
+    addCategory: "新增分類",
+    addBundle: "新增套裝",
+    addCoupon: "新增優惠券",
+    addGwp: "新增滿贈",
+    uploadImage: "上傳圖片",
+    images: "圖片",
+    variants: "規格",
+    sku: "SKU",
+    comparePrice: "原價",
+    tags: "標籤",
+    featured: "精選",
+    bestseller: "熱銷",
+    isActive: "是否啟用",
+    freeShippingThreshold: "免運門檻",
+    flatRate: "固定運費",
+    firstOrderDiscount: "首單優惠",
+    newsletterEnabled: "啟用訂閱",
+    pointsRate: "積分倍率",
+    birthdayReward: "生日禮遇",
+    referralBonus: "推薦獎勵",
+    imageUrl: "圖片連結",
+  },
+  en: {
+    adminPanel: "Admin Panel",
+    dashboard: "Dashboard",
+    generalSettings: "General Settings",
+    appearance: "Appearance & Theme",
+    banners: "Banners",
+    categories: "Categories",
+    products: "Products",
+    bundles: "Bundles",
+    coupons: "Coupons",
+    gwp: "Gift w/ Purchase",
+    orders: "Orders",
+    customers: "Customers CRM",
+    membership: "Membership & Points",
+    reviews: "Reviews",
+    media: "Media Library",
+    backup: "Backup & Sync",
+    siteName: "Site Name",
+    logo: "Logo",
+    contact: "Contact Info",
+    currency: "Currency",
+    shipping: "Shipping",
+    theme: "Theme Colors",
+    fonts: "Fonts",
+    colorPresets: "Color Presets",
+    customColor: "Custom Color",
+    customPalette: "Advanced Palette",
+    primary: "Primary",
+    secondary: "Secondary",
+    accent: "Accent",
+    background: "Background",
+    textColor: "Text",
+    textScale: "Text Scale",
+    zhFont: "Chinese Font",
+    enFont: "English Font",
+    preview: "Preview",
+    save: "Save",
+    cancel: "Cancel",
+    add: "Add",
+    edit: "Edit",
+    delete: "Delete",
+    actions: "Actions",
+    active: "Active",
+    inactive: "Inactive",
+    nameZh: "Name (Chinese)",
+    nameEn: "Name (EN)",
+    titleZh: "Title (Chinese)",
+    titleEn: "Title (EN)",
+    descZh: "Description (Chinese)",
+    descEn: "Description (EN)",
+    price: "Price",
+    stock: "Stock",
+    category: "Category",
+    status: "Status",
+    search: "Search",
+    noData: "No data",
+    totalProducts: "Total Products",
+    totalOrders: "Total Orders",
+    totalCustomers: "Total Customers",
+    totalRevenue: "Total Revenue",
+    lowStock: "Low Stock Alert",
+    recentOrders: "Recent Orders",
+    topProducts: "Top Products",
+    membershipTiers: "Membership Tiers",
+    points: "Points",
+    gwpRules: "GWP Rules",
+    couponCode: "Coupon Code",
+    discount: "Discount",
+    minSpend: "Min Spend",
+    valid: "Valid",
+    used: "Used",
+    customer: "Customer",
+    tier: "Tier",
+    totalSpent: "Total Spent",
+    birthday: "Birthday",
+    referral: "Referral Code",
+    orderId: "Order ID",
+    orderDate: "Order Date",
+    payment: "Payment",
+    fulfillment: "Fulfillment",
+    confirmDelete: "Confirm delete?",
+    saved: "Saved successfully!",
+    addProduct: "Add Product",
+    addCategory: "Add Category",
+    addBundle: "Add Bundle",
+    addCoupon: "Add Coupon",
+    addGwp: "Add GWP Rule",
+    uploadImage: "Upload Image",
+    images: "Images",
+    variants: "Variants",
+    sku: "SKU",
+    comparePrice: "Compare Price",
+    tags: "Tags",
+    featured: "Featured",
+    bestseller: "Bestseller",
+    isActive: "Active",
+    freeShippingThreshold: "Free Shipping Threshold",
+    flatRate: "Flat Rate",
+    firstOrderDiscount: "First Order Discount",
+    newsletterEnabled: "Newsletter Enabled",
+    pointsRate: "Points Rate",
+    birthdayReward: "Birthday Reward",
+    referralBonus: "Referral Bonus",
+    imageUrl: "Image URL",
+  }
 };
 
 export default function App() {
-  // A saved browser copy is an *admin draft*, not public site content. Loading it
-  // for every visitor meant an administrator's browser could keep showing an old
-  // version forever, even after a successful Pages deploy. Public visits always
-  // start with the deployed data and then refresh from the published GitHub copy.
+  // --- Site data with e-commerce structure ---
   const [data, setData] = useState(initialData);
-  const adminDraftLoadedRef = React.useRef(false);
+  const adminDraftLoadedRef = useRef(false);
 
-  // Global state
-  const [lang, setLang] = useState('zh'); // 'zh' or 'en'
-  const [activeTab, setActiveTab] = useState('home'); // 'home', 'about', 'ministries', 'timetable', 'events', 'admin'
-  const [currentSlide, setCurrentSlide] = useState(0);
+  // Global UI state
+  const [lang, setLang] = useState('zh');
+  const [currency, setCurrency] = useState('HKD');
+  const [activeTab, setActiveTab] = useState('home'); // home, shop, bundles, membership, reviews, account, admin, checkout
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
-  // Admin-specific state
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [shopSearch, setShopSearch] = useState('');
+  const [shopCategoryFilter, setShopCategoryFilter] = useState('all');
+  const [shopSkinFilter, setShopSkinFilter] = useState('all');
+  const [shopSeriesFilter, setShopSeriesFilter] = useState('all');
+  const [shopSort, setShopSort] = useState('featured');
+  const [shopPriceRange, setShopPriceRange] = useState([0, 2000]);
+  const [showCart, setShowCart] = useState(false);
+  const [showWishlist, setShowWishlist] = useState(false);
+  const [showMobileFilter, setShowMobileFilter] = useState(false);
+
+  // Cart & Wishlist - persisted localStorage
+  const [cart, setCart] = useState(() => {
+    try { const s = localStorage.getItem('cs12_cart'); return s?JSON.parse(s):[] } catch { return [] }
+  });
+  const [wishlist, setWishlist] = useState(() => {
+    try { const s = localStorage.getItem('cs12_wishlist'); return s?JSON.parse(s):[] } catch { return [] }
+  });
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponInput, setCouponInput] = useState('');
+  const [couponError, setCouponError] = useState('');
+
+  // Customer Auth
+  const [currentCustomer, setCurrentCustomer] = useState(() => {
+    try {
+      const id = localStorage.getItem('cs12_current_customer_id');
+      if (!id) return null;
+      // will be hydrated after data load
+      return { id: parseInt(id) };
+    } catch { return null }
+  });
+  const [authMode, setAuthMode] = useState('login'); // login / register
+  const [authForm, setAuthForm] = useState({ email:'', password:'', name:'', birthday:'', referral:'', newsletter: true });
+  const [authError, setAuthError] = useState('');
+  const [accountTab, setAccountTab] = useState('overview'); // overview, orders, points, membership, referral, addresses
+  const [checkoutStep, setCheckoutStep] = useState(1);
+  const [checkoutForm, setCheckoutForm] = useState({ name:'', email:'', phone:'', address:'', city:'', notes:'', paymentMethod:'credit_card' });
+
+  // Admin states
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [adminLoginError, setAdminLoginError] = useState('');
-  const [adminActiveSection, setAdminActiveSection] = useState('settings'); // 'settings', 'carousel', 'timetable', 'events', 'ministries', 'fellowshipHighlights', 'backup'
+  const [adminActiveSection, setAdminActiveSection] = useState('dashboard');
   const [adminSuccessMessage, setAdminSuccessMessage] = useState('');
-  const [eventPopupOpen, setEventPopupOpen] = useState(false);
-  const [eventPopupSlide, setEventPopupSlide] = useState(0);
-  const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [selectedFellowshipHighlight, setSelectedFellowshipHighlight] = useState(null);
-  const [editingFellowshipHighlight, setEditingFellowshipHighlight] = useState(null);
-  const [selectedMinistry, setSelectedMinistry] = useState(null);
-  const [selectedCellGroup, setSelectedCellGroup] = useState(null);
-  const [selectedImage, setSelectedImage] = useState(null);
-  
-  // Verify auth session on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const res = await fetch(AUTH_ENDPOINT, {
-          method: 'GET', 
-          credentials: 'include' 
-        });
-        const data = await res.json();
-        const isAdmin = data.isAdmin === true;
-        setIsAdminLoggedIn(isAdmin);
-
-        // Keep unfinished admin work available to the authenticated editor, but
-        // never let that browser-only draft replace the public deployed site.
-        if (isAdmin) {
-          const saved = localStorage.getItem('bmbcc_site_data');
-          if (saved) {
-            try {
-              const draft = normalizeLoadedData(JSON.parse(saved));
-              adminDraftLoadedRef.current = true;
-              setData(draft);
-            } catch (e) {
-              console.error('Error parsing local admin draft; using published data', e);
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Auth check failed:', err);
-        setIsAdminLoggedIn(false);
-      }
-    };
-    checkAuth();
-  }, []);
-
-  // Load GitHub settings from Cloudflare KV (server-side persistence)
-  // Called when admin logs in, so the PAT/repo/auto-save survive across sessions
-  const loadGithubSettingsFromCloud = async () => {
-    try {
-      const res = await fetch(GITHUB_SETTINGS_ENDPOINT, {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (!res.ok) return; // Not configured or not authenticated
-      const result = await res.json();
-      if (result.ok && result.settings) {
-        const s = result.settings;
-        // Only overwrite localStorage if the server has values
-        if (s.pat !== undefined && s.pat !== '') {
-          localStorage.setItem('bmbcc_github_pat', s.pat);
-          setGithubPat(s.pat);
-        }
-        if (s.repo !== undefined && s.repo !== '') {
-          localStorage.setItem('bmbcc_github_repo', s.repo);
-          setGithubRepo(s.repo);
-          // Also update data.settings for cross-session persistence
-          setData(prev => {
-            const updated = { ...prev, settings: { ...prev.settings, githubRepo: s.repo } };
-            return updated;
-          });
-        }
-        if (s.autoSave !== undefined) {
-          localStorage.setItem('bmbcc_autosave_github', String(s.autoSave));
-          setAutoSaveToGithub(s.autoSave);
-          setData(prev => {
-            const updated = { ...prev, settings: { ...prev.settings, autoSaveToGithub: s.autoSave } };
-            return updated;
-          });
-        }
-      }
-    } catch (err) {
-      // Silently fail — KV may not be configured yet, fall back to localStorage
-      console.log('Cloudflare GitHub settings not available, using localStorage fallback:', err?.message || err);
-    }
-  };
-
-  // Save GitHub settings to Cloudflare KV (server-side persistence)
-  const saveGithubSettingsToCloud = async (settings) => {
-    try {
-      await fetch(GITHUB_SETTINGS_ENDPOINT, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
-      });
-    } catch (err) {
-      // Silently fail — KV may not be configured yet
-      console.log('Could not save GitHub settings to Cloudflare:', err?.message || err);
-    }
-  };
-
-  // Load GitHub settings from Cloudflare when admin logs in
-  useEffect(() => {
-    if (isAdminLoggedIn) {
-      loadGithubSettingsFromCloud();
-    }
-  }, [isAdminLoggedIn]);
-
-  // Editor temporary states
-  const [editingSlide, setEditingSlide] = useState(null); // slide ID or 'new'
-  const [editingTimetable, setEditingTimetable] = useState(null); // timetable item ID or 'new'
-  const [editingEvent, setEditingEvent] = useState(null); // event ID or 'new'
-  const [editingMinistry, setEditingMinistry] = useState(null); // ministry ID or 'new'
-  const [editingBulletin, setEditingBulletin] = useState(null);
-  const [editingCellGroup, setEditingCellGroup] = useState(null);
-  const [editingLeader, setEditingLeader] = useState(null);
-  const [editingSermon, setEditingSermon] = useState(null);
-  const [editingOfferingMethod, setEditingOfferingMethod] = useState(null);
-  const [editingGuideSection, setEditingGuideSection] = useState(null);
-  const [sermonFilter, setSermonFilter] = useState('all');
-  const [bulletinsTab, setBulletinsTab] = useState('bulletins'); // 'bulletins' | 'sermons'
-  // Bulletins & Sermons search & view states
-  const [bulletinSearchQuery, setBulletinSearchQuery] = useState('');
-  const [bulletinViewMode, setBulletinViewMode] = useState('cards'); // 'cards' | 'table'
-  const [bulletinCategoryFilter, setBulletinCategoryFilter] = useState('all');
-  const [sermonSearchQuery, setSermonSearchQuery] = useState('');
-  const [sermonViewMode, setSermonViewMode] = useState('cards'); // 'cards' | 'table'
-  const [selectedBulletinModal, setSelectedBulletinModal] = useState(null);
-  const [selectedSermonModal, setSelectedSermonModal] = useState(null);
-  // Service Library states - now Services & Worships
-  const [editingService, setEditingService] = useState(null);
-  const [serviceFilter, setServiceFilter] = useState('all');
-  const [serviceSearchQuery, setServiceSearchQuery] = useState('');
-  const [serviceViewMode, setServiceViewMode] = useState('cards'); // 'cards' | 'table'
-  const [selectedServiceModal, setSelectedServiceModal] = useState(null);
-  const [serviceMainTab, setServiceMainTab] = useState('all'); // 'all' | 'service' | 'worship'
-  const [aboutSettingsTab, setAboutSettingsTab] = useState('about'); // 'about' | 'homeVision' | 'yearlyVision' | 'leaders'
-  const [adminServiceTab, setAdminServiceTab] = useState('service'); // 'service' | 'worship'
-  const [aboutLeadershipTab, setAboutLeadershipTab] = useState('pastor'); // 'pastor' | 'coworker' | 'cellleader'
-  const [adminLeadershipTab, setAdminLeadershipTab] = useState('all'); // 'all' | 'pastor' | 'coworker' | 'cellleader'
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [editingBanner, setEditingBanner] = useState(null);
+  const [editingBundle, setEditingBundle] = useState(null);
+  const [editingCoupon, setEditingCoupon] = useState(null);
+  const [editingGwp, setEditingGwp] = useState(null);
+  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [editingReview, setEditingReview] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [importJsonText, setImportJsonText] = useState('');
   const [importError, setImportError] = useState('');
+  const [adminSearch, setAdminSearch] = useState('');
 
-  // Timetable page states
-  const [timetableFilterDay, setTimetableFilterDay] = useState('all');
-  // 'all' | 'weekly' | 'ministry' | 'cellgroup'
-  const [timetableFilterSection, setTimetableFilterSection] = useState('all');
-  const [timetableFilterLang, setTimetableFilterLang] = useState('all');
-  const [timetableSearchQuery, setTimetableSearchQuery] = useState('');
-  const [timetableViewMode, setTimetableViewMode] = useState('cards'); // 'cards', 'timeline', 'table'
-  const [selectedTimetableModal, setSelectedTimetableModal] = useState(null);
-  const [copiedModalItem, setCopiedModalItem] = useState(false);
-  const [adminTimetableSubSection, setAdminTimetableSubSection] = useState('weekly'); // 'weekly', 'ministry', 'cellgroup'
-
-  const openTimetableSection = (section) => { setTimetableFilterSection(section); setActiveTab('timetable'); window.scrollTo(0, 0); };
-
-  // Build-time GitHub config (injected by Vite from env vars)
-  const GITHUB_PAT_DEFAULT = ''; // Never inject GitHub tokens at build time; enter them in the admin UI only.
-  // GITHUB_REPO_DEFAULT is defined at module level; it is also used by the runtime data loader.
-  const AUTO_SAVE_GITHUB_DEFAULT = import.meta.env?.VITE_AUTO_SAVE_GITHUB === 'true';
-
-  // Auto-save to GitHub state (direct API - no server needed)
-  const [autoSaveToGithub, setAutoSaveToGithub] = useState(() => {
-    const saved = localStorage.getItem('bmbcc_autosave_github');
-    if (saved !== null) return saved === 'true';
-    // Fallback: check if autoSaveToGithub is stored in site data settings
-    // (helps when the dedicated localStorage key is cleared but data was previously auto-saved)
-    try {
-      const siteData = localStorage.getItem('bmbcc_site_data');
-      if (siteData) {
-        const parsed = JSON.parse(siteData);
-        if (parsed?.settings?.autoSaveToGithub !== undefined) {
-          return !!parsed.settings.autoSaveToGithub;
-        }
-      }
-    } catch (e) {}
-    return AUTO_SAVE_GITHUB_DEFAULT;
+  // GitHub autosave
+  const [autoSaveToGithub, setAutoSaveToGithub] = useState(()=> {
+    const s = localStorage.getItem('bmbcc_autosave_github');
+    if (s!==null) return s==='true';
+    try { const d = localStorage.getItem('bmbcc_site_data'); if(d){ const p=JSON.parse(d); if(p?.settings?.autoSaveToGithub!==undefined) return !!p.settings.autoSaveToGithub; } } catch {}
+    return import.meta.env?.VITE_AUTO_SAVE_GITHUB==='true';
   });
-  const [githubPat, setGithubPat] = useState(() => {
-    return localStorage.getItem('bmbcc_github_pat') || GITHUB_PAT_DEFAULT;
-  });
-  const [githubRepo, setGithubRepo] = useState(() => {
-    const saved = localStorage.getItem('bmbcc_github_repo');
-    if (saved) return saved;
-    // Fallback: check if githubRepo is stored in site data settings
-    try {
-      const siteData = localStorage.getItem('bmbcc_site_data');
-      if (siteData) {
-        const parsed = JSON.parse(siteData);
-        if (parsed?.settings?.githubRepo) {
-          return parsed.settings.githubRepo;
-        }
-      }
-    } catch (e) {}
+  const [githubPat, setGithubPat] = useState(()=> localStorage.getItem('bmbcc_github_pat')||'');
+  const [githubRepo, setGithubRepo] = useState(()=> {
+    const s=localStorage.getItem('bmbcc_github_repo');
+    if(s) return s;
+    try{ const d=localStorage.getItem('bmbcc_site_data'); if(d){ const p=JSON.parse(d); if(p?.settings?.githubRepo) return p.settings.githubRepo; } }catch{}
     return GITHUB_REPO_DEFAULT;
   });
-  const [autoSaveStatus, setAutoSaveStatus] = useState(''); // 'saving', 'success', 'error'
+  const [autoSaveStatus, setAutoSaveStatus] = useState('');
   const [autoSaveMessage, setAutoSaveMessage] = useState('');
   const [backupReauthOpen, setBackupReauthOpen] = useState(false);
   const [backupAccessGranted, setBackupAccessGranted] = useState(false);
   const [backupPasswordInput, setBackupPasswordInput] = useState('');
   const [backupLoginError, setBackupLoginError] = useState('');
 
-  // GitHub auto-save: SHA cache, push lock, debounce, and latest data ref
-  const lastKnownShaRef = React.useRef(null);
-  const isPushingRef = React.useRef(false);
-  const autoSaveTimeoutRef = React.useRef(null);
-  const latestDataRef = React.useRef(null);
-  const pendingPushRef = React.useRef(null); // pending debounced push, flushed on tab hide
+  const lastKnownShaRef = useRef(null);
+  const isPushingRef = useRef(false);
+  const autoSaveTimeoutRef = useRef(null);
+  const latestDataRef = useRef(null);
+  const pendingPushRef = useRef(null);
 
-  // Cleanup auto-save timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
+  // Cleanup timeout
+  useEffect(()=>()=>{ if(autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current); },[]);
+  useEffect(()=>{
+    const flush = ()=>{
+      if(document.visibilityState==='hidden' && autoSaveTimeoutRef.current){
+        clearTimeout(autoSaveTimeoutRef.current); autoSaveTimeoutRef.current=null;
+        const pend=pendingPushRef.current; pendingPushRef.current=null; if(pend) pend();
       }
     };
-  }, []);
+    document.addEventListener('visibilitychange', flush);
+    return ()=>document.removeEventListener('visibilitychange', flush);
+  },[]);
 
-  // Flush a pending debounced auto-save immediately when the tab is hidden or
-  // about to close, so the 30s debounce never loses an edit.
-  useEffect(() => {
-    const flushPendingAutoSave = () => {
-      if (document.visibilityState === 'hidden' && autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-        autoSaveTimeoutRef.current = null;
-        const pending = pendingPushRef.current;
-        pendingPushRef.current = null;
-        if (pending) pending();
-      }
-    };
-    document.addEventListener('visibilitychange', flushPendingAutoSave);
-    return () => document.removeEventListener('visibilitychange', flushPendingAutoSave);
-  }, []);
+  // Persist cart/wishlist
+  useEffect(()=>{ localStorage.setItem('cs12_cart', JSON.stringify(cart)); },[cart]);
+  useEffect(()=>{ localStorage.setItem('cs12_wishlist', JSON.stringify(wishlist)); },[wishlist]);
+  useEffect(()=>{
+    if(currentCustomer?.id) localStorage.setItem('cs12_current_customer_id', String(currentCustomer.id));
+    else localStorage.removeItem('cs12_current_customer_id');
+  },[currentCustomer]);
 
-  // Runtime content loader: fetch the latest published site data from GitHub's raw
-  // CDN so admin edits go live WITHOUT a rebuild. A localStorage copy is used only
-  // after an authenticated admin session has explicitly loaded it above.
-  // Any failure falls back silently to the deployed build data.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const url = 'https://raw.githubusercontent.com/' + GITHUB_REPO_DEFAULT + '/main/src/data/initialData.js';
-        const res = await fetch(url, { cache: 'no-cache' });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const text = await res.text();
-        const start = text.indexOf('{');
-        const end = text.lastIndexOf('}');
-        if (start < 0 || end <= start) throw new Error('unexpected data format');
-        const remote = JSON.parse(text.slice(start, end + 1));
-        if (!remote || typeof remote !== 'object' || !remote.settings) throw new Error('invalid site data');
-        const merged = normalizeLoadedData(remote);
-        // Do not overwrite an authenticated editor's local, potentially
-        // unpublished draft if the remote request resolves after login.
-        if (cancelled || adminDraftLoadedRef.current) return;
-        setData(prev => (JSON.stringify(prev) === JSON.stringify(merged) ? prev : merged));
-      } catch (err) {
-        console.warn('Remote site data unavailable; using bundled data:', err?.message || err);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Apply the selected preset or freely chosen custom brand color.
-  useEffect(() => {
-    const custom = hexToRgb(data.settings.customThemeColor);
-    const colorKey = data.settings.themeColor || 'emerald';
-    if (colorKey === 'custom' && custom) {
-      const dark = { r: Math.max(0, Math.round(custom.r * .82)), g: Math.max(0, Math.round(custom.g * .82)), b: Math.max(0, Math.round(custom.b * .82)) };
-      const light = { r: Math.min(255, Math.round(custom.r + (255 - custom.r) * .78)), g: Math.min(255, Math.round(custom.g + (255 - custom.g) * .78)), b: Math.min(255, Math.round(custom.b + (255 - custom.b) * .78)) };
-      document.documentElement.style.setProperty('--color-primary', rgbString(custom));
-      document.documentElement.style.setProperty('--color-primary-dark', rgbString(dark));
-      document.documentElement.style.setProperty('--color-primary-light', rgbString(light));
-      return;
-    }
-    const selected = colorsMap[colorKey] || colorsMap.emerald;
-    document.documentElement.style.setProperty('--color-primary', selected.primary);
-    document.documentElement.style.setProperty('--color-primary-dark', selected.dark);
-    document.documentElement.style.setProperty('--color-primary-light', selected.light);
-  }, [data.settings.themeColor, data.settings.customThemeColor]);
-
-  // Scale the document's rem-based typography so the setting affects the whole site,
-  // including navigation, content, forms, and the footer.
-  useEffect(() => {
-    const scale = Number(data.settings.textScale) || 100;
-    document.documentElement.style.fontSize = `${Math.min(140, Math.max(80, scale))}%`;
-    return () => {
-      document.documentElement.style.fontSize = '';
-    };
-  }, [data.settings.textScale]);
-
-  // Use separate typefaces for the Chinese and English versions of the site.
-  // The selected language determines which setting is used in the live preview.
-  useEffect(() => {
-    const fontKey = lang === 'zh' ? data.settings.fontFamilyZh : data.settings.fontFamilyEn;
-    document.documentElement.style.setProperty('--site-font-family', getFontFamily(lang, fontKey));
-    return () => {
-      document.documentElement.style.removeProperty('--site-font-family');
-    };
-  }, [lang, data.settings.fontFamilyZh, data.settings.fontFamilyEn]);
-
-  // Keep the browser tab icon in sync with the custom header logo (set by URL in Admin Settings).
-  useEffect(() => {
-    const icon = document.querySelector('link[rel="icon"]');
-    if (icon) icon.href = data.settings.headerLogo || '/favicon.svg';
-  }, [data.settings.headerLogo]);
-
-  // Event alerts are intentionally shown on every page load (not once per session).
-  useEffect(() => {
-    const popupEvents = (data.events || []).filter(e => e.popupEnabled);
-    if (data.settings.eventPopupEnabled && popupEvents.length > 0 && activeTab !== 'admin') {
-      setEventPopupSlide(0);
-      setEventPopupOpen(true);
-    }
-  }, []);
-
-  // Save helper
-  const saveAllData = (newData) => {
-    const sanitizedData = stripSensitiveData(newData);
-    setData(sanitizedData);
-    localStorage.setItem('bmbcc_site_data', JSON.stringify(sanitizedData));
-    triggerAdminSuccess("修改已成功保存并即时生效！Changes saved successfully!");
-
-    // Auto-save to GitHub if enabled (direct GitHub API, no server needed)
-    if (autoSaveToGithub && githubPat && githubRepo) {
-      // Store latest data for debounced push
-      latestDataRef.current = sanitizedData;
-
-      // Debounce: cancel any pending push and schedule a new one
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-      }
-
-      setAutoSaveStatus('saving');
-      setAutoSaveMessage(lang === 'zh' ? '正在同步到 GitHub...' : 'Syncing to GitHub...');
-
-      const triggerPushNow = () => {
-        const doGithubPush = async () => {
-          const dataToPush = latestDataRef.current;
-          if (!dataToPush) return;
-
-          // Prevent concurrent pushes
-          if (isPushingRef.current) {
-            // Schedule a retry after a short delay
-            autoSaveTimeoutRef.current = setTimeout(() => {
-              setAutoSaveStatus('saving');
-              setAutoSaveMessage(lang === 'zh' ? '正在同步到 GitHub...' : 'Syncing to GitHub...');
-              doGithubPush();
-            }, 3000);
-            return;
-          }
-
-          isPushingRef.current = true;
-
-          const filePath = 'src/data/initialData.js';
-          const apiUrl = 'https://api.github.com/repos/' + githubRepo + '/contents/' + filePath;
-          const jsContent = 'export const initialData = ' + JSON.stringify(dataToPush, null, 2) + ';\n';
-          const base64Content = btoa(unescape(encodeURIComponent(jsContent)));
-
-          const pushWithRetry = async (maxRetries = 3) => {
-            for (let attempt = 0; attempt <= maxRetries; attempt++) {
-              try {
-                // Fetch SHA: use cache if available, otherwise fetch from GitHub
-                let sha = lastKnownShaRef.current;
-                if (!sha) {
-                  const shaRes = await fetch(apiUrl, {
-                    headers: {
-                      Authorization: 'Bearer ' + githubPat,
-                      Accept: 'application/vnd.github.v3+json',
-                    },
-                  });
-                  if (shaRes.ok) {
-                    const shaInfo = await shaRes.json();
-                    sha = shaInfo.sha;
-                  }
-                }
-
-                // Push the file
-                const body = {
-                  message: 'Auto-save: update site data [' + new Date().toISOString().slice(0, 19).replace('T', ' ') + ']',
-                  content: base64Content,
-                };
-                if (sha) body.sha = sha;
-
-                const pushRes = await fetch(apiUrl, {
-                  method: 'PUT',
-                  headers: {
-                    Authorization: 'Bearer ' + githubPat,
-                    Accept: 'application/vnd.github.v3+json',
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify(body),
-                });
-
-                const result = await pushRes.json().catch(() => ({}));
-
-                if (pushRes.ok) {
-                  // Cache the new SHA for next push
-                  lastKnownShaRef.current = result.content?.sha || null;
-                  setAutoSaveStatus('success');
-                  setAutoSaveMessage(lang === 'zh'
-                    ? '\u2705 已自动同步到 GitHub！'
-                    : '\u2705 Auto-saved to GitHub!');
-                  return; // Success!
-                }
-
-                if ((pushRes.status === 409 || pushRes.status === 422) && attempt < maxRetries) {
-                  // SHA mismatch - invalidate cache and retry with fresh SHA
-                  lastKnownShaRef.current = null;
-                  console.log('Auto-save: SHA mismatch, retrying (' + (attempt + 1) + '/' + maxRetries + ')...');
-                  // Small delay before retry
-                  await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
-                  continue;
-                }
-
-                throw new Error(result.message || 'HTTP ' + pushRes.status);
-              } catch (err) {
-                if (attempt === maxRetries) {
-                  throw err;
-                }
-                await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+  // Auth check
+  useEffect(()=>{
+    const checkAuth = async ()=>{
+      try{
+        const res = await fetch(AUTH_ENDPOINT,{method:'GET',credentials:'include'});
+        const d = await res.json();
+        const isAdmin = d.isAdmin===true;
+        setIsAdminLoggedIn(isAdmin);
+        if(isAdmin){
+          const saved=localStorage.getItem('bmbcc_site_data');
+          if(saved){
+            try{
+              const draft = JSON.parse(saved);
+              // only use if e-commerce structure exists, otherwise keep initial
+              if(draft?.products && draft?.settings){
+                adminDraftLoadedRef.current=true;
+                setData({ ...initialData, ...draft, settings: { ...initialData.settings, ...(draft.settings||{}) } });
               }
-            }
-          };
-
-          pushWithRetry()
-            .catch((err) => {
-              console.error('Auto-save to GitHub failed:', err);
-              setAutoSaveStatus('error');
-              setAutoSaveMessage(lang === 'zh'
-                ? '\u26a0\ufe0f GitHub 同步失败: ' + err.message
-                : '\u26a0\ufe0f GitHub sync failed: ' + err.message);
-            })
-            .finally(() => {
-              isPushingRef.current = false;
-              setTimeout(() => {
-                setAutoSaveStatus('');
-                setAutoSaveMessage('');
-              }, 6000);
-            });
-        };
-
-        doGithubPush();
-      };
-
-      pendingPushRef.current = triggerPushNow;
-      autoSaveTimeoutRef.current = setTimeout(() => {
-        pendingPushRef.current = null;
-        triggerPushNow();
-      }, AUTO_SAVE_DEBOUNCE_MS);
-    }
-  };
-
-  const triggerAdminSuccess = (msg) => {
-    setAdminSuccessMessage(msg);
-    setTimeout(() => {
-      setAdminSuccessMessage('');
-    }, 4000);
-  };
-
-  // Carousel auto-play
-  useEffect(() => {
-    if (activeTab !== 'home') return;
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % data.carousel.length);
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [data.carousel.length, activeTab]);
-
-  // URL-based admin access detection
-  useEffect(() => {
-    const openAdminFromUrl = () => {
-      const hash = window.location.hash.replace(/\/+$/, '').trim().toLowerCase();
-      const pathname = window.location.pathname.replace(/\/+$/, '').toLowerCase();
-      const searchParams = new URLSearchParams(window.location.search);
-      const adminQuery = searchParams.has('admin') || searchParams.get('page') === 'admin';
-
-      if (
-        hash === '#/admin' ||
-        hash === '#admin' ||
-        pathname.endsWith('/admin') ||
-        adminQuery
-      ) {
-        setActiveTab('admin');
-        setMobileMenuOpen(false);
-        window.scrollTo(0, 0);
-      }
+            }catch(e){ console.error('parse draft',e); }
+          }
+        }
+      }catch(err){ setIsAdminLoggedIn(false); }
     };
+    checkAuth();
+  },[]);
 
+  // Load GitHub settings from KV
+  const loadGithubSettingsFromCloud = async ()=>{
+    try{
+      const res = await fetch(GITHUB_SETTINGS_ENDPOINT,{method:'GET',credentials:'include'});
+      if(!res.ok) return;
+      const result=await res.json();
+      if(result.ok && result.settings){
+        const s=result.settings;
+        if(s.pat!==undefined && s.pat!==''){ localStorage.setItem('bmbcc_github_pat',s.pat); setGithubPat(s.pat); }
+        if(s.repo!==undefined && s.repo!==''){ localStorage.setItem('bmbcc_github_repo',s.repo); setGithubRepo(s.repo); setData(prev=>({...prev, settings:{...prev.settings, githubRepo:s.repo}})); }
+        if(s.autoSave!==undefined){ localStorage.setItem('bmbcc_autosave_github',String(s.autoSave)); setAutoSaveToGithub(s.autoSave); setData(prev=>({...prev, settings:{...prev.settings, autoSaveToGithub:s.autoSave}})); }
+      }
+    }catch(err){ console.log('KV fallback',err?.message); }
+  };
+  const saveGithubSettingsToCloud = async (settings)=>{
+    try{ await fetch(GITHUB_SETTINGS_ENDPOINT,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(settings)}); }catch(err){ console.log('save KV fail',err?.message); }
+  };
+  useEffect(()=>{ if(isAdminLoggedIn) loadGithubSettingsFromCloud(); },[isAdminLoggedIn]);
+
+  // Hydrate currentCustomer full object after data load
+  useEffect(()=>{
+    if(currentCustomer?.id && !currentCustomer?.email){
+      const full = data.customers.find(c=>c.id===currentCustomer.id);
+      if(full) setCurrentCustomer(full);
+    }
+  },[data.customers]);
+
+  // Remote data loader (GitHub raw) - optional
+  useEffect(()=>{
+    let cancelled=false;
+    (async()=>{
+      try{
+        const url='https://raw.githubusercontent.com/'+GITHUB_REPO_DEFAULT+'/main/src/data/initialData.js';
+        const res=await fetch(url,{cache:'no-cache'});
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        const text=await res.text();
+        const start=text.indexOf('{'); const end=text.lastIndexOf('}');
+        if(start<0||end<=start) throw new Error('fmt');
+        const remote=JSON.parse(text.slice(start,end+1));
+        if(!remote||!remote.settings||!remote.products) throw new Error('invalid');
+        if(cancelled||adminDraftLoadedRef.current) return;
+        // Only overwrite if remote seems newer (check product count)
+        const merged = { ...initialData, ...remote, settings: { ...initialData.settings, ...(remote.settings||{}) } };
+        // Preserve arrays if missing
+        if(!merged.products) merged.products = initialData.products;
+        if(!merged.categories) merged.categories = initialData.categories;
+        setData(prev=> JSON.stringify(prev)===JSON.stringify(merged) ? prev : merged);
+      }catch(err){ console.warn('remote data unavailable',err?.message); }
+    })();
+    return ()=>{ cancelled=true; };
+  },[]);
+
+  // Theme color + palette - flexible color tuner fixed
+  useEffect(()=>{
+    const settings = data.settings;
+    let primaryRgb, darkRgb, lightRgb, secondaryRgb, accentRgb;
+    if(settings.themeColor==='custom'){
+      const customHex = settings.customPalette?.primary || settings.customThemeColor || '#d4a5a5';
+      const primary = hexToRgb(customHex);
+      if(primary){
+        primaryRgb = primary;
+        darkRgb = { r: Math.max(0, Math.round(primary.r*0.82)), g: Math.max(0, Math.round(primary.g*0.82)), b: Math.max(0, Math.round(primary.b*0.82)) };
+        lightRgb = { r: Math.min(255, Math.round(primary.r+(255-primary.r)*0.78)), g: Math.min(255, Math.round(primary.g+(255-primary.g)*0.78)), b: Math.min(255, Math.round(primary.b+(255-primary.b)*0.78)) };
+      }
+      // secondary/accent from customPalette
+      const secHex = settings.customPalette?.secondary;
+      const accHex = settings.customPalette?.accent;
+      const bgHex = settings.customPalette?.background;
+      if(secHex){ const s = hexToRgb(secHex); if(s) secondaryRgb = s; }
+      if(accHex){ const a = hexToRgb(accHex); if(a) accentRgb = a; }
+      if(bgHex){ const bg = hexToRgb(bgHex); if(bg) document.documentElement.style.setProperty('--color-bg', rgbString(bg)); }
+    } else {
+      const sel = colorsMap[settings.themeColor] || colorsMap.cs12rose;
+      const p = hexToRgb('#'+'' ) // not needed
+      // sel contains rgb strings like '212 165 165'
+      const parsePreset = str => {
+        const [r,g,b] = str.split(' ').map(Number);
+        return { r,g,b };
+      };
+      primaryRgb = parsePreset(sel.primary);
+      darkRgb = parsePreset(sel.dark);
+      lightRgb = parsePreset(sel.light);
+      secondaryRgb = sel.secondary ? parsePreset(sel.secondary) : null;
+      accentRgb = sel.accent ? parsePreset(sel.accent) : null;
+    }
+    if(primaryRgb){ document.documentElement.style.setProperty('--color-primary', rgbString(primaryRgb)); }
+    if(darkRgb){ document.documentElement.style.setProperty('--color-primary-dark', rgbString(darkRgb)); }
+    if(lightRgb){ document.documentElement.style.setProperty('--color-primary-light', rgbString(lightRgb)); }
+    if(secondaryRgb){ document.documentElement.style.setProperty('--color-secondary', rgbString(secondaryRgb)); }
+    if(accentRgb){ document.documentElement.style.setProperty('--color-accent', rgbString(accentRgb)); }
+  },[data.settings.themeColor, data.settings.customThemeColor, data.settings.customPalette]);
+
+  useEffect(()=>{
+    const scale = Number(data.settings.textScale)||100;
+    document.documentElement.style.fontSize = `${Math.min(140, Math.max(80, scale))}%`;
+    return ()=>{ document.documentElement.style.fontSize=''; };
+  },[data.settings.textScale]);
+
+  useEffect(()=>{
+    const zhKey = data.settings.fontFamilyZh;
+    const enKey = data.settings.fontFamilyEn;
+    const zhFamily = getFontFamily('zh', zhKey);
+    const enFamily = getFontFamily('en', enKey);
+    const currentLangFamily = lang==='zh' ? zhFamily : enFamily;
+    document.documentElement.style.setProperty('--site-font-family', currentLangFamily);
+    document.documentElement.style.setProperty('--site-font-family-zh', zhFamily);
+    document.documentElement.style.setProperty('--site-font-family-en', enFamily);
+    return ()=>{ document.documentElement.style.removeProperty('--site-font-family'); };
+  },[lang, data.settings.fontFamilyZh, data.settings.fontFamilyEn]);
+
+  useEffect(()=>{
+    const icon=document.querySelector('link[rel="icon"]');
+    if(icon) icon.href = data.settings.headerLogo || '/favicon.svg';
+  },[data.settings.headerLogo]);
+
+  // Carousel autoplay
+  useEffect(()=>{
+    if(activeTab!=='home') return;
+    const iv=setInterval(()=> setCurrentSlide(prev=> (prev+1)%data.carousel.length), 6000);
+    return ()=>clearInterval(iv);
+  },[data.carousel.length, activeTab]);
+
+  // URL admin detection
+  useEffect(()=>{
+    const openAdminFromUrl=()=>{
+      const hash=window.location.hash.replace(/\/+$/,'').trim().toLowerCase();
+      const pathname=window.location.pathname.replace(/\/+$/,'').toLowerCase();
+      const searchParams=new URLSearchParams(window.location.search);
+      const adminQuery=searchParams.has('admin')||searchParams.get('page')==='admin';
+      if(hash==='#/admin'||hash==='#admin'||pathname.endsWith('/admin')||adminQuery){ setActiveTab('admin'); setMobileMenuOpen(false); window.scrollTo(0,0); }
+    };
     openAdminFromUrl();
     window.addEventListener('hashchange', openAdminFromUrl);
     window.addEventListener('popstate', openAdminFromUrl);
+    return ()=>{ window.removeEventListener('hashchange', openAdminFromUrl); window.removeEventListener('popstate', openAdminFromUrl); };
+  },[]);
 
-    return () => {
-      window.removeEventListener('hashchange', openAdminFromUrl);
-      window.removeEventListener('popstate', openAdminFromUrl);
-    };
-  }, []);
-
-  // When mobile drawer is open, lock background scroll so the drawer scrolls independently
-  // and the page behind does not move. This fixes the issue where you have to scroll
-  // the whole page to reach the bottom of the menu.
-  useEffect(() => {
-    if (mobileMenuOpen) {
-      const prevBodyOverflow = document.body.style.overflow;
-      const prevHtmlOverflow = document.documentElement.style.overflow;
-      const prevBodyPaddingRight = document.body.style.paddingRight;
-      // Prevent background scroll; keep drawer scrollable via its own overflow-y-auto
-      document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden';
-      // Avoid layout shift when scrollbar disappears (desktop)
-      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-      if (scrollbarWidth > 0) {
-        document.body.style.paddingRight = `${scrollbarWidth}px`;
-      }
-      // Also handle iOS overscroll: touch move on body should not scroll page
-      const preventTouchMove = (e) => {
-        // Allow scrolling inside the drawer
-        const drawer = document.querySelector('[data-mobile-drawer]');
-        if (drawer && drawer.contains(e.target)) return;
-        e.preventDefault();
-      };
-      // Escape key closes drawer
-      const onKeyDown = (e) => {
-        if (e.key === 'Escape') setMobileMenuOpen(false);
-      };
-      document.addEventListener('touchmove', preventTouchMove, { passive: false });
-      document.addEventListener('keydown', onKeyDown);
-      return () => {
-        document.body.style.overflow = prevBodyOverflow;
-        document.documentElement.style.overflow = prevHtmlOverflow;
-        document.body.style.paddingRight = prevBodyPaddingRight;
-        document.removeEventListener('touchmove', preventTouchMove);
-        document.removeEventListener('keydown', onKeyDown);
-      };
+  // Mobile drawer scroll lock
+  useEffect(()=>{
+    if(mobileMenuOpen){
+      const prevBody=document.body.style.overflow;
+      const prevHtml=document.documentElement.style.overflow;
+      const prevPad=document.body.style.paddingRight;
+      document.body.style.overflow='hidden'; document.documentElement.style.overflow='hidden';
+      const sw=window.innerWidth-document.documentElement.clientWidth;
+      if(sw>0) document.body.style.paddingRight=`${sw}px`;
+      const preventTouch= (e)=>{ const drawer=document.querySelector('[data-mobile-drawer]'); if(drawer&&drawer.contains(e.target)) return; e.preventDefault(); };
+      const onKey=e=>{ if(e.key==='Escape') setMobileMenuOpen(false); };
+      document.addEventListener('touchmove',preventTouch,{passive:false});
+      document.addEventListener('keydown',onKey);
+      return ()=>{ document.body.style.overflow=prevBody; document.documentElement.style.overflow=prevHtml; document.body.style.paddingRight=prevPad; document.removeEventListener('touchmove',preventTouch); document.removeEventListener('keydown',onKey); };
     }
-  }, [mobileMenuOpen]);
+  },[mobileMenuOpen]);
 
-  // Translate helper
-  const t = (obj, key) => {
-    if (!obj) return '';
-    if (typeof obj === 'string') return obj;
-    // Handle bilingual objects
-    if (obj[lang]) return obj[lang];
-    if (obj['zh']) return obj['zh'];
-    if (obj['en']) return obj['en'];
+  // Translation helpers
+  const t = (obj) => {
+    if(!obj) return '';
+    if(typeof obj==='string') return obj;
+    if(obj[lang]) return obj[lang];
+    if(obj.zh) return obj.zh;
+    if(obj.en) return obj.en;
     return '';
   };
-
-  const getGoogleMapsEmbedUrl = (church) => {
-    const rawUrl = (church?.googleMapsEmbedUrl || '').trim();
-    if (rawUrl) {
-      if (rawUrl.includes('<iframe')) {
-        const srcMatch = rawUrl.match(/src="([^"]+)"/);
-        if (srcMatch) return srcMatch[1];
-      }
-      if (rawUrl.includes('output=embed') || rawUrl.includes('/maps/embed')) {
-        return rawUrl;
-      }
-      const coordMatch = rawUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-      if (coordMatch) {
-        return `https://maps.google.com/maps?q=${coordMatch[1]},${coordMatch[2]}&output=embed`;
-      }
-      const qMatch = rawUrl.match(/[?&]q=([^&]+)/);
-      if (qMatch) {
-        return `https://maps.google.com/maps?q=${qMatch[1]}&output=embed`;
-      }
-      const placeMatch = rawUrl.match(/\/maps\/place\/([^/@]+)/);
-      if (placeMatch) {
-        return `https://maps.google.com/maps?q=${placeMatch[1]}&output=embed`;
-      }
-      if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
-        return `https://maps.google.com/maps?q=${encodeURIComponent(rawUrl)}&output=embed`;
-      }
-      return `https://maps.google.com/maps?q=${encodeURIComponent(rawUrl)}&output=embed`;
-    }
-
-    const query = t(church?.address) || t(church?.name) || data.settings.contactAddress;
-    return query ? `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed` : '';
+  const ta = (key) => {
+    const dict = ADMIN_I18N[lang] || ADMIN_I18N.en;
+    return dict[key] || ADMIN_I18N.en[key] || key;
   };
 
-  // Global YouTube embed helper - used by Sermons and Services & Worships
-  const getYoutubeEmbedUrl = (url) => {
-    if (!url) return '';
-    const match = String(url).match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s]+)/);
-    return match ? `https://www.youtube.com/embed/${match[1]}` : '';
+  const formatPrice = (amount) => {
+    return fmtPriceUtil(amount, currency, data.settings.currencies?.exchangeRate||0.128, data.settings.currencies?.symbol||{HKD:'HK$', USD:'$'});
   };
 
-  const handleAdminLogin = async (e) => {
-    e.preventDefault();
+  // Cart calculations
+  const cartSubtotal = useMemo(()=> calcSubtotal(cart, data.products), [cart, data.products]);
+  const cartCount = useMemo(()=> cart.reduce((s,i)=>s+i.qty,0), [cart]);
+  const wishlistCount = wishlist.length;
+  const gwpEligible = useMemo(()=> checkGWP(cartSubtotal, data.settings.gwp?.rules||[]), [cartSubtotal, data.settings.gwp]);
+  const shippingCost = useMemo(()=>{
+    if(cart.length===0) return 0;
+    const freeThresh = data.settings.shipping?.freeThreshold || 800;
+    if(cartSubtotal >= freeThresh) return 0;
+    return data.settings.shipping?.flatRate || 50;
+  },[cartSubtotal, cart, data.settings.shipping]);
+  const discountAmount = useMemo(()=>{
+    if(!appliedCoupon) return 0;
+    const res = applyCoupon(cartSubtotal, appliedCoupon);
+    return res.valid ? res.discount : 0;
+  },[cartSubtotal, appliedCoupon]);
+  const cartTotal = Math.max(0, cartSubtotal - discountAmount + shippingCost);
+  const pointsEarnedPreview = useMemo(()=>{
+    const tier = currentCustomer ? (data.settings.membership?.tiers?.find(t=>t.id===currentCustomer.tier) || null) : null;
+    const birthday = currentCustomer ? isBirthdayMonth(currentCustomer.birthday) : false;
+    const limit = data.settings.membership?.points?.birthdayMonthLimit || 10000;
+    return calcPoints(cartSubtotal - discountAmount, tier, birthday, limit);
+  },[cartSubtotal, discountAmount, currentCustomer, data.settings.membership]);
 
-    // Client-side minimum length check
-    if (adminPasswordInput.length < 8) {
-      setAdminLoginError(
-        lang === 'zh'
-          ? '密码至少需要 8 位字符'
-          : 'Password must be at least 8 characters'
-      );
-      return;
-    }
+  const fullCurrentCustomer = useMemo(()=>{
+    if(!currentCustomer?.id) return null;
+    const found = data.customers.find(c=>c.id===currentCustomer.id);
+    return found ? { ...found, ...currentCustomer } : currentCustomer;
+  },[currentCustomer, data.customers]);
 
-    try {
-      const res = await fetch(AUTH_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Critical: sends HttpOnly cookie
-        body: JSON.stringify({ password: adminPasswordInput })
-      });
-      const result = await res.json();
-      
-      if (result.ok) {
-        setIsAdminLoggedIn(true);
-        setAdminLoginError('');
-        setAdminPasswordInput('');
-        // Load GitHub settings from Cloudflare KV after successful login
-        loadGithubSettingsFromCloud();
-      } else {
-        setAdminLoginError(result.error || (lang === 'zh' ? '登录失败' : 'Login failed'));
-      }
-    } catch (err) {
-      console.error('Login error:', err);
-      setAdminLoginError(lang === 'zh' ? '网络错误，请重试' : 'Network error, please try again');
-    }
-  };
+  const customerTier = useMemo(()=>{
+    if(!fullCurrentCustomer) return null;
+    return data.settings.membership?.tiers?.find(t=>t.id===fullCurrentCustomer.tier) || getMembershipTier(data.settings.membership?.tiers||[], fullCurrentCustomer.totalSpent||0);
+  },[fullCurrentCustomer, data.settings.membership]);
 
-  // Helper function to switch tabs and handle URL hashes smoothly
-  const switchTab = (tabId) => {
-    setActiveTab(tabId);
-    setMobileMenuOpen(false);
-    if (tabId === 'admin') {
-      if (window.location.hash !== '#/admin' && window.location.hash !== '#admin' && !window.location.pathname.endsWith('/admin')) {
-        if (window.history && window.history.pushState) {
-          window.history.pushState({}, '', '#/admin');
-        } else {
-          window.location.hash = '#/admin';
-        }
-      }
-    } else {
-      if (window.location.hash === '#/admin' || window.location.hash === '#admin') {
-        try {
-          if (window.history && window.history.pushState) {
-            const cleanUrl = new URL(window.location.href);
-            cleanUrl.hash = '';
-            window.history.pushState({}, '', cleanUrl.pathname + cleanUrl.search);
-          } else {
-            window.location.hash = '';
+  // Save helper with GitHub autosave
+  const saveAllData = (newData) => {
+    const sanitized = stripSensitiveData(newData);
+    setData(sanitized);
+    localStorage.setItem('bmbcc_site_data', JSON.stringify(sanitized));
+    triggerAdminSuccess(ta('saved'));
+
+    if(autoSaveToGithub && githubPat && githubRepo){
+      latestDataRef.current = sanitized;
+      if(autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
+      setAutoSaveStatus('saving'); setAutoSaveMessage(lang==='zh'?'正在同步到 GitHub...':'Syncing to GitHub...');
+      const triggerPushNow = ()=>{
+        const doPush = async ()=>{
+          const dataToPush = latestDataRef.current;
+          if(!dataToPush) return;
+          if(isPushingRef.current){
+            autoSaveTimeoutRef.current=setTimeout(()=>{ setAutoSaveStatus('saving'); setAutoSaveMessage(lang==='zh'?'正在同步到 GitHub...':'Syncing to GitHub...'); doPush(); },3000);
+            return;
           }
-        } catch (e) {
-          window.location.hash = '';
-        }
+          isPushingRef.current=true;
+          const filePath='src/data/initialData.js';
+          const apiUrl='https://api.github.com/repos/'+githubRepo+'/contents/'+filePath;
+          const jsContent='export const initialData = '+JSON.stringify(dataToPush,null,2)+';\n';
+          const base64= btoa(unescape(encodeURIComponent(jsContent)));
+          const pushWithRetry = async (maxRetries=3)=>{
+            for(let attempt=0; attempt<=maxRetries; attempt++){
+              try{
+                let sha=lastKnownShaRef.current;
+                if(!sha){
+                  const shaRes=await fetch(apiUrl,{headers:{Authorization:'Bearer '+githubPat, Accept:'application/vnd.github.v3+json'}});
+                  if(shaRes.ok){ const info=await shaRes.json(); sha=info.sha; }
+                }
+                const body={message:'Auto-save: update site data ['+new Date().toISOString().slice(0,19).replace('T',' ')+']', content: base64};
+                if(sha) body.sha=sha;
+                const pushRes=await fetch(apiUrl,{method:'PUT',headers:{Authorization:'Bearer '+githubPat, Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify(body)});
+                const result=await pushRes.json().catch(()=>({}));
+                if(pushRes.ok){ lastKnownShaRef.current=result.content?.sha||null; setAutoSaveStatus('success'); setAutoSaveMessage(lang==='zh'?'✅ 已自动同步到 GitHub！':'✅ Auto-saved to GitHub!'); return; }
+                if((pushRes.status===409||pushRes.status===422)&& attempt<maxRetries){ lastKnownShaRef.current=null; await new Promise(r=>setTimeout(r,500*(attempt+1))); continue; }
+                throw new Error(result.message||'HTTP '+pushRes.status);
+              }catch(err){ if(attempt===maxRetries) throw err; await new Promise(r=>setTimeout(r,500*(attempt+1))); }
+            }
+          };
+          pushWithRetry().catch(err=>{ console.error('auto-save fail',err); setAutoSaveStatus('error'); setAutoSaveMessage((lang==='zh'?'⚠️ GitHub 同步失败: ':'⚠️ GitHub sync failed: ')+err.message); }).finally(()=>{ isPushingRef.current=false; setTimeout(()=>{ setAutoSaveStatus(''); setAutoSaveMessage(''); },6000); });
+        };
+        doPush();
+      };
+      pendingPushRef.current=triggerPushNow;
+      autoSaveTimeoutRef.current=setTimeout(()=>{ pendingPushRef.current=null; triggerPushNow(); },AUTO_SAVE_DEBOUNCE_MS);
+    }
+  };
+  const triggerAdminSuccess = (msg)=>{ setAdminSuccessMessage(msg); setTimeout(()=>setAdminSuccessMessage(''),4000); };
+
+  // Auth handlers
+  const handleAdminLogin = async (e)=>{
+    e.preventDefault();
+    if(adminPasswordInput.length<8){ setAdminLoginError(lang==='zh'?'密码至少需要 8 位':'Password at least 8 chars'); return; }
+    try{
+      const res=await fetch(AUTH_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({password:adminPasswordInput})});
+      const result=await res.json();
+      if(result.ok){ setIsAdminLoggedIn(true); setAdminLoginError(''); setAdminPasswordInput(''); loadGithubSettingsFromCloud(); }
+      else setAdminLoginError(result.error|| (lang==='zh'?'登录失败':'Login failed'));
+    }catch(err){ setAdminLoginError(lang==='zh'?'网络错误':'Network error'); }
+  };
+  const handleAdminLogout = async ()=>{
+    try{ await fetch(AUTH_ENDPOINT,{method:'DELETE',credentials:'include'}); }catch{}
+    setIsAdminLoggedIn(false); setActiveTab('home'); setBackupAccessGranted(false); setBackupReauthOpen(false); setBackupPasswordInput(''); setBackupLoginError('');
+    try{
+      if(window.history&&window.history.pushState){
+        let cleanPath=window.location.pathname;
+        if(cleanPath.endsWith('/admin')||cleanPath.endsWith('/admin/')){ cleanPath=cleanPath.replace(/\/admin\/?$/,''); if(!cleanPath) cleanPath='/'; }
+        const cleanUrl=new URL(window.location.href);
+        cleanUrl.pathname=cleanPath;
+        if(cleanUrl.hash==='#/admin'||cleanUrl.hash==='#admin') cleanUrl.hash='';
+        cleanUrl.searchParams.delete('admin'); cleanUrl.searchParams.delete('page');
+        window.history.pushState({},'',cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+      } else { if(window.location.hash==='#/admin'||window.location.hash==='#admin') window.location.hash=''; }
+    }catch{}
+    window.scrollTo(0,0);
+  };
+  const switchTab = (tabId)=>{
+    setActiveTab(tabId); setMobileMenuOpen(false);
+    if(tabId==='admin'){
+      if(window.location.hash!=='#/admin' && window.location.hash!=='#admin' && !window.location.pathname.endsWith('/admin')){
+        if(window.history&&window.history.pushState) window.history.pushState({},'','#/admin'); else window.location.hash='#/admin';
+      }
+    } else {
+      if(window.location.hash==='#/admin'||window.location.hash==='#admin'){
+        try{
+          if(window.history&&window.history.pushState){ const cleanUrl=new URL(window.location.href); cleanUrl.hash=''; window.history.pushState({},'',cleanUrl.pathname+cleanUrl.search); }
+          else window.location.hash='';
+        }catch{ window.location.hash=''; }
       }
     }
-    window.scrollTo(0, 0);
+    window.scrollTo(0,0);
   };
 
-  const handleAdminLogout = async () => {
-    try {
-      await fetch(AUTH_ENDPOINT, {
-        method: 'DELETE', 
-        credentials: 'include' 
-      });
-    } catch (err) {
-      console.error('Logout error:', err);
+  // Cart actions
+  const addToCart = (productId, variantId=null, qty=1)=>{
+    const prod = data.products.find(p=>p.id===productId);
+    if(!prod) return;
+    let stock = prod.stock;
+    if(variantId){ const v=prod.variants?.find(v=>v.id===variantId); if(v) stock=v.stock; }
+    // check existing qty in cart
+    const existing = cart.find(c=>c.productId===productId && c.variantId===variantId);
+    const currentQty = existing ? existing.qty : 0;
+    if(currentQty+qty > stock){ alert(lang==='zh'?`庫存不足，僅剩 ${stock} 件`:`Only ${stock} in stock`); return; }
+    setCart(prev=>{
+      const idx=prev.findIndex(c=>c.productId===productId && c.variantId===variantId);
+      if(idx>=0){ const copy=[...prev]; copy[idx]={...copy[idx], qty: copy[idx].qty+qty}; return copy; }
+      return [...prev, { productId, variantId, qty, addedAt: new Date().toISOString() }];
+    });
+    setShowCart(true);
+  };
+  const updateCartQty = (index, newQty)=>{
+    if(newQty<=0){ setCart(prev=> prev.filter((_,i)=>i!==index)); return; }
+    const item = cart[index];
+    const prod = data.products.find(p=>p.id===item.productId);
+    if(!prod) return;
+    let stock = prod.stock;
+    if(item.variantId){ const v=prod.variants?.find(v=>v.id===item.variantId); if(v) stock=v.stock; }
+    if(newQty>stock){ alert(lang==='zh'?`庫存不足，僅剩 ${stock} 件`:`Only ${stock} in stock`); return; }
+    setCart(prev=>{ const copy=[...prev]; copy[index]={...copy[index], qty:newQty}; return copy; });
+  };
+  const removeFromCart = (index)=> setCart(prev=> prev.filter((_,i)=>i!==index));
+  const toggleWishlist = (productId)=>{
+    setWishlist(prev=> prev.includes(productId) ? prev.filter(id=>id!==productId) : [...prev, productId]);
+  };
+
+  const handleApplyCoupon = ()=>{
+    setCouponError('');
+    if(!couponInput.trim()){ setCouponError(lang==='zh'?'請輸入優惠碼':'Enter coupon code'); return; }
+    const coupon = data.coupons.find(c=> c.code.toLowerCase()===couponInput.trim().toLowerCase() && c.active);
+    if(!coupon){ setCouponError(lang==='zh'?'優惠碼無效':'Invalid coupon'); return; }
+    if(coupon.firstOrderOnly && fullCurrentCustomer && fullCurrentCustomer.ordersCount>0){ setCouponError(lang==='zh'?'此優惠碼僅限首單':'First order only'); return; }
+    const res = applyCoupon(cartSubtotal, coupon);
+    if(!res.valid){ setCouponError(res.reason||'Invalid'); return; }
+    setAppliedCoupon(coupon);
+    setCouponError('');
+  };
+  const clearCoupon = ()=>{ setAppliedCoupon(null); setCouponInput(''); setCouponError(''); };
+
+  // Customer Auth
+  const handleCustomerRegister = (e)=>{
+    e.preventDefault();
+    setAuthError('');
+    const { email, password, name, birthday, referral, newsletter } = authForm;
+    if(!email||!password||!name){ setAuthError(lang==='zh'?'請填寫必填項':'Fill required fields'); return; }
+    if(password.length<6){ setAuthError(lang==='zh'?'密碼至少6位':'Password at least 6 chars'); return; }
+    if(data.customers.find(c=>c.email.toLowerCase()===email.toLowerCase())){ setAuthError(lang==='zh'?'郵箱已註冊':'Email already registered'); return; }
+    const newId = Math.max(...data.customers.map(c=>c.id),0)+1;
+    let referredByCustomer = null;
+    if(referral){
+      referredByCustomer = data.customers.find(c=>c.referralCode===referral);
     }
-    setIsAdminLoggedIn(false);
+    const newCustomer = {
+      id: newId,
+      email, name, password, birthday: birthday||null,
+      phone: '',
+      tier: null,
+      points: 0,
+      totalSpent: 0,
+      referralCode: generateReferralCode(name),
+      referredBy: referredByCustomer?.referralCode||null,
+      avatar: `https://i.pravatar.cc/150?img=${newId%70}`,
+      joinedAt: new Date().toISOString().slice(0,10),
+      lastOrderAt: null,
+      status: 'active',
+      addresses: [],
+      wishlist: [],
+      ordersCount: 0,
+      newsletter: !!newsletter
+    };
+    // Referral bonus to referrer
+    const updated = { ...data };
+    if(referredByCustomer){
+      const tiers = updated.settings.membership?.tiers||[];
+      const referrerTier = tiers.find(t=>t.id===referredByCustomer.tier);
+      const bonus = referrerTier?.referralBonus || 50;
+      // For signature referred logic
+      if(referredByCustomer.tier==='classic' && newCustomer.tier===null){
+        // classic refers classic gets 50, refers signature later will get 80 when upgraded – simplified to 50 now
+      }
+      updated.customers = updated.customers.map(c=> c.id===referredByCustomer.id ? { ...c, points: (c.points||0)+bonus } : c);
+    }
+    updated.customers = [...updated.customers, newCustomer];
+    saveAllData(updated);
+    setCurrentCustomer(newCustomer);
+    setAuthForm({ email:'', password:'', name:'', birthday:'', referral:'', newsletter: true });
+    setActiveTab('account');
+    setAccountTab('overview');
+  };
+  const handleCustomerLogin = (e)=>{
+    e.preventDefault();
+    setAuthError('');
+    const { email, password } = authForm;
+    const found = data.customers.find(c=>c.email.toLowerCase()===email.toLowerCase() && c.password===password);
+    if(!found){ setAuthError(lang==='zh'?'郵箱或密碼錯誤':'Invalid email or password'); return; }
+    if(found.status==='inactive'){ setAuthError(lang==='zh'?'帳號已停用':'Account inactive'); return; }
+    setCurrentCustomer(found);
+    setActiveTab('account');
+    setAccountTab('overview');
+  };
+  const handleCustomerLogout = ()=>{
+    setCurrentCustomer(null);
     setActiveTab('home');
-    setBackupAccessGranted(false);
-    setBackupReauthOpen(false);
-    setBackupPasswordInput('');
-    setBackupLoginError('');
+  };
 
-    // Clear /admin and #/admin from URL back to standard site URL
-    try {
-      if (window.history && window.history.pushState) {
-        let cleanPath = window.location.pathname;
-        if (cleanPath.endsWith('/admin') || cleanPath.endsWith('/admin/')) {
-          cleanPath = cleanPath.replace(/\/admin\/?$/, '');
-          if (!cleanPath) cleanPath = '/';
-        }
-        const cleanUrl = new URL(window.location.href);
-        cleanUrl.pathname = cleanPath;
-        if (cleanUrl.hash === '#/admin' || cleanUrl.hash === '#admin') {
-          cleanUrl.hash = '';
-        }
-        cleanUrl.searchParams.delete('admin');
-        cleanUrl.searchParams.delete('page');
-        window.history.pushState({}, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+  const handleCheckout = ()=>{
+    if(cart.length===0) return;
+    // Validate form
+    const { name, email, phone, address, city } = checkoutForm;
+    if(!name||!email||!phone||!address||!city){ alert(lang==='zh'?'請填寫完整收貨資訊':'Please fill shipping info'); setCheckoutStep(1); return; }
+    // Create order
+    const orderId = generateOrderId();
+    const tier = fullCurrentCustomer ? (data.settings.membership?.tiers?.find(t=>t.id===fullCurrentCustomer.tier) || getMembershipTier(data.settings.membership?.tiers||[], fullCurrentCustomer.totalSpent||0)) : null;
+    const isBday = fullCurrentCustomer ? isBirthdayMonth(fullCurrentCustomer.birthday) : false;
+    const pointsEarned = calcPoints(cartSubtotal - discountAmount, tier, isBday, data.settings.membership?.points?.birthdayMonthLimit||10000);
+
+    const order = {
+      id: orderId,
+      customerId: fullCurrentCustomer?.id || null,
+      email: email,
+      items: cart.map(ci=>{
+        const prod = data.products.find(p=>p.id===ci.productId);
+        let price = prod?.price||0;
+        let title = prod?.title||{zh:'',en:''};
+        if(ci.variantId){ const v=prod?.variants?.find(v=>v.id===ci.variantId); if(v) { price=v.price; if(v.name) title=v.name; } }
+        return { productId: ci.productId, variantId: ci.variantId, qty: ci.qty, price, title };
+      }),
+      subtotal: cartSubtotal,
+      discount: discountAmount,
+      shipping: shippingCost,
+      tax: 0,
+      total: cartTotal,
+      couponCode: appliedCoupon?.code||null,
+      gwpEligible: !!gwpEligible,
+      gwpDetail: gwpEligible,
+      paymentMethod: checkoutForm.paymentMethod,
+      paymentStatus: 'paid',
+      fulfillmentStatus: 'processing',
+      shippingAddress: { name, address, city, phone, email },
+      pointsEarned,
+      pointsUsed: 0,
+      notes: checkoutForm.notes,
+      createdAt: new Date().toISOString()
+    };
+
+    // Update stock, customers, orders
+    const updated = { ...data };
+    // Deduct stock
+    updated.products = updated.products.map(p=>{
+      const itemsForProduct = cart.filter(c=>c.productId===p.id);
+      if(itemsForProduct.length===0) return p;
+      let newProd = { ...p };
+      // if has variants
+      if(newProd.variants && newProd.variants.length>0){
+        newProd.variants = newProd.variants.map(v=>{
+          const match = itemsForProduct.find(c=>c.variantId===v.id);
+          if(match) return { ...v, stock: Math.max(0, (v.stock||0)-match.qty) };
+          return v;
+        });
+        // also reduce overall stock as sum? keep overall as max variant? simple reduce by total qty
+        const totalQty = itemsForProduct.reduce((s,c)=>s+c.qty,0);
+        newProd.stock = Math.max(0, (newProd.stock||0)-totalQty);
       } else {
-        if (window.location.hash === '#/admin' || window.location.hash === '#admin') {
-          window.location.hash = '';
-        }
+        const totalQty = itemsForProduct.reduce((s,c)=>s+c.qty,0);
+        newProd.stock = Math.max(0, (newProd.stock||0)-totalQty);
       }
-    } catch (e) {
-      console.error('Error clearing admin URL:', e);
-    }
-    window.scrollTo(0, 0);
-  };
-
-  const resetAdminEditors = () => {
-    setEditingSlide(null);
-    setEditingTimetable(null);
-    setEditingEvent(null);
-    setEditingMinistry(null);
-    setEditingBulletin(null);
-    setEditingCellGroup(null);
-    setEditingLeader(null);
-    setEditingSermon(null);
-    setEditingService(null);
-    setEditingOfferingMethod(null);
-    setEditingGuideSection(null);
-  };
-
-  const requestBackupAccess = () => {
-    resetAdminEditors();
-    setBackupAccessGranted(false);
-    setBackupPasswordInput('');
-    setBackupLoginError('');
-    setBackupReauthOpen(true);
-  };
-
-  const handleBackupReauth = async (e) => {
-    e.preventDefault();
-
-    try {
-      const res = await fetch(AUTH_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ password: backupPasswordInput })
+      return newProd;
+    });
+    // Update customer if logged in
+    if(fullCurrentCustomer){
+      updated.customers = updated.customers.map(c=>{
+        if(c.id!==fullCurrentCustomer.id) return c;
+        const newTotal = (c.totalSpent||0)+cartTotal;
+        let newTier = c.tier;
+        if(!newTier && newTotal>=1500) newTier='classic';
+        if(newTotal>=8000) newTier='signature';
+        const newPoints = (c.points||0)+pointsEarned;
+        return { ...c, totalSpent: newTotal, points: newPoints, lastOrderAt: new Date().toISOString().slice(0,10), ordersCount: (c.ordersCount||0)+1, tier: newTier };
       });
-      const result = await res.json();
-
-      if (result.ok) {
-        setBackupAccessGranted(true);
-        setBackupReauthOpen(false);
-        setBackupLoginError('');
-        setBackupPasswordInput('');
-        setAdminActiveSection('backup');
-      } else {
-        setBackupLoginError(result.error || (lang === 'zh' ? '密码不正确，请重新验证' : 'Incorrect password, please verify again'));
-      }
-    } catch (err) {
-      console.error('Backup re-auth error:', err);
-      setBackupLoginError(lang === 'zh' ? '网络错误，请重试' : 'Network error, please try again');
     }
+    updated.orders = [order, ...(updated.orders||[])];
+    // Update coupons used count
+    if(appliedCoupon){
+      updated.coupons = updated.coupons.map(cp=> cp.id===appliedCoupon.id ? { ...cp, usedCount: (cp.usedCount||0)+1 } : cp);
+    }
+
+    saveAllData(updated);
+    // Update currentCustomer state
+    if(fullCurrentCustomer){
+      const updatedCust = updated.customers.find(c=>c.id===fullCurrentCustomer.id);
+      if(updatedCust) setCurrentCustomer(updatedCust);
+    }
+    setCart([]);
+    clearCoupon();
+    setCheckoutForm({ name:'', email:'', phone:'', address:'', city:'', notes:'', paymentMethod:'credit_card' });
+    setCheckoutStep(1);
+    setActiveTab('account');
+    setAccountTab('orders');
+    // Show success
+    setTimeout(()=> alert(lang==='zh'?`下單成功！訂單號 ${orderId} 已獲得 ${pointsEarned} 積分`:`Order placed! Order ${orderId} earned ${pointsEarned} points`),100);
   };
 
-  // 1. Settings Update
-  const updateSetting = (key, subKey, value) => {
-    const updated = { ...data };
-    if (subKey) {
-      updated.settings[key][subKey] = value;
-    } else {
-      updated.settings[key] = value;
-    }
+  // Admin CRUD helpers
+  const handleMoveItem = (path, index, direction)=>{
+    const updated={...data};
+    const keys=path.split('.');
+    let parent=updated;
+    for(let i=0;i<keys.length-1;i++){ parent[keys[i]]={...parent[keys[i]]}; parent=parent[keys[i]]; }
+    const lastKey=keys[keys.length-1];
+    const arr=[...(parent[lastKey]||[])];
+    if(direction==='up'&&index>0) [arr[index],arr[index-1]]=[arr[index-1],arr[index]];
+    else if(direction==='down'&&index<arr.length-1) [arr[index],arr[index+1]]=[arr[index+1],arr[index]];
+    else return;
+    parent[lastKey]=arr;
+    saveAllData(updated);
+  };
+  const handleSaveProduct = (prod)=>{
+    const updated={...data};
+    if(prod.id==='new'){ const newId=Math.max(...updated.products.map(p=>p.id),0)+1; updated.products.push({...prod, id:newId}); }
+    else updated.products = updated.products.map(p=>p.id===prod.id?prod:p);
+    saveAllData(updated); setEditingProduct(null);
+  };
+  const handleDeleteProduct = (id)=>{ if(window.confirm(ta('confirmDelete'))){ const updated={...data}; updated.products=updated.products.filter(p=>p.id!==id); saveAllData(updated); } };
+  const handleSaveCategory = (cat)=>{
+    const updated={...data};
+    if(cat.id==='new'){ const newId='cat-'+Date.now(); updated.categories.push({...cat, id:newId}); }
+    else updated.categories=updated.categories.map(c=>c.id===cat.id?cat:c);
+    saveAllData(updated); setEditingCategory(null);
+  };
+  const handleDeleteCategory = (id)=>{ if(window.confirm(ta('confirmDelete'))){ const updated={...data}; updated.categories=updated.categories.filter(c=>c.id!==id); saveAllData(updated); } };
+  const handleSaveBanner = (ban)=>{
+    const updated={...data};
+    if(ban.id==='new'){ const newId=Math.max(...updated.carousel.map(b=>b.id),0)+1; updated.carousel.push({...ban, id:newId}); }
+    else updated.carousel=updated.carousel.map(b=>b.id===ban.id?ban:b);
+    saveAllData(updated); setEditingBanner(null);
+  };
+  const handleDeleteBanner = (id)=>{ if(window.confirm(ta('confirmDelete'))){ const updated={...data}; updated.carousel=updated.carousel.filter(b=>b.id!==id); saveAllData(updated); if(currentSlide>=updated.carousel.length) setCurrentSlide(0);} };
+  const handleSaveBundle = (bundle)=>{
+    const updated={...data};
+    if(bundle.id==='new'){ const newId=Math.max(...updated.bundles.map(b=>b.id),0)+1; updated.bundles.push({...bundle, id:newId}); }
+    else updated.bundles=updated.bundles.map(b=>b.id===bundle.id?bundle:b);
+    saveAllData(updated); setEditingBundle(null);
+  };
+  const handleDeleteBundle = (id)=>{ if(window.confirm(ta('confirmDelete'))){ const updated={...data}; updated.bundles=updated.bundles.filter(b=>b.id!==id); saveAllData(updated);} };
+  const handleSaveCoupon = (cp)=>{
+    const updated={...data};
+    if(cp.id==='new'){ const newId=Math.max(...updated.coupons.map(c=>c.id),0)+1; updated.coupons.push({...cp, id:newId}); }
+    else updated.coupons=updated.coupons.map(c=>c.id===cp.id?cp:c);
+    saveAllData(updated); setEditingCoupon(null);
+  };
+  const handleDeleteCoupon = (id)=>{ if(window.confirm(ta('confirmDelete'))){ const updated={...data}; updated.coupons=updated.coupons.filter(c=>c.id!==id); saveAllData(updated);} };
+  const handleSaveGwp = (g)=>{
+    const updated={...data};
+    if(g.id==='new'){ const newId=Math.max(...(updated.settings.gwp?.rules||[]).map(r=>r.id),0)+1; const rules=[...(updated.settings.gwp?.rules||[]), {...g, id:newId}]; updated.settings={...updated.settings, gwp:{...(updated.settings.gwp||{}), rules}}; }
+    else { const rules=(updated.settings.gwp?.rules||[]).map(r=>r.id===g.id?g:r); updated.settings={...updated.settings, gwp:{...(updated.settings.gwp||{}), rules}}; }
+    saveAllData(updated); setEditingGwp(null);
+  };
+  const handleDeleteGwp = (id)=>{ if(window.confirm(ta('confirmDelete'))){ const updated={...data}; const rules=(updated.settings.gwp?.rules||[]).filter(r=>r.id!==id); updated.settings={...updated.settings, gwp:{...(updated.settings.gwp||{}), rules}}; saveAllData(updated);} };
+  const handleSaveCustomer = (cust)=>{
+    const updated={...data};
+    updated.customers=updated.customers.map(c=>c.id===cust.id?cust:c);
+    saveAllData(updated); setEditingCustomer(null);
+  };
+  const handleDeleteCustomer = (id)=>{ if(window.confirm(ta('confirmDelete'))){ const updated={...data}; updated.customers=updated.customers.filter(c=>c.id!==id); saveAllData(updated);} };
+  const handleSaveReview = (rev)=>{
+    const updated={...data};
+    if(rev.id==='new'){ const newId=Math.max(...updated.reviews.map(r=>r.id),0)+1; updated.reviews.push({...rev, id:newId}); }
+    else updated.reviews=updated.reviews.map(r=>r.id===rev.id?rev:r);
+    saveAllData(updated); setEditingReview(null);
+  };
+  const handleDeleteReview = (id)=>{ if(window.confirm(ta('confirmDelete'))){ const updated={...data}; updated.reviews=updated.reviews.filter(r=>r.id!==id); saveAllData(updated);} };
+  const handleUpdateOrderStatus = (orderId, field, value)=>{
+    const updated={...data};
+    updated.orders=updated.orders.map(o=>o.id===orderId?{...o,[field]:value}:o);
     saveAllData(updated);
   };
 
-
-
-  // 2. Carousel Actions
-  const handleSaveSlide = (slide) => {
-    const updated = { ...data };
-    if (slide.id === 'new') {
-      const newId = Math.max(...updated.carousel.map(c => c.id), 0) + 1;
-      updated.carousel.push({ ...slide, id: newId });
-    } else {
-      updated.carousel = updated.carousel.map(c => c.id === slide.id ? slide : c);
-    }
+  const updateSetting = (key, subKey, value)=>{
+    const updated={...data};
+    if(subKey){ updated.settings[key]={...(updated.settings[key]||{}), [subKey]:value}; }
+    else updated.settings[key]=value;
     saveAllData(updated);
-    setEditingSlide(null);
   };
-
-  const handleDeleteSlide = (id) => {
-    if (window.confirm(lang === 'zh' ? '确定要删除这张幻灯片吗？' : 'Are you sure you want to delete this slide?')) {
-      const updated = { ...data };
-      updated.carousel = updated.carousel.filter(c => c.id !== id);
-      saveAllData(updated);
-      if (currentSlide >= updated.carousel.length) {
-        setCurrentSlide(0);
-      }
-    }
-  };
-
-  // Generic reorder helper: move array items up/down without delete+re-add
-  // Supports top-level keys (e.g. 'timetable') and nested paths (e.g. 'offerings.methods')
-  const handleMoveItem = (path, index, direction) => {
-    const updated = { ...data };
-    const keys = path.split('.');
-    let parent = updated;
-    for (let i = 0; i < keys.length - 1; i++) {
-      parent[keys[i]] = { ...parent[keys[i]] };
-      parent = parent[keys[i]];
-    }
-    const lastKey = keys[keys.length - 1];
-    const arr = [...(parent[lastKey] || [])];
-    if (direction === 'up' && index > 0) {
-      [arr[index], arr[index - 1]] = [arr[index - 1], arr[index]];
-    } else if (direction === 'down' && index < arr.length - 1) {
-      [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
-    } else {
-      return;
-    }
-    parent[lastKey] = arr;
+  const updateNestedSetting = (path, value)=>{
+    const keys=path.split('.');
+    const updated={...data};
+    let cur=updated.settings;
+    for(let i=0;i<keys.length-1;i++){ if(!cur[keys[i]]) cur[keys[i]]={}; cur=cur[keys[i]]; }
+    cur[keys[keys.length-1]]=value;
     saveAllData(updated);
   };
 
-  const handleMoveSlide = (index, direction) => handleMoveItem('carousel', index, direction);
-
-  // 3. Timetable Actions
-  const handleSaveTimetable = (item) => {
-    const targetType = item._type || adminTimetableSubSection;
-    const origType = item._originalType || targetType;
-    const updated = { ...data };
-
-    const getArrayKey = (t) => {
-      if (t === 'ministry') return 'ministryTimetable';
-      if (t === 'cellgroup') return 'cellGroupTimetable';
-      return 'timetable';
-    };
-
-    const targetKey = getArrayKey(targetType);
-    const origKey = getArrayKey(origType);
-
-    if (!updated[targetKey]) updated[targetKey] = [];
-    if (!updated[origKey]) updated[origKey] = [];
-
-    // Strip temporary flags before saving to storage
-    const cleanedItem = { ...item };
-    delete cleanedItem._type;
-    delete cleanedItem._originalType;
-
-    if (item.id === 'new') {
-      const newId = Math.max(...updated[targetKey].map(t => t.id), 0) + 1;
-      updated[targetKey].push({ ...cleanedItem, id: newId });
-    } else if (targetType !== origType) {
-      // Item moved between timetable categories (e.g. from service to cellgroup)
-      updated[origKey] = updated[origKey].filter(t => t.id !== item.id);
-      const newId = Math.max(...updated[targetKey].map(t => t.id), 0) + 1;
-      updated[targetKey].push({ ...cleanedItem, id: newId });
-    } else {
-      updated[targetKey] = updated[targetKey].map(t => t.id === item.id ? cleanedItem : t);
+  // Filtering shop products
+  const filteredProducts = useMemo(()=>{
+    let list = [...(data.products||[])].filter(p=>p.active!==false);
+    if(shopCategoryFilter!=='all') list=list.filter(p=>p.categoryIds?.includes(shopCategoryFilter));
+    if(shopSkinFilter!=='all') list=list.filter(p=>p.categoryIds?.includes(shopSkinFilter));
+    if(shopSeriesFilter!=='all') list=list.filter(p=>p.categoryIds?.includes(shopSeriesFilter));
+    if(shopSearch.trim()){
+      const q=shopSearch.toLowerCase();
+      list=list.filter(p=> (t(p.title).toLowerCase().includes(q) || t(p.description).toLowerCase().includes(q) || p.tags?.join(' ').toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q)));
     }
-    saveAllData(updated);
-    setEditingTimetable(null);
+    // price range
+    list=list.filter(p=> p.price>=shopPriceRange[0] && p.price<=shopPriceRange[1]);
+    // sort
+    if(shopSort==='price-low') list.sort((a,b)=>a.price-b.price);
+    else if(shopSort==='price-high') list.sort((a,b)=>b.price-a.price);
+    else if(shopSort==='rating') list.sort((a,b)=>(b.rating||0)-(a.rating||0));
+    else if(shopSort==='bestseller') list.sort((a,b)=>(b.reviewCount||0)-(a.reviewCount||0));
+    else if(shopSort==='newest') list.sort((a,b)=> new Date(b.createdAt||0)-new Date(a.createdAt||0));
+    // featured first for default
+    else if(shopSort==='featured') list.sort((a,b)=> (b.isFeatured?1:0)-(a.isFeatured?1:0));
+    return list;
+  },[data.products, shopCategoryFilter, shopSkinFilter, shopSeriesFilter, shopSearch, shopSort, shopPriceRange, lang]);
+
+  // Top nav categories grouping
+  const navCategories = {
+    series: data.categories.filter(c=>c.type==='series'&&c.active),
+    faceCare: data.categories.filter(c=>c.type==='faceCare'&&c.active),
+    skinType: data.categories.filter(c=>c.type==='skinType'&&c.active)
   };
 
-  const handleDeleteTimetable = (id, type = adminTimetableSubSection) => {
-    if (window.confirm(lang === 'zh' ? '确定要删除此聚会时间吗？' : 'Are you sure you want to delete this service schedule?')) {
-      const updated = { ...data };
-      let arrayKey = 'timetable';
-      if (type === 'ministry') arrayKey = 'ministryTimetable';
-      if (type === 'cellgroup') arrayKey = 'cellGroupTimetable';
-
-      if (!updated[arrayKey]) updated[arrayKey] = [];
-      updated[arrayKey] = updated[arrayKey].filter(t => t.id !== id);
-      saveAllData(updated);
-    }
+  // Backup actions (same as old)
+  const handleExportData = ()=>{
+    const jsonStr=JSON.stringify(stripSensitiveData(data),null,2);
+    const blob=new Blob([jsonStr],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a'); link.href=url; link.download=`cs12-data-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
   };
-
-  // 4. Ministry Actions
-  const handleSaveMinistry = (min) => {
-    const updated = { ...data };
-    if (min.id === 'new') {
-      const newId = Math.max(...updated.ministries.map(m => m.id), 0) + 1;
-      updated.ministries.push({ ...min, id: newId });
-    } else {
-      updated.ministries = updated.ministries.map(m => m.id === min.id ? min : m);
-    }
-    saveAllData(updated);
-    setEditingMinistry(null);
-  };
-
-  const handleDeleteMinistry = (id) => {
-    if (window.confirm(lang === 'zh' ? '确定要删除此项事工吗？' : 'Are you sure you want to delete this ministry?')) {
-      const updated = { ...data };
-      updated.ministries = updated.ministries.filter(m => m.id !== id);
-      saveAllData(updated);
-    }
-  };
-
-  // 5. Event Actions
-  const handleSaveEvent = (evt) => {
-    const updated = { ...data };
-    if (evt.id === 'new') {
-      const newId = Math.max(...updated.events.map(e => e.id), 0) + 1;
-      updated.events.push({ ...evt, id: newId });
-    } else {
-      updated.events = updated.events.map(e => e.id === evt.id ? evt : e);
-    }
-    saveAllData(updated);
-    setEditingEvent(null);
-  };
-
-  const handleDeleteEvent = (id) => {
-    if (window.confirm(lang === 'zh' ? '确定要删除此活动吗？' : 'Are you sure you want to delete this event?')) {
-      const updated = { ...data };
-      updated.events = updated.events.filter(e => e.id !== id);
-      saveAllData(updated);
-    }
-  };
-
-  // Fellowship Highlights Actions
-  const handleSaveFellowshipHighlight = (item) => {
-    const updated = { ...data };
-    if (!updated.fellowshipHighlights) updated.fellowshipHighlights = [];
-    if (item.isNew) {
-      const { isNew, ...savedItem } = item;
-      updated.fellowshipHighlights.push(savedItem);
-    } else {
-      updated.fellowshipHighlights = updated.fellowshipHighlights.map(h => h.id === item.id ? item : h);
-    }
-    saveAllData(updated);
-    setEditingFellowshipHighlight(null);
-  };
-
-  const handleDeleteFellowshipHighlight = (id) => {
-    if (window.confirm(lang === 'zh' ? '确定要删除此聚会点滴集吗？' : 'Are you sure you want to delete this highlight?')) {
-      const updated = { ...data };
-      if (!updated.fellowshipHighlights) updated.fellowshipHighlights = [];
-      updated.fellowshipHighlights = updated.fellowshipHighlights.filter(h => h.id !== id);
-      saveAllData(updated);
-    }
-  };
-
-    // 7. Bulletin Actions
-  const handleSaveBulletin = (item) => {
-    const updated = { ...data };
-    if (!updated.bulletins) updated.bulletins = [];
-    if (item.id === 'new') {
-      const newId = Math.max(...updated.bulletins.map(b => b.id), 0) + 1;
-      updated.bulletins.push({ ...item, id: newId });
-    } else {
-      updated.bulletins = updated.bulletins.map(b => b.id === item.id ? item : b);
-    }
-    saveAllData(updated);
-    setEditingBulletin(null);
-  };
-
-  const handleDeleteBulletin = (id) => {
-    if (window.confirm(lang === 'zh' ? '确定要删除此家事吗？' : 'Are you sure you want to delete this bulletin?')) {
-      const updated = { ...data };
-      updated.bulletins = updated.bulletins.filter(b => b.id !== id);
-      saveAllData(updated);
-    }
-  };
-
-  // 8. Cell Group Actions
-  const handleSaveCellGroup = (item) => {
-    const updated = { ...data };
-    if (!updated.cellGroups) updated.cellGroups = [];
-    if (item.id === 'new') {
-      const newId = Math.max(...updated.cellGroups.map(c => c.id), 0) + 1;
-      updated.cellGroups.push({ ...item, id: newId });
-    } else {
-      updated.cellGroups = updated.cellGroups.map(c => c.id === item.id ? item : c);
-    }
-    saveAllData(updated);
-    setEditingCellGroup(null);
-  };
-
-  const handleDeleteCellGroup = (id) => {
-    if (window.confirm(lang === 'zh' ? '确定要删除此小组吗？' : 'Are you sure you want to delete this cell group?')) {
-      const updated = { ...data };
-      updated.cellGroups = updated.cellGroups.filter(c => c.id !== id);
-      saveAllData(updated);
-    }
-  };
-
-  // 9. Leadership/Pastor Actions
-  const handleSaveLeader = (item) => {
-    const updated = { ...data };
-    if (!updated.leadership) updated.leadership = [];
-    const normalized = {
-      ...item,
-      category: getLeaderCategory(item),
-    };
-    if (normalized.id === 'new') {
-      const newId = Math.max(...updated.leadership.map(l => l.id), 0) + 1;
-      updated.leadership.push({ ...normalized, id: newId });
-    } else {
-      updated.leadership = updated.leadership.map(l => l.id === normalized.id ? normalized : l);
-    }
-    saveAllData(updated);
-    setEditingLeader(null);
-  };
-
-  const handleDeleteLeader = (id) => {
-    if (window.confirm(lang === 'zh' ? '确定要删除此牧者/同工吗？' : 'Are you sure you want to delete this leader?')) {
-      const updated = { ...data };
-      updated.leadership = updated.leadership.filter(l => l.id !== id);
-      saveAllData(updated);
-    }
-  };
-
-  // 9.5 Sermon Actions
-  const handleSaveSermon = (item) => {
-    const updated = { ...data };
-    if (!updated.sermons) updated.sermons = [];
-    if (item.id === 'new') {
-      const newId = Math.max(...updated.sermons.map(s => s.id), 0) + 1;
-      updated.sermons.push({ ...item, id: newId });
-    } else {
-      updated.sermons = updated.sermons.map(s => s.id === item.id ? item : s);
-    }
-    saveAllData(updated);
-    setEditingSermon(null);
-  };
-
-  const handleDeleteSermon = (id) => {
-    if (window.confirm(lang === 'zh' ? '确定要删除此讲道吗？' : 'Are you sure you want to delete this sermon?')) {
-      const updated = { ...data };
-      updated.sermons = updated.sermons.filter(s => s.id !== id);
-      saveAllData(updated);
-    }
-  };
-
-  // 9.7 Service Library Actions
-  const handleSaveService = (item) => {
-    const updated = { ...data };
-    if (!updated.services) updated.services = [];
-    if (item.id === 'new') {
-      const newId = Math.max(...updated.services.map(s => s.id), 0) + 1;
-      updated.services.push({ ...item, id: newId });
-    } else {
-      updated.services = updated.services.map(s => s.id === item.id ? item : s);
-    }
-    saveAllData(updated);
-    setEditingService(null);
-  };
-
-  const handleDeleteService = (id) => {
-    if (window.confirm(lang === 'zh' ? '确定要删除此崇拜录影吗？' : 'Are you sure you want to delete this service recording?')) {
-      const updated = { ...data };
-      updated.services = updated.services.filter(s => s.id !== id);
-      saveAllData(updated);
-    }
-  };
-
-  // 9.8 Page Visibility Actions
-  const togglePageVisibility = (pageKey) => {
-    const updated = { ...data };
-    if (!updated.pageVisibility) updated.pageVisibility = {};
-    updated.pageVisibility[pageKey] = !updated.pageVisibility[pageKey];
-    saveAllData(updated);
-  };
-
-    // 10. Update Offerings
-  const updateOfferings = (key, value) => {
-    const updated = { ...data };
-    if (!updated.offerings) updated.offerings = {};
-    updated.offerings[key] = value;
-    saveAllData(updated);
-  };
-
-  const handleSaveOfferingMethod = (method, index) => {
-    const updated = { ...data };
-    if (!updated.offerings) updated.offerings = {};
-    if (!updated.offerings.methods) updated.offerings.methods = [];
-    
-    if (index !== undefined && index !== null && index >= 0) {
-      updated.offerings.methods[index] = { ...method };
-    } else {
-      const newId = Math.max(...updated.offerings.methods.map(m => m.id || 0), 0) + 1;
-      updated.offerings.methods.push({ ...method, id: newId });
-    }
-    saveAllData(updated);
-    setEditingOfferingMethod(null);
-  };
-
-  const handleDeleteOfferingMethod = (index) => {
-    if (window.confirm(lang === 'zh' ? '确定要删除此奉献方式吗？' : 'Are you sure you want to delete this giving method?')) {
-      const updated = { ...data };
-      if (!updated.offerings) updated.offerings = {};
-      updated.offerings.methods = [...(updated.offerings.methods || [])];
-      updated.offerings.methods.splice(index, 1);
-      saveAllData(updated);
-      setEditingOfferingMethod(null);
-    }
-  };
-
-  // 11. Update Maps
-  // 12. Update New Friend Guide
-  const updateNewFriendGuide = (key, value) => {
-    const updated = { ...data };
-    if (!updated.newFriendGuide) updated.newFriendGuide = {};
-    updated.newFriendGuide[key] = value;
-    saveAllData(updated);
-  };
-
-  const handleSaveGuideSection = (section, index) => {
-    const updated = { ...data };
-    if (!updated.newFriendGuide) updated.newFriendGuide = {};
-    if (!updated.newFriendGuide.sections) updated.newFriendGuide.sections = [];
-    // Strip temporary index field before saving
-    const { index: _idx, ...cleanSection } = section;
-    if (index !== undefined && index >= 0) {
-      // Preserve original id if editing existing
-      const existingId = updated.newFriendGuide.sections[index]?.id || cleanSection.id;
-      updated.newFriendGuide.sections[index] = { ...cleanSection, id: existingId };
-    } else {
-      const newId = Math.max(...(updated.newFriendGuide.sections.map(s => s.id) || [0]), 0) + 1;
-      updated.newFriendGuide.sections.push({ ...cleanSection, id: newId });
-    }
-    saveAllData(updated);
-  };
-
-  const handleDeleteGuideSection = (index) => {
-    const updated = { ...data };
-    if (!updated.newFriendGuide || !updated.newFriendGuide.sections) return;
-    updated.newFriendGuide.sections.splice(index, 1);
-    saveAllData(updated);
-  };
-
-  // 6. Backup Actions
-  const handleExportData = () => {
-    const jsonStr = JSON.stringify(stripSensitiveData(data), null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `bmbcc-church-data-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportData = (e) => {
+  const handleImportData = (e)=>{
     e.preventDefault();
-    try {
-      const parsed = JSON.parse(importJsonText);
-      if (!parsed.settings || !parsed.carousel || !parsed.timetable || !parsed.ministries || !parsed.events) {
-        throw new Error(lang === 'zh' ? 'JSON数据结构不完整' : 'Incomplete JSON data structure');
-      }
-      if (!parsed.ministryTimetable) parsed.ministryTimetable = [];
-      if (!parsed.cellGroupTimetable) parsed.cellGroupTimetable = [];
+    try{
+      const parsed=JSON.parse(importJsonText);
+      if(!parsed.settings||!parsed.products) throw new Error(lang==='zh'?'JSON结构不完整':'Incomplete JSON');
       saveAllData(parsed);
-      setImportJsonText('');
-      setImportError('');
-      triggerAdminSuccess("网站数据成功导入！Web data imported successfully!");
-    } catch (err) {
-      setImportError(lang === 'zh' ? `导入失败: ${err.message}` : `Import failed: ${err.message}`);
+      setImportJsonText(''); setImportError(''); triggerAdminSuccess(ta('saved'));
+    }catch(err){ setImportError((lang==='zh'?'导入失败: ':'Import failed: ')+err.message); }
+  };
+  const handleResetToDefault = ()=>{
+    if(window.confirm(lang==='zh'?'確定重置為出廠默認？所有修改將清空！':'Reset to factory defaults? All edits cleared!')){
+      saveAllData(initialData); triggerAdminSuccess(ta('saved'));
     }
+  };
+  const resetAdminEditors = ()=>{
+    setEditingProduct(null); setEditingCategory(null); setEditingBanner(null); setEditingBundle(null); setEditingCoupon(null); setEditingGwp(null); setEditingCustomer(null); setEditingReview(null); setSelectedOrder(null);
+  };
+  const requestBackupAccess = ()=>{
+    resetAdminEditors(); setBackupAccessGranted(false); setBackupPasswordInput(''); setBackupLoginError(''); setBackupReauthOpen(true);
+  };
+  const handleBackupReauth = async (e)=>{
+    e.preventDefault();
+    try{
+      const res=await fetch(AUTH_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({password:backupPasswordInput})});
+      const result=await res.json();
+      if(result.ok){ setBackupAccessGranted(true); setBackupReauthOpen(false); setBackupLoginError(''); setBackupPasswordInput(''); setAdminActiveSection('backup'); }
+      else setBackupLoginError(result.error|| (lang==='zh'?'密碼不正確':'Incorrect password'));
+    }catch{ setBackupLoginError(lang==='zh'?'網絡錯誤':'Network error'); }
   };
 
-  const handleResetToDefault = () => {
-    if (window.confirm(lang === 'zh' ? '确定要重置所有网站内容为出厂默认设置吗？您当前的所有修改都将被清空！' : 'Are you sure you want to reset all website content to factory defaults? All your current edits will be cleared!')) {
-      saveAllData(initialData);
-      triggerAdminSuccess("重置成功！Reset successfully!");
-    }
-  };
+  // Render helper for stars
+  const Stars = ({rating=5})=> <div className="flex items-center gap-0.5">{[...Array(5)].map((_,i)=><Star key={i} size={12} className={`${i<Math.floor(rating)?'fill-amber-400 text-amber-400':'text-gray-300'}`} />)}<span className="text-[11px] text-gray-500 ml-1">{rating.toFixed(1)}</span></div>;
 
   return (
-    <MediaUploadContext.Provider value={data.settings?.mediaUploadsEnabled === true}>
+    <MediaUploadContext.Provider value={data.settings?.mediaUploadsEnabled===true}>
       <div className="min-h-screen flex flex-col font-sans" style={{ fontFamily: 'var(--site-font-family)' }}>
-      
-      {/* ADMIN SESSION ACTIVE TOP BANNER - Appears when logged in as admin but viewing live site */}
-      {isAdminLoggedIn && activeTab !== 'admin' && (
-        <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-white px-4 py-1.5 text-xs font-bold flex items-center justify-between shadow-sm z-50 shrink-0 sticky top-0">
-          <div className="flex items-center gap-2">
-            <Shield size={14} className="animate-pulse text-amber-100 shrink-0" />
-            <span className="truncate max-w-[260px] sm:max-w-none">
-              {lang === 'zh' ? '管理员已登录（正预览公开网站）' : 'Admin Session Active (Previewing Live Site)'}
-            </span>
-          </div>
-          <button
-            onClick={() => switchTab('admin')}
-            className="bg-white/20 hover:bg-white/30 text-white px-3 py-0.5 rounded text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 whitespace-nowrap shadow-xs"
-          >
-            <span>{lang === 'zh' ? '返回后台控制台 »' : 'Return to Admin Console »'}</span>
-          </button>
-        </div>
-      )}
-
-      {/* 1. TOP INFORMATION HEADER */}
-      <header className="bg-gray-900 text-gray-300 text-xs py-2 px-4 sm:px-6 md:px-8 border-b border-gray-800 transition-all">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1">
-              <Phone size={13} className="text-primary" />
-              <span>{data.settings.contactPhone}</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <Mail size={13} className="text-primary" />
-              <span>{data.settings.contactEmail}</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1 text-center sm:text-right">
-              <MapPin size={13} className="text-primary shrink-0" />
-              <span className="truncate max-w-[280px] md:max-w-md">{data.settings.contactAddress}</span>
-            </span>
-          </div>
-        </div>
-      </header>
-
-      {/* 2. NAVIGATION BAR */}
-      <nav className="bg-white sticky top-0 z-40 shadow-sm transition-all border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-20">
-            <div className="flex items-center shrink-0">
-              <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => switchTab('home')}>
-                {data.settings.headerLogo ? (
-                  <img
-                    src={data.settings.headerLogo}
-                    alt={`${t(data.settings.churchName)} logo`}
-                    className="w-12 h-12 rounded-xl object-contain border border-gray-100 bg-white p-1 shadow-sm"
-                  />
-                ) : (
-                  <div className="bg-primary hover:bg-primary-dark text-white p-2.5 rounded-xl shadow-md shadow-primary/20 transition-all">
-                    {/* Default cross shown until a logo URL is set in Admin Settings. */}
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m-6-8h12" />
-                    </svg>
-                  </div>
-                )}
-                <div>
-                  <span className="font-bold text-lg md:text-xl text-gray-900 block leading-tight tracking-wide font-sans">
-                    {t(data.settings.churchName)}
-                  </span>
-                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">
-                    {data.settings.churchAbbreviation} • {t(data.settings.churchTagline)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Desktop Navigation Links - Grouped */}
-            <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
-              {(() => {
-                const vis = data.pageVisibility || {};
-                const navGroups = [
-                  { id: 'home', label: lang === 'zh' ? '首页' : 'Home', standalone: true },
-                  { id: 'about', label: lang === 'zh' ? '关于我们' : 'About Us', standalone: true },
-                  { 
-                    id: 'ministry', 
-                    label: lang === 'zh' ? '事工' : 'Ministry', 
-                    items: [
-                      vis.ministries !== false && { id: 'ministries', label: lang === 'zh' ? '主要事工' : 'Ministries' },
-                      vis.cellgroups !== false && { id: 'cellgroups', label: lang === 'zh' ? '小组' : 'Cell Groups' },
-                      vis.offerings !== false && { id: 'offerings', label: lang === 'zh' ? '奉献' : 'Offerings' }
-                    ].filter(Boolean)
-                  },
-                  { 
-                    id: 'gatherings', 
-                    label: lang === 'zh' ? '聚会' : 'Fellowship', 
-                    items: [
-                      vis.timetable !== false && { id: 'timetable', label: lang === 'zh' ? '聚会时间' : 'Timetable' },
-                      vis.events !== false && { id: 'events', label: lang === 'zh' ? '特别活动' : 'Events' },
-                      vis.fellowshipHighlights !== false && { id: 'fellowshipHighlights', label: lang === 'zh' ? '聚会点滴' : 'Fellowship Highlights' }
-                    ].filter(Boolean)
-                  },
-                  { 
-                    id: 'resources', 
-                    label: lang === 'zh' ? '资源' : 'Resources', 
-                    items: [
-                      vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '家事与讲道' : 'Bulletins & Sermons' },
-                      vis.services !== false && { id: 'services', label: lang === 'zh' ? '崇拜与敬拜' : 'Services & Worships' },
-                      vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide' }
-                    ].filter(Boolean)
-                  },
-                  vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps', standalone: true }
-                ].filter(g => g && (g.standalone || (g.items && g.items.length > 0)));
-
-                return navGroups.map((group) => {
-                  if (group.standalone) {
-                    return (
-                      <button
-                        key={group.id}
-                        onClick={() => switchTab(group.id)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                          activeTab === group.id
-                            ? 'bg-primary/10 text-primary font-semibold'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                        }`}
-                      >
-                        {group.label}
-                      </button>
-                    );
-                  }
-
-                  const isActive = group.items.some(item => item.id === activeTab);
-                  return (
-                    <div key={group.id} className="relative group/nav">
-                      <button
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
-                          isActive
-                            ? 'bg-primary/10 text-primary font-semibold'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                        }`}
-                      >
-                        {group.label}
-                        <ChevronDown size={14} className="transition-transform group-hover/nav:rotate-180" />
-                      </button>
-                      <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-all z-50">
-                        {group.items.map((item) => (
-                          <button
-                            key={item.id}
-                            onClick={() => switchTab(item.id)}
-                            className={`w-full text-left px-4 py-2.5 text-sm transition-all first:rounded-t-lg last:rounded-b-lg ${
-                              activeTab === item.id
-                                ? 'bg-primary/5 text-primary font-medium'
-                                : 'text-gray-700 hover:bg-gray-50'
-                            }`}
-                          >
-                            {item.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                });
-              })()}
-
-              <div className="h-5 w-[1px] bg-gray-200 mx-2"></div>
-
-              {/* Language Switch Button */}
-              <button
-                onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
-                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 flex items-center gap-1.5 transition-all text-sm"
-                title={lang === 'zh' ? 'Switch to English' : '切换到中文'}
-              >
-                <Languages size={17} />
-                <span className="font-medium text-xs uppercase tracking-wider">{lang === 'zh' ? 'EN' : '中文'}</span>
-              </button>
-
-              {/* Admin Mode Indicator / Return Button */}
-              {activeTab === 'admin' ? (
-                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 shadow-xs shrink-0 whitespace-nowrap">
-                  <div className="w-6 h-6 rounded-md bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <Shield size={13} />
-                  </div>
-                  <div className="flex flex-col leading-none shrink-0">
-                    <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">
-                      {lang === 'zh' ? '后台管理' : 'Admin'}
-                    </span>
-                    <span className="text-[9px] font-medium text-amber-700/90 whitespace-nowrap">
-                      {isAdminLoggedIn ? (lang === 'zh' ? '已登录' : 'Managing') : (lang === 'zh' ? '未登录' : 'Guest')}
-                    </span>
-                  </div>
-                  {isAdminLoggedIn && (
-                    <button
-                      onClick={handleAdminLogout}
-                      className="ml-0.5 p-1 rounded-md bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 transition-all shrink-0"
-                      title={lang === 'zh' ? '退出登录' : 'Logout'}
-                    >
-                      <LogOut size={11} />
-                    </button>
-                  )}
-                </div>
-              ) : (
-                (data.settings.showLoginButton || isAdminLoggedIn) && (
-                  <button
-                    onClick={() => switchTab('admin')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-                      isAdminLoggedIn
-                        ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xs'
-                        : 'border border-gray-200 text-gray-600 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'
-                    }`}
-                    title={lang === 'zh' ? '管理员后台' : 'Admin Panel'}
-                  >
-                    <Shield size={14} className="shrink-0" />
-                    <span className="uppercase tracking-wider shrink-0 whitespace-nowrap">
-                      {isAdminLoggedIn
-                        ? (lang === 'zh' ? '控制台' : 'Admin Console')
-                        : (lang === 'zh' ? '登录' : 'Login')}
-                    </span>
-                  </button>
-                )
-              )}
-            </div>
-
-            {/* Mobile menu button */}
-            <div className="flex md:hidden items-center gap-2">
-              {(activeTab === 'admin' || isAdminLoggedIn) && (
-                <button
-                  onClick={() => switchTab('admin')}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold uppercase shrink-0 whitespace-nowrap"
-                >
-                  <Shield size={12} className="text-amber-600 shrink-0" />
-                  <span>{lang === 'zh' ? '控制台' : 'Admin'}</span>
-                </button>
-              )}
-              <button
-                onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
-                className="p-2 rounded-lg bg-gray-100 text-gray-700 flex items-center gap-1 transition-all"
-              >
-                <Languages size={16} />
-                <span className="text-[10px] font-bold uppercase">{lang === 'zh' ? 'EN' : '中'}</span>
-              </button>
-              
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2.5 rounded-lg text-gray-600 hover:bg-gray-100 transition-all focus:outline-none"
-              >
-                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile menu - Side Drawer with independent scroll */}
-        {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-0 z-[100] flex justify-end">
-            {/* Backdrop */}
-            <div 
-              className="absolute inset-0 bg-black/45 backdrop-blur-[2px] animate-fade-in"
-              onClick={() => setMobileMenuOpen(false)}
-            />
-            {/* Drawer Panel - fixed height, independent scroll */}
-            <div data-mobile-drawer className="relative w-[86vw] max-w-[360px] bg-white h-[100dvh] h-[100vh] shadow-2xl animate-slide-in-right flex flex-col overflow-hidden">
-              {/* Drawer Header */}
-              <div className="shrink-0 flex items-center justify-between px-5 h-20 border-b border-gray-100 bg-white">
-                <div className="flex items-center gap-2.5">
-                  {data.settings.headerLogo ? (
-                    <img src={data.settings.headerLogo} alt="logo" className="w-9 h-9 rounded-lg object-contain border border-gray-100 p-0.5" />
-                  ) : (
-                    <div className="bg-primary text-white p-2 rounded-lg">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m-6-8h12" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex flex-col leading-tight">
-                    <span className="font-bold text-sm text-gray-900 truncate max-w-[150px]">{t(data.settings.churchName)}</span>
-                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{lang==='zh'?'菜单导览':'Navigation'}</span>
-                  </div>
-                </div>
-                <button onClick={()=>setMobileMenuOpen(false)} className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all">
-                  <X size={20} />
-                </button>
-              </div>
-              {/* Scrollable content - this scrolls independently */}
-              <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 space-y-1 pb-[calc(2rem+env(safe-area-inset-bottom))] scrollbar-thin">
-               {(() => {
-                const vis = data.pageVisibility || {};
-                const allTabs = [
-                  { id: 'home', label: lang === 'zh' ? '首页' : 'Home' },
-                  { id: 'about', label: lang === 'zh' ? '关于我们' : 'About Us' },
-                  { id: '__group_ministry__', label: lang === 'zh' ? '▸ 事工 / Ministry' : '▸ Ministry', group: true, disabled: true },
-                  vis.ministries !== false && { id: 'ministries', label: lang === 'zh' ? '  主要事工' : '  Ministries', sub: true },
-                  vis.cellgroups !== false && { id: 'cellgroups', label: lang === 'zh' ? '  小组' : '  Cell Groups', sub: true },
-                  vis.offerings !== false && { id: 'offerings', label: lang === 'zh' ? '  奉献' : '  Offerings', sub: true },
-                  { id: '__group_gatherings__', label: lang === 'zh' ? '▸ 聚会 / Fellowship' : '▸ Fellowship', group: true, disabled: true },
-                  vis.timetable !== false && { id: 'timetable', label: lang === 'zh' ? '  聚会时间' : '  Timetable', sub: true },
-                  vis.events !== false && { id: 'events', label: lang === 'zh' ? '  特别活动' : '  Events', sub: true },
-                  vis.fellowshipHighlights !== false && { id: 'fellowshipHighlights', label: lang === 'zh' ? '  聚会点滴' : '  Fellowship Highlights', sub: true },
-                  { id: '__group_resources__', label: lang === 'zh' ? '▸ 资源 / Resources' : '▸ Resources', group: true, disabled: true },
-                  vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '  家事与讲道' : '  Bulletins & Sermons', sub: true },
-                  vis.services !== false && { id: 'services', label: lang === 'zh' ? '  崇拜与敬拜' : '  Services & Worships', sub: true },
-                  vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '  新朋友指南' : '  New Friend Guide', sub: true },
-                  vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
-                  (data.settings.showLoginButton || isAdminLoggedIn || activeTab === 'admin') && { id: 'admin', label: lang === 'zh' ? (isAdminLoggedIn ? '管理员控制台' : '后台管理登录') : (isAdminLoggedIn ? 'Admin Console' : 'Admin Login'), icon: Shield }
-                ].filter(Boolean);
-
-                return allTabs.map((tab) => (
-                  tab.disabled ? (
-                    <div key={tab.id} className="w-full text-left px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider mt-2">
-                      <span>{tab.label}</span>
-                    </div>
-                  ) : (
-                    <button
-                      key={tab.id}
-                      onClick={() => switchTab(tab.id)}
-                      className={`w-full text-left px-4 py-3 rounded-xl text-base font-medium flex items-center gap-2 ${
-                        tab.sub ? 'pl-8' : ''
-                      } ${
-                        activeTab === tab.id
-                          ? 'bg-primary/10 text-primary font-bold'
-                          : tab.id === 'admin'
-                          ? 'text-amber-700 bg-amber-50'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      {tab.id === 'admin' && <Shield size={18} />}
-                      <span>{tab.label}</span>
-                    </button>
-                  )
-                ));
-              })()}
-              {/* Extra bottom safe space */}
-              <div className="h-6 shrink-0" />
-            </div>
-          </div>
+        {/* Admin active banner */}
+        {isAdminLoggedIn && activeTab!=='admin' && (
+          <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-white px-4 py-1.5 text-xs font-bold flex items-center justify-between shadow-sm z-50 shrink-0 sticky top-0">
+            <div className="flex items-center gap-2"><Shield size={14} className="animate-pulse text-amber-100 shrink-0"/><span className="truncate max-w-[260px] sm:max-w-none">{lang==='zh'?'管理員已登入（預覽公開網站）':'Admin Session Active (Previewing Live Site)'}</span></div>
+            <button onClick={()=>switchTab('admin')} className="bg-white/20 hover:bg-white/30 text-white px-3 py-0.5 rounded text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 whitespace-nowrap shadow-xs"><span>{lang==='zh'?'返回後台 »':'Return to Admin »'}</span></button>
           </div>
         )}
-      </nav>
 
-      {/* 3. APP MAIN VIEWPORT */}
-      <main className="flex-grow">
-        
-        {/* ==================== PAGE: HOME ==================== */}
-        {activeTab === 'home' && (
-          <div className="animate-fade-in">
-            {/* HERO CAROUSEL BANNER */}
-            <div className="relative h-[520px] sm:h-[580px] md:h-[650px] bg-gray-950 overflow-hidden group">
-              {data.carousel.length > 0 ? (
-                <>
-                  {/* Current Slide Image & Subtle Bottom Gradient (Keeps top 75% completely clear) */}
-                  <div className="absolute inset-0 transition-all duration-1000 ease-out transform scale-100">
-                    <img 
-                      src={data.carousel[currentSlide].image} 
-                      alt="Banner Image" 
-                      className="w-full h-full object-cover object-center"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-gray-950/95 via-black/50 via-35% to-transparent" />
-                  </div>
+        {/* Top promo bar */}
+        <div className="bg-[#2d2a26] text-white/90 text-[11px] sm:text-xs py-2 px-4 text-center tracking-wide">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-4">
+            <span className="flex items-center gap-1.5"><Gift size={12} className="text-primary-light"/>{t(data.settings.firstOrder?.label) || (lang==='zh'?`首次購物 ${data.settings.firstOrder?.code} 享${data.settings.firstOrder?.discountValue}% OFF 滿$${data.settings.firstOrder?.minSpend}`:`First Order ${data.settings.firstOrder?.code} ${data.settings.firstOrder?.discountValue}% OFF over $${data.settings.firstOrder?.minSpend}`)}</span>
+            <span className="hidden sm:inline text-white/20">|</span>
+            <span className="flex items-center gap-1.5"><Truck size={12} className="text-primary-light"/>{t(data.settings.shipping?.freeShippingLabel) || (lang==='zh'?`滿 HK$${data.settings.shipping?.freeThreshold} 免運費`:`Free Shipping over HK$${data.settings.shipping?.freeThreshold}`)}</span>
+          </div>
+        </div>
 
-                  {/* Floating Bottom Strip Card (Sits at the bottom just above indicator dots) */}
-                  <div className="absolute bottom-11 sm:bottom-12 md:bottom-14 inset-x-3 sm:inset-x-6 md:inset-x-12 z-10 flex justify-center pointer-events-none">
-                    <div className="w-full max-w-6xl p-4 sm:p-6 md:p-7 rounded-2xl md:rounded-3xl bg-black/60 sm:bg-black/55 backdrop-blur-md border border-white/15 shadow-2xl transition-all pointer-events-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-8">
-                      
-                      {/* Left: Title & Subtitle */}
-                      <div className="flex-1 space-y-2 text-left">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/30 text-white border border-primary/40 text-[11px] sm:text-xs uppercase tracking-wider font-extrabold shadow-sm">
-                            <Sparkles size={13} className="text-amber-300 shrink-0" />
-                            {lang === 'zh' ? '欢迎莅临大山脚浸信教会' : 'Welcome to BMBCC'}
-                          </span>
-                        </div>
-                        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white leading-tight tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-                          {t(data.carousel[currentSlide].title)}
-                        </h1>
-                        <p className="text-xs sm:text-sm md:text-base text-white/90 font-medium max-w-3xl leading-relaxed drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] line-clamp-2">
-                          {t(data.carousel[currentSlide].subtitle)}
-                        </p>
-                      </div>
-
-                      {/* Right: Action Buttons */}
-                      <div className="flex flex-wrap sm:flex-nowrap shrink-0 items-center gap-2.5 sm:gap-3 w-full md:w-auto pt-1 md:pt-0">
-                        <button 
-                          onClick={() => setActiveTab('timetable')}
-                          className="flex-1 md:flex-initial px-5 py-2.5 sm:py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2 transform hover:-translate-y-0.5 text-xs sm:text-sm md:text-base whitespace-nowrap"
-                        >
-                          <Clock size={16} className="shrink-0" />
-                          <span>{lang === 'zh' ? '聚会时间表' : 'Join Our Services'}</span>
-                        </button>
-                        <button 
-                          onClick={() => setActiveTab('about')}
-                          className="flex-1 md:flex-initial px-5 py-2.5 sm:py-3 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold border border-white/30 backdrop-blur-md transition-all flex items-center justify-center gap-2 transform hover:-translate-y-0.5 shadow-md text-xs sm:text-sm md:text-base whitespace-nowrap"
-                        >
-                          <Info size={16} className="shrink-0" />
-                          <span>{lang === 'zh' ? '关于我们' : 'Learn More'}</span>
-                        </button>
-                      </div>
-
-                    </div>
-                  </div>
-
-                  {/* Manual Controls */}
-                  <button 
-                    onClick={() => setCurrentSlide((prev) => (prev - 1 + data.carousel.length) % data.carousel.length)}
-                    className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 p-2 sm:p-2.5 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 z-20 shadow-lg border border-white/10"
-                    aria-label="Previous Slide"
-                  >
-                    <ChevronLeft size={22} />
-                  </button>
-                  <button 
-                    onClick={() => setCurrentSlide((prev) => (prev + 1) % data.carousel.length)}
-                    className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-2 sm:p-2.5 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 z-20 shadow-lg border border-white/10"
-                    aria-label="Next Slide"
-                  >
-                    <ChevronRight size={22} />
-                  </button>
-
-                  {/* Indicator Dots */}
-                  <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-                    {data.carousel.map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setCurrentSlide(idx)}
-                        aria-label={`Slide ${idx + 1}`}
-                        className={`h-2.5 rounded-full transition-all ${idx === currentSlide ? 'w-8 bg-primary shadow-sm' : 'w-2.5 bg-white/50 hover:bg-white/80'}`}
-                      />
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-white p-4">
-                  <div className="text-center">
-                    <p className="text-xl">No Slides available. Add one in Admin panel.</p>
+        {/* Header */}
+        <header className="bg-white/95 backdrop-blur sticky top-0 z-40 shadow-sm border-b border-gray-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between h-[72px] items-center">
+              <div className="flex items-center gap-6">
+                {/* Logo */}
+                <div className="flex items-center gap-2.5 cursor-pointer" onClick={()=>switchTab('home')}>
+                  <img src={data.settings.headerLogo} alt="CS12" className="w-11 h-11 rounded-xl object-contain border border-gray-100 bg-white p-0.5 shadow-sm"/>
+                  <div className="leading-tight">
+                    <span className="font-black text-[18px] tracking-wide text-gray-900 block">{t(data.settings.siteName)}</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{data.settings.siteAbbreviation} • {t(data.settings.slogan)}</span>
                   </div>
                 </div>
-              )}
-            </div>
+                {/* Desktop Nav */}
+                <nav className="hidden lg:flex items-center gap-1">
+                  <button onClick={()=>switchTab('home')} className={`px-3.5 py-2 rounded-lg text-sm font-medium ${activeTab==='home'?'bg-primary/10 text-primary':'text-gray-600 hover:bg-gray-50'}`}>{lang==='zh'?'首頁':'Home'}</button>
+                  {/* Shop dropdown */}
+                  <div className="relative group/nav">
+                    <button onClick={()=>switchTab('shop')} className={`px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-1 ${activeTab==='shop'?'bg-primary/10 text-primary':'text-gray-600 hover:bg-gray-50'}`}>{lang==='zh'?'選購':'Shop'}<ChevronDown size={14} className="group-hover/nav:rotate-180 transition-transform"/></button>
+                    <div className="absolute top-full left-0 mt-2 w-[680px] bg-white rounded-2xl shadow-2xl border border-gray-100 opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-all z-50 p-5 grid grid-cols-3 gap-6">
+                      <div><h4 className="text-xs font-bold uppercase text-gray-400 mb-3">{lang==='zh'?'系列':'Series'}</h4><div className="space-y-1">{navCategories.series.map(c=><button key={c.id} onClick={()=>{setShopSeriesFilter(c.id);setShopCategoryFilter('all');switchTab('shop');}} className="w-full text-left text-sm text-gray-700 hover:text-primary py-1.5 flex items-center gap-2"><img src={c.image} className="w-6 h-6 rounded object-cover"/>{t(c.name)}</button>)}</div></div>
+                      <div><h4 className="text-xs font-bold uppercase text-gray-400 mb-3">{lang==='zh'?'面部護理':'Face Care'}</h4><div className="space-y-1">{navCategories.faceCare.map(c=><button key={c.id} onClick={()=>{setShopCategoryFilter(c.id);switchTab('shop');}} className="w-full text-left text-sm text-gray-700 hover:text-primary py-1.5">{t(c.name)}</button>)}</div></div>
+                      <div><h4 className="text-xs font-bold uppercase text-gray-400 mb-3">{lang==='zh'?'肌膚類別':'Skin Concerns'}</h4><div className="space-y-1">{navCategories.skinType.map(c=><button key={c.id} onClick={()=>{setShopSkinFilter(c.id);switchTab('shop');}} className="w-full text-left text-sm text-gray-700 hover:text-primary py-1.5">{t(c.name)}</button>)}</div><div className="mt-4 pt-3 border-t"><button onClick={()=>{setShopCategoryFilter('all');setShopSkinFilter('all');setShopSeriesFilter('all');switchTab('shop');}} className="text-xs font-bold text-primary hover:underline">{lang==='zh'?'查看全部產品 →':'View All Products →'}</button></div></div>
+                    </div>
+                  </div>
+                  <button onClick={()=>{setActiveTab('bundles'); window.scrollTo(0,0);}} className={`px-3.5 py-2 rounded-lg text-sm font-medium ${activeTab==='bundles'?'bg-primary/10 text-primary':'text-gray-600 hover:bg-gray-50'}`}>{lang==='zh'?'官網限定':'Exclusive'}</button>
+                  <button onClick={()=>switchTab('membership')} className={`px-3.5 py-2 rounded-lg text-sm font-medium flex items-center gap-1 ${activeTab==='membership'?'bg-primary/10 text-primary':'text-gray-600 hover:bg-gray-50'}`}><Crown size={14}/>{lang==='zh'?'Prestige會員':'Prestige'}</button>
+                  <button onClick={()=>switchTab('reviews')} className={`px-3.5 py-2 rounded-lg text-sm font-medium ${activeTab==='reviews'?'bg-primary/10 text-primary':'text-gray-600 hover:bg-gray-50'}`}>{lang==='zh'?'真實分享':'Reviews'}</button>
+                </nav>
+              </div>
 
-            {/* QUICK WELCOME STRIP */}
-            <div className="bg-primary-light/50 py-10 px-4 text-center border-b border-primary/10">
-              <div className="max-w-4xl mx-auto space-y-3">
-                <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 leading-tight">
-                  {t(data.settings.slogan)}
-                </h2>
-                <p className="text-base text-gray-700 max-w-2xl mx-auto font-light">
-                  {t(data.settings.description)}
-                </p>
+              <div className="flex items-center gap-1.5">
+                {/* Search desktop */}
+                <div className="hidden md:flex items-center relative">
+                  <input value={shopSearch} onChange={e=>{setShopSearch(e.target.value); if(activeTab!=='shop') switchTab('shop');}} placeholder={lang==='zh'?'搜尋產品...':'Search...'} className="w-48 lg:w-56 pl-8 pr-3 py-2 rounded-full bg-gray-100 border border-transparent focus:bg-white focus:border-primary/30 focus:ring-1 focus:ring-primary text-sm outline-none transition-all"/>
+                  <Search size={14} className="absolute left-3 text-gray-400"/>
+                </div>
+                <button onClick={()=>{ setCurrency(currency==='HKD'?'USD':'HKD'); }} className="hidden sm:flex px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-700">{currency}</button>
+                <button onClick={()=>setLang(lang==='zh'?'en':'zh')} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 flex items-center gap-1"><Languages size={17}/><span className="hidden sm:inline text-xs font-bold uppercase">{lang==='zh'?'EN':'中文'}</span></button>
+                <button onClick={()=>setShowWishlist(true)} className="relative p-2.5 rounded-xl hover:bg-gray-100 text-gray-600"><Heart size={20}/>{wishlistCount>0 && <span className="absolute -top-0.5 -right-0.5 bg-primary text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{wishlistCount}</span>}</button>
+                <button onClick={()=>setShowCart(true)} className="relative p-2.5 rounded-xl hover:bg-gray-100 text-gray-600"><ShoppingCart size={20}/>{cartCount>0 && <span className="absolute -top-0.5 -right-0.5 bg-gray-900 text-white text-[10px] min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-bold">{cartCount}</span>}</button>
+                <button onClick={()=>switchTab('account')} className="p-2.5 rounded-xl hover:bg-gray-100 text-gray-600"><User size={20}/></button>
+                {isAdminLoggedIn && activeTab!=='admin' && <button onClick={()=>switchTab('admin')} className="hidden md:flex ml-2 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold items-center gap-1"><Shield size={14}/>{lang==='zh'?'後台':'Admin'}</button>}
+                <button onClick={()=>setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2.5 rounded-lg hover:bg-gray-100 text-gray-600"><Menu size={22}/></button>
               </div>
             </div>
-
-            {/* CHURCH VISION CARD & SCRIPTURE (MINIC THE DESIGN) */}
-            <section className="py-16 px-4 bg-white">
-              <div className="max-w-5xl mx-auto">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center bg-gray-50 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                  
-                  {/* Left Column: Vision Header & Text */}
-                  <div className="md:col-span-7 p-8 md:p-12 space-y-6">
-                    <div className="inline-flex px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider">
-                      {t(data.settings.yearlyVisionLabel) || (lang === 'zh' ? '年度主题与异象' : 'Yearly Vision')}
+          </div>
+          {/* Mobile menu drawer */}
+          {mobileMenuOpen && (
+            <div className="lg:hidden fixed inset-0 z-[100] flex justify-end">
+              <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px]" onClick={()=>setMobileMenuOpen(false)}/>
+              <div data-mobile-drawer className="relative w-[86vw] max-w-[360px] bg-white h-[100dvh] shadow-2xl flex flex-col overflow-hidden animate-slide-in-right">
+                <div className="shrink-0 flex items-center justify-between px-5 h-[72px] border-b bg-white">
+                  <span className="font-black text-base">{t(data.settings.siteName)}</span>
+                  <button onClick={()=>setMobileMenuOpen(false)} className="p-2.5 rounded-xl bg-gray-100"><X size={20}/></button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 py-5 space-y-1 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+                  <button onClick={()=>switchTab('home')} className={`w-full text-left px-4 py-3 rounded-xl text-base font-medium ${activeTab==='home'?'bg-primary/10 text-primary':'text-gray-700'}`}>{lang==='zh'?'首頁':'Home'}</button>
+                  <button onClick={()=>switchTab('shop')} className={`w-full text-left px-4 py-3 rounded-xl text-base font-medium ${activeTab==='shop'?'bg-primary/10 text-primary':'text-gray-700'}`}>{lang==='zh'?'選購全部':'Shop All'}</button>
+                  <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">{lang==='zh'?'系列':'Series'}</div>
+                  {navCategories.series.map(c=><button key={c.id} onClick={()=>{setShopSeriesFilter(c.id);switchTab('shop');}} className="w-full text-left pl-8 pr-4 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50">{t(c.name)}</button>)}
+                  <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">{lang==='zh'?'肌膚類別':'Skin Type'}</div>
+                  {navCategories.skinType.map(c=><button key={c.id} onClick={()=>{setShopSkinFilter(c.id);switchTab('shop');}} className="w-full text-left pl-8 pr-4 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50">{t(c.name)}</button>)}
+                  <button onClick={()=>switchTab('bundles')} className="w-full text-left px-4 py-3 rounded-xl text-base font-medium text-gray-700 hover:bg-gray-50">{lang==='zh'?'官網限定套裝':'Exclusive Bundles'}</button>
+                  <button onClick={()=>switchTab('membership')} className="w-full text-left px-4 py-3 rounded-xl text-base font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"><Crown size={16}/>{lang==='zh'?'Prestige 會員制度':'Prestige Membership'}</button>
+                  <button onClick={()=>switchTab('reviews')} className="w-full text-left px-4 py-3 rounded-xl text-base font-medium text-gray-700 hover:bg-gray-50">{lang==='zh'?'用家分享':'Reviews'}</button>
+                  <button onClick={()=>switchTab('account')} className="w-full text-left px-4 py-3 rounded-xl text-base font-medium text-gray-700 hover:bg-gray-50">{lang==='zh'?'我的帳戶':'My Account'}</button>
+                  {isAdminLoggedIn && <button onClick={()=>switchTab('admin')} className="w-full text-left px-4 py-3 rounded-xl text-base font-bold text-amber-700 bg-amber-50">{lang==='zh'?'後台管理':'Admin Panel'}</button>}
+                  <div className="pt-4 mt-4 border-t space-y-3">
+                    <div className="flex gap-2">
+                      <button onClick={()=>setCurrency(currency==='HKD'?'USD':'HKD')} className="flex-1 py-2.5 rounded-xl bg-gray-100 text-sm font-bold">{currency} {currency==='HKD'?'(港幣)':'(USD)'}</button>
+                      <button onClick={()=>setLang(lang==='zh'?'en':'zh')} className="flex-1 py-2.5 rounded-xl bg-gray-100 text-sm font-bold flex items-center justify-center gap-1"><Languages size={16}/>{lang==='zh'?'EN':'中文'}</button>
                     </div>
-                    
-                    <h3 className="text-2xl sm:text-3xl font-extrabold text-gray-900 leading-tight">
-                      {t(data.settings.yearlyVisionTitle) || (lang === 'zh' ? '走入社区，宣扬主爱' : 'Go into the Community, Proclaim Lord\'s Love')}
-                    </h3>
-                    
-                    <div className="border-l-4 border-primary pl-4 text-lg font-medium text-gray-800 whitespace-pre-line leading-relaxed italic bg-white/60 p-4 rounded-r-lg">
-                      {t(data.settings.themeYear)}
-                    </div>
-
-                    <div className="space-y-3 text-gray-600 font-light leading-relaxed">
-                      <p>
-                        {t(data.settings.homeVisionPara1) || (lang === 'zh' 
-                          ? '大山脚浸信教会深信神赐予我们的召命：走出教会的舒适圈，切切实实走入我们所在的百利镇社区，接触身边的邻舍。' 
-                          : 'BMBCC firmly believes in the calling given by God: to step out of our comfort zones and walk directly into Taman Bukit Minyak community to touch our neighbors\' lives.')}
-                      </p>
-                      <p>
-                        {t(data.settings.homeVisionPara2) || (lang === 'zh'
-                          ? '我们透过‘爱邻社区关怀’、‘五饼二鱼’爱心便当等，用实际行动表明：主耶稣是爱他们的，也是在苦难和缺乏中的安慰与倚靠。'
-                          : 'Through our "Neighborly Community Care" and "Five Loaves & Two Fishes" warm bento service, we demonstrate in deeds: the Lord Jesus loves them and is their solace and provider.')}
-                      </p>
-                    </div>
+                    <div className="relative"><input value={shopSearch} onChange={e=>{setShopSearch(e.target.value); switchTab('shop');}} placeholder={lang==='zh'?'搜尋產品關鍵字...':'Search products...'} className="w-full pl-10 pr-3 py-3 rounded-xl bg-gray-100 border border-transparent focus:bg-white focus:border-primary/20 text-sm outline-none"/><Search size={16} className="absolute left-3.5 top-3.5 text-gray-400"/></div>
                   </div>
-
-                  {/* Right Column: Soaring Eagle Image & Scripture Overlay */}
-                  <div className="md:col-span-5 h-[320px] md:h-full min-h-[360px] relative">
-                    <img 
-                      src={data.settings.yearlyVisionImage || "https://images.unsplash.com/photo-1540979388789-6cee28a16838?auto=format&fit=crop&w=800&q=80"}
-                      alt="Vision" 
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent md:bg-gradient-to-l md:from-black/90 md:via-black/40" />
-                    <div className="absolute inset-0 flex flex-col justify-end p-8 text-white space-y-3">
-                      <span className="text-primary font-bold tracking-widest text-xs uppercase">
-                        {t(data.settings.yearlyVisionBadge) || (lang === 'zh' ? '展翅高飞 • 广传福音' : 'Soar High • Spread Gospel')}
-                      </span>
-                      <h4 className="text-lg font-bold italic leading-relaxed">
-                        “{t(data.settings.yearlyVisionScripture) || (lang === 'zh' ? '神爱世人，甚至把他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。' : 'For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.')}”
-                      </h4>
-                      <span className="text-right text-xs text-gray-300 font-semibold block">
-                        —— {t(data.settings.yearlyVisionRef) || (lang === 'zh' ? '约翰福音 3:16' : 'John 3:16')}
-                      </span>
-                    </div>
-                  </div>
-
                 </div>
               </div>
-            </section>
+            </div>
+          )}
+        </header>
 
-            {/* MINISTRIES PREVIEW (主要事工) */}
-            <section className="py-16 px-4 bg-gray-50 border-t border-b border-gray-100">
-              <div className="max-w-7xl mx-auto">
-                <div className="text-center max-w-3xl mx-auto space-y-4 mb-12">
-                  <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                    {lang === 'zh' ? '我们忠心实践的使命' : 'Active Outreach Ministries'}
-                  </span>
-                  <h2 className="text-3xl font-extrabold text-gray-900">
-                    {lang === 'zh' ? '社区关怀主要事工' : 'Key Community Ministries'}
-                  </h2>
-                  <p className="text-gray-600 font-light max-w-2xl mx-auto leading-relaxed">
-                    {lang === 'zh' 
-                      ? '大山脚浸信教会是走入社区的教会，对于社区关怀的事工有极大的托付与热忱。神满满的恩典浇灌并为我们在百利镇社区的事工大大地开路。哈利路亚！' 
-                      : 'We are a missional church reaching deep into neighborhoods. God’s overflowing grace continues to open wide doors for our work here. Hallelujah!'}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  {data.ministries.slice(0, 3).map((min) => (
-                    <div 
-                      key={min.id}
-                      className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl transition-all duration-300 flex flex-col group transform hover:-translate-y-1"
-                    >
-                      <div className="relative h-56 overflow-hidden">
-                        <img 
-                          src={min.image} 
-                          alt={t(min.name)} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60" />
-                        <div className="absolute bottom-4 left-4 text-white font-bold text-lg md:text-xl drop-shadow-sm">
-                          {t(min.name)}
+        <main className="flex-grow bg-[#fdf8f5]/50">
+          {/* HOME */}
+          {activeTab==='home' && (
+            <div className="animate-fade-in">
+              {/* Hero Carousel */}
+              <div className="relative h-[460px] sm:h-[520px] md:h-[600px] bg-gray-900 overflow-hidden group">
+                {data.carousel.filter(c=>c.active!==false).map((slide, idx)=> (
+                  <div key={slide.id} className={`absolute inset-0 transition-opacity duration-700 ${idx===currentSlide?'opacity-100':'opacity-0 pointer-events-none'}`}>
+                    <img src={slide.image} alt={t(slide.title)} className="w-full h-full object-cover"/>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"/>
+                    <div className="absolute inset-0 flex items-end sm:items-center">
+                      <div className="max-w-7xl mx-auto w-full px-4 sm:px-8 pb-10 sm:pb-0">
+                        <div className="max-w-xl bg-black/35 backdrop-blur-md border border-white/10 rounded-2xl p-6 sm:p-8 text-white space-y-3">
+                          <span className="inline-flex px-3 py-1 rounded-full bg-white/20 text-xs font-bold tracking-wider">{lang==='zh'?'官網限定':'Exclusive'}</span>
+                          <h1 className="text-3xl sm:text-4xl font-black leading-tight">{t(slide.title)}</h1>
+                          <p className="text-white/85 text-sm sm:text-base">{t(slide.subtitle)}</p>
+                          <div className="flex gap-2 pt-2">
+                            <button onClick={()=>{ if(slide.ctaLink==='shop') switchTab('shop'); else if(slide.ctaLink?.startsWith('product')){ const pid=parseInt(slide.ctaLink.split('-')[1]); const p=data.products.find(pp=>pp.id===pid); if(p) setSelectedProduct(p); } else switchTab('shop'); }} className="px-5 py-2.5 rounded-xl bg-white text-gray-900 font-bold text-sm hover:bg-gray-100 transition-colors flex items-center gap-1"><span>{t(slide.ctaText)|| (lang==='zh'?'立即選購':'Shop Now')}</span><ArrowRight size={16}/></button>
+                            <button onClick={()=>switchTab('membership')} className="px-5 py-2.5 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-colors">{lang==='zh'?'加入會員':'Join Prestige'}</button>
+                          </div>
                         </div>
                       </div>
-                      <div className="p-6 flex-grow flex flex-col justify-between space-y-4">
-                        <p className="text-gray-600 text-sm font-light leading-relaxed line-clamp-4">
-                          {t(min.description)}
-                        </p>
-                        <button 
-                          onClick={() => { setActiveTab('ministries'); window.scrollTo(0, 0); }}
-                          className="text-primary font-semibold text-xs flex items-center gap-1 hover:text-primary-dark transition-all self-start uppercase tracking-wider pt-2 border-t border-gray-50 w-full"
-                        >
-                          <span>{lang === 'zh' ? '阅读更多详情' : 'Read Full Details'}</span>
-                          <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                        </button>
-                      </div>
+                    </div>
+                  </div>
+                ))}
+                <button onClick={()=>setCurrentSlide(prev=> (prev-1+data.carousel.length)%data.carousel.length)} className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur opacity-0 group-hover:opacity-100 transition-all"><ChevronLeft size={20}/></button>
+                <button onClick={()=>setCurrentSlide(prev=> (prev+1)%data.carousel.length)} className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur opacity-0 group-hover:opacity-100 transition-all"><ChevronRight size={20}/></button>
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                  {data.carousel.filter(c=>c.active!==false).map((_,i)=><button key={i} onClick={()=>setCurrentSlide(i)} className={`h-2 rounded-full transition-all ${i===currentSlide?'w-8 bg-white':'w-2.5 bg-white/50'}`} />)}
+                </div>
+              </div>
+
+              {/* USP strip */}
+              <div className="bg-white border-y border-gray-100">
+                <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+                  {[
+                    { icon: Percent, title: lang==='zh'?'首次購物 15% OFF':'15% OFF First Order', desc: lang==='zh'?`滿 HK$${data.settings.firstOrder?.minSpend} 輸入 ${data.settings.firstOrder?.code}`:`Over HK$${data.settings.firstOrder?.minSpend} code ${data.settings.firstOrder?.code}`, color: 'bg-primary/10 text-primary' },
+                    { icon: Truck, title: lang==='zh'?`滿 HK$${data.settings.shipping?.freeThreshold} 免運費`:`Free shipping over HK$${data.settings.shipping?.freeThreshold}`, desc: lang==='zh'?'香港地區免運費':'Free shipping HK', color: 'bg-emerald-50 text-emerald-600' },
+                    { icon: Sparkles, title: lang==='zh'?'官網限定禮遇':'Exclusive GWP', desc: lang==='zh'?`滿 $${data.settings.gwp?.rules?.[0]?.minSpend} 獲贈${data.settings.gwp?.rules?.[0]?.gifts?.length}件禮品`:`Spend $${data.settings.gwp?.rules?.[0]?.minSpend} get gifts`, color: 'bg-amber-50 text-amber-600' }
+                  ].map((item,i)=><div key={i} className="flex items-center gap-4 p-5"><div className={`w-11 h-11 rounded-xl ${item.color} flex items-center justify-center shrink-0`}><item.icon size={20}/></div><div><p className="font-bold text-sm text-gray-900">{item.title}</p><p className="text-xs text-gray-500">{item.desc}</p></div></div>)}
+                </div>
+              </div>
+
+              {/* Series */}
+              <section className="py-14 px-4 max-w-7xl mx-auto">
+                <div className="text-center max-w-2xl mx-auto mb-10">
+                  <span className="text-primary font-bold text-xs uppercase tracking-widest">{lang==='zh'?'精選修護系列':'Featured Collections'}</span>
+                  <h2 className="text-3xl font-black text-gray-900 mt-2">{lang==='zh'?'為敏感肌而生的溫和醫研修護':'Gentle Clinical Repair for Sensitive Skin'}</h2>
+                  <p className="text-gray-600 text-sm mt-3 font-light">{t(data.settings.description)}</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {data.categories.filter(c=>c.type==='series'&&c.active).map(cat=>(
+                    <div key={cat.id} onClick={()=>{setShopSeriesFilter(cat.id); switchTab('shop');}} className="group relative overflow-hidden rounded-3xl bg-white border border-gray-100 hover:shadow-xl transition-all cursor-pointer">
+                      <div className="aspect-[4/3] overflow-hidden"><img src={cat.image} alt={t(cat.name)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"/></div>
+                      <div className="p-5 flex items-center justify-between"><div><h3 className="font-black text-lg">{t(cat.name)}</h3><p className="text-xs text-gray-500 mt-1">{t(cat.description)}</p></div><div className="w-9 h-9 rounded-full bg-gray-900 text-white flex items-center justify-center group-hover:bg-primary transition-colors"><ArrowRight size={16}/></div></div>
                     </div>
                   ))}
                 </div>
-              </div>
-            </section>
+              </section>
 
-            {/* UPCOMING EVENTS & ADDS */}
-            {data.events.length > 0 && (
-              <section className="py-16 px-4 bg-white">
-                <div className="max-w-7xl mx-auto">
-                  <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
-                    <div>
-                      <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                        {lang === 'zh' ? '近期动向与联合活动' : 'Calendar & Highlights'}
-                      </span>
-                      <h2 className="text-3xl font-extrabold text-gray-900 mt-1">
-                        {lang === 'zh' ? '特别活动预告' : 'Upcoming Church Events'}
-                      </h2>
-                    </div>
-                    <button 
-                      onClick={() => { setActiveTab('events'); window.scrollTo(0, 0); }}
-                      className="px-5 py-2.5 rounded-lg border border-primary text-primary font-semibold text-sm hover:bg-primary/5 transition-all"
-                    >
-                      {lang === 'zh' ? '查看全部活动' : 'View All Events'}
-                    </button>
+              {/* Bestsellers */}
+              <section className="py-14 bg-white border-y border-gray-100">
+                <div className="max-w-7xl mx-auto px-4">
+                  <div className="flex items-end justify-between mb-8">
+                    <div><span className="text-primary font-bold text-xs uppercase tracking-widest">{lang==='zh'?'熱賣產品':'Bestsellers'}</span><h2 className="text-3xl font-black text-gray-900 mt-1">{lang==='zh'?'暢銷修護':'Best Sellers'}</h2></div>
+                    <button onClick={()=>switchTab('shop')} className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold hover:bg-gray-50">{lang==='zh'?'查看全部':'View All'}</button>
                   </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {data.events.slice(0, 2).map((evt) => (
-                      <div 
-                        key={evt.id} 
-                        className="bg-gray-50 rounded-2xl overflow-hidden border border-gray-150 flex flex-col md:flex-row hover:shadow-lg transition-all duration-300"
-                      >
-                        <div className="md:w-2/5 h-48 md:h-full min-h-[200px] relative shrink-0">
-                          <img 
-                            src={evt.image} 
-                            alt={t(evt.title)} 
-                            className="absolute inset-0 w-full h-full object-cover"
-                          />
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+                    {data.products.filter(p=>p.isBestseller&&p.active).slice(0,8).map(prod=>(
+                      <div key={prod.id} className="group bg-gray-50/70 rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col">
+                        <div className="relative aspect-square overflow-hidden bg-white cursor-pointer" onClick={()=>setSelectedProduct(prod)}>
+                          <img src={prod.images[0]} alt={t(prod.title)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
+                          {prod.compareAtPrice>prod.price && <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold">-{Math.round((1-prod.price/prod.compareAtPrice)*100)}%</span>}
+                          <button onClick={(e)=>{e.stopPropagation(); toggleWishlist(prod.id);}} className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center shadow-sm border transition-all ${wishlist.includes(prod.id)?'bg-primary text-white border-primary':'bg-white text-gray-400 border-gray-200 hover:text-primary'}`}><Heart size={14} className={wishlist.includes(prod.id)?'fill-white':''}/></button>
+                          {prod.isBestseller && <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-gray-900 text-white text-[10px] font-bold flex items-center gap-1"><Crown size={10}/>{lang==='zh'?'熱賣':'Bestseller'}</span>}
                         </div>
-                        <div className="p-6 flex flex-col justify-between gap-4">
-                          <div className="space-y-2">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 text-primary text-[11px] font-bold">
-                              <Calendar size={11} />
-                              <span>{evt.date}</span>
-                            </span>
-                            <h3 className="font-bold text-lg text-gray-900 leading-tight">
-                              {t(evt.title)}
-                            </h3>
-                            <p className="text-gray-600 text-xs font-light leading-relaxed line-clamp-3">
-                              {t(evt.description)}
-                            </p>
+                        <div className="p-3 sm:p-4 flex-1 flex flex-col">
+                          <h4 className="font-bold text-sm leading-tight line-clamp-2 cursor-pointer hover:text-primary" onClick={()=>setSelectedProduct(prod)}>{t(prod.title)}</h4>
+                          <p className="text-[11px] text-gray-500 mt-1 line-clamp-1">{t(prod.subtitle)||t(prod.shortDesc)}</p>
+                          <div className="mt-2"><Stars rating={prod.rating||5}/></div>
+                          <div className="mt-3 flex items-center justify-between">
+                            <div><span className="font-black text-[15px] text-gray-900">{formatPrice(prod.price)}</span>{prod.compareAtPrice>prod.price && <span className="ml-1.5 text-[11px] text-gray-400 line-through">{formatPrice(prod.compareAtPrice)}</span>}</div>
+                            <button onClick={()=>addToCart(prod.id, prod.variants?.[0]?.id||null, 1)} className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center hover:bg-primary transition-colors"><ShoppingBag size={14}/></button>
                           </div>
-                          
-                          <div className="pt-2 border-t border-gray-200/60 text-[11px] text-gray-500 space-y-1">
-                            <div className="flex items-center gap-1.5">
-                              <Clock size={12} className="text-gray-400" />
-                              <span>{evt.time}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <MapPin size={12} className="text-gray-400 shrink-0" />
-                              <span className="truncate">{t(evt.location)}</span>
-                            </div>
-                          </div>
-                          {evt.registrationUrl && (
-                            <a
-                              href={evt.registrationUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-bold transition-all shadow-sm"
-                            >
-                              <ExternalLink size={13} />
-                              <span>{lang === 'zh' ? '📝 立即报名' : '📝 Register Now'}</span>
-                            </a>
-                          )}
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
               </section>
-            )}
 
-            {/* CALL TO ACTION WELCOME */}
-            <section className="bg-primary/90 text-white py-16 px-4 text-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary-dark via-primary to-primary opacity-90" />
-              <div className="relative max-w-4xl mx-auto space-y-6">
-                <Heart size={44} className="mx-auto text-white fill-white/10 animate-bounce" />
-                <h2 className="text-3xl md:text-4xl font-extrabold">
-                  {t(data.settings.ctaTitle) || (lang === 'zh' ? '耶稣爱你，我们欢迎你！' : 'Jesus Loves You & We Welcome You!')}
-                </h2>
-                <p className="text-base md:text-lg text-white/95 max-w-xl mx-auto font-light leading-relaxed">
-                  {t(data.settings.ctaDescription) || (lang === 'zh' 
-                    ? '无论您是在寻找生命的意义、属灵的港湾，还是社区的陪伴，这里的大门始终为您敞开。让我们一起在主爱里生活，彼此扶持！' 
-                    : 'Whether you seek the meaning of life, a spiritual home, or community fellowship, our doors are always open. Let\'s grow and support each other in His grace!')}
-                </p>
-                <div className="pt-2 flex justify-center gap-4">
-                  <button 
-                    onClick={() => { setActiveTab('timetable'); window.scrollTo(0, 0); }}
-                    className="px-6 py-3 rounded-lg bg-white text-primary font-bold shadow-lg transition-all hover:bg-gray-100"
-                  >
-                    {lang === 'zh' ? '聚会时间表' : 'Service Timetable'}
-                  </button>
-                  <button 
-                    onClick={() => { setActiveTab('about'); window.scrollTo(0, 0); }}
-                    className="px-6 py-3 rounded-lg bg-primary-dark text-white font-bold border border-white/20 transition-all hover:bg-black/10"
-                  >
-                    {lang === 'zh' ? '联系牧者团队' : 'Contact Pastors'}
-                  </button>
+              {/* Miracle Mask + SoCalm highlights */}
+              <section className="py-14 px-4 max-w-7xl mx-auto grid md:grid-cols-2 gap-8">
+                {[
+                  { img: "https://cs12skincare.com.hk/wp-content/uploads/2026/03/cs-12-253-E-720x1080.jpg", title: {zh:"獨家CalmEX療敏配方\n奇蹟面膜", en:"Exclusive CalmEX\nMiracle Mask"}, cta: "立即選購", productId:1 },
+                  { img: "https://cs12skincare.com.hk/wp-content/uploads/2026/03/1O1A7491-E-scaled.jpg", title: {zh:"強韌屏障3步曲\n#SOCALM", en:"Barrier 3 Steps\n#SOCALM"}, cta: "立即選購", cat:"series-socalm" }
+                ].map((block,i)=>(
+                  <div key={i} className="relative rounded-3xl overflow-hidden h-[420px] group cursor-pointer" onClick={()=>{ if(block.productId){ const p=data.products.find(pp=>pp.id===block.productId); if(p) setSelectedProduct(p); } else if(block.cat){ setShopSeriesFilter(block.cat); switchTab('shop'); } }}>
+                    <img src={block.img} alt="highlight" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"/>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"/>
+                    <div className="absolute bottom-0 p-8 text-white space-y-3">
+                      <h3 className="text-2xl sm:text-3xl font-black leading-tight whitespace-pre-line">{t(block.title)}</h3>
+                      <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-gray-900 text-sm font-bold hover:bg-gray-100 transition-colors">{block.cta} <ArrowRight size={14}/></button>
+                    </div>
+                  </div>
+                ))}
+              </section>
+
+              {/* Reviews */}
+              <section className="py-14 bg-white border-y border-gray-100">
+                <div className="max-w-7xl mx-auto px-4">
+                  <div className="text-center mb-10"><span className="text-primary font-bold text-xs uppercase tracking-widest">{lang==='zh'?'真實用家 如實分享':'Real Users Real Reviews'}</span><h2 className="text-3xl font-black mt-2">{lang==='zh'?'用家見證':'Customer Stories'}</h2></div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {data.reviews.slice(0,4).map(r=>(
+                      <div key={r.id} className="bg-[#fdf8f5] rounded-2xl p-5 border border-gray-100 space-y-3 hover:shadow-md transition-all">
+                        <div className="aspect-[4/3] rounded-xl overflow-hidden bg-white"><img src={r.image} alt={r.customerName} className="w-full h-full object-cover"/></div>
+                        <div className="flex items-center gap-2"><img src={r.avatar} alt={r.customerName} className="w-8 h-8 rounded-full"/><div><p className="font-bold text-sm">{r.customerName}</p><Stars rating={r.rating}/></div></div>
+                        <p className="text-xs text-gray-700 leading-relaxed line-clamp-4">{t(r.comment)}</p>
+                        <p className="text-[11px] text-gray-500">{t(r.productTitle)}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </section>
-          </div>
-        )}
+              </section>
 
-        {/* ==================== PAGE: ABOUT US ==================== */}
-        {activeTab === 'about' && (
-          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-              <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {t(data.settings.aboutBadge) || (lang === 'zh' ? '了解我们大山脚浸信教会' : 'Get to Know BMBCC')}
-              </span>
-              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                {t(data.settings.aboutTitle) || (lang === 'zh' ? '关于我们' : 'About Us')}
-              </h1>
-              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                {t(data.settings.aboutIntro)}
-              </p>
+              {/* GWP Banner */}
+              <section className="py-12 px-4 max-w-7xl mx-auto">
+                <div className="grid md:grid-cols-2 gap-6">
+                  {(data.settings.gwp?.rules||[]).filter(r=>r.active).map(rule=>(
+                    <div key={rule.id} className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 to-white p-6 flex gap-4 items-center">
+                      <img src={rule.image} alt="gift" className="w-24 h-24 object-contain rounded-xl bg-white border border-gray-100 p-2 shrink-0"/>
+                      <div className="space-y-1 flex-1">
+                        <span className="px-2.5 py-0.5 rounded-full bg-primary text-white text-[10px] font-bold">{lang==='zh'?'滿贈禮遇':'GWP'}</span>
+                        <h4 className="font-black text-base">{t(rule.title)}</h4>
+                        <p className="text-xs text-gray-600 line-clamp-2">{t(rule.description)}</p>
+                        <div className="pt-2"><button onClick={()=>switchTab('shop')} className="text-xs font-bold text-primary hover:underline">{lang==='zh'?'立即選購 →':'Shop Now →'}</button></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Newsletter */}
+              <section className="bg-gray-900 text-white py-14 px-4">
+                <div className="max-w-3xl mx-auto text-center space-y-4">
+                  <h3 className="text-2xl sm:text-3xl font-black">{t(data.settings.newsletter?.title) || 'Subscribe PRESTIGE Newsletter'}</h3>
+                  <p className="text-white/70 text-sm">{t(data.settings.newsletter?.description) || 'Get latest offers'}</p>
+                  <div className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto pt-2">
+                    <input placeholder={lang==='zh'?'輸入您的電郵':'Enter your email'} className="flex-1 px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-white/50 text-sm focus:outline-none focus:ring-1 focus:ring-primary"/>
+                    <button className="px-6 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-colors">{lang==='zh'?'訂閱':'Subscribe'}</button>
+                  </div>
+                  <p className="text-[11px] text-white/40">{lang==='zh'?'*隨訂閱即表示您同意CS12隱私政策和服務條款':'*By subscribing you agree to privacy policy'}</p>
+                </div>
+              </section>
             </div>
+          )}
 
-            {/* Vision & Mission Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
-              <div className="bg-white p-8 md:p-10 rounded-2xl border border-gray-150 shadow-sm space-y-4 relative overflow-hidden group hover:border-primary/20 transition-all">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -z-10 group-hover:scale-110 transition-transform" />
-                <div className="inline-flex p-3 rounded-xl bg-primary/10 text-primary mb-2">
-                  <Sparkles size={24} />
+          {/* SHOP */}
+          {activeTab==='shop' && (
+            <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
+              <div className="flex flex-col lg:flex-row gap-8">
+                {/* Sidebar filters - desktop */}
+                <aside className="hidden lg:block w-64 shrink-0 space-y-6">
+                  <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-5">
+                    <h4 className="font-black text-sm flex items-center gap-2"><Filter size={14}/>{lang==='zh'?'篩選':'Filters'}</h4>
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 mb-2 block">{lang==='zh'?'系列':'Series'}</label>
+                      <div className="space-y-1.5">
+                        <button onClick={()=>setShopSeriesFilter('all')} className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg ${shopSeriesFilter==='all'?'bg-primary/10 text-primary font-bold':'text-gray-600 hover:bg-gray-50'}`}>{lang==='zh'?'全部':'All'}</button>
+                        {navCategories.series.map(c=><button key={c.id} onClick={()=>setShopSeriesFilter(c.id)} className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg ${shopSeriesFilter===c.id?'bg-primary/10 text-primary font-bold':'text-gray-600 hover:bg-gray-50'}`}>{t(c.name)}</button>)}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 mb-2 block">{lang==='zh'?'面部護理':'Face Care'}</label>
+                      <div className="space-y-1.5">
+                        <button onClick={()=>setShopCategoryFilter('all')} className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg ${shopCategoryFilter==='all'?'bg-primary/10 text-primary font-bold':'text-gray-600 hover:bg-gray-50'}`}>{lang==='zh'?'全部':'All'}</button>
+                        {navCategories.faceCare.map(c=><button key={c.id} onClick={()=>setShopCategoryFilter(c.id)} className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg ${shopCategoryFilter===c.id?'bg-primary/10 text-primary font-bold':'text-gray-600 hover:bg-gray-50'}`}>{t(c.name)}</button>)}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 mb-2 block">{lang==='zh'?'肌膚類別':'Skin Type'}</label>
+                      <div className="space-y-1.5">
+                        <button onClick={()=>setShopSkinFilter('all')} className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg ${shopSkinFilter==='all'?'bg-primary/10 text-primary font-bold':'text-gray-600 hover:bg-gray-50'}`}>{lang==='zh'?'全部':'All'}</button>
+                        {navCategories.skinType.map(c=><button key={c.id} onClick={()=>setShopSkinFilter(c.id)} className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg ${shopSkinFilter===c.id?'bg-primary/10 text-primary font-bold':'text-gray-600 hover:bg-gray-50'}`}>{t(c.name)}</button>)}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 mb-2 block">{lang==='zh'?`價格範圍: ${formatPrice(shopPriceRange[0])} - ${formatPrice(shopPriceRange[1])}`:`Price: ${formatPrice(shopPriceRange[0])} - ${formatPrice(shopPriceRange[1])}`}</label>
+                      <input type="range" min={0} max={2000} step={50} value={shopPriceRange[1]} onChange={e=>setShopPriceRange([0, parseInt(e.target.value)])} className="w-full accent-primary"/>
+                    </div>
+                    <button onClick={()=>{setShopCategoryFilter('all'); setShopSkinFilter('all'); setShopSeriesFilter('all'); setShopSearch(''); setShopPriceRange([0,2000]);}} className="w-full py-2 rounded-xl bg-gray-100 text-xs font-bold hover:bg-gray-200">{lang==='zh'?'清除篩選':'Clear Filters'}</button>
+                  </div>
+                </aside>
+
+                {/* Main products */}
+                <div className="flex-1 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-2xl border border-gray-100 p-3 sm:p-4">
+                    <div className="flex items-center gap-2">
+                      <button onClick={()=>setShowMobileFilter(true)} className="lg:hidden px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold flex items-center gap-1"><Filter size={14}/>{lang==='zh'?'篩選':'Filter'}</button>
+                      <span className="text-xs text-gray-500">{filteredProducts.length} {lang==='zh'?'件產品':'products'}</span>
+                      {(shopCategoryFilter!=='all'||shopSeriesFilter!=='all'||shopSkinFilter!=='all') && (
+                        <div className="flex gap-1.5 flex-wrap">
+                          {shopCategoryFilter!=='all' && <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold flex items-center gap-1">{data.categories.find(c=>c.id===shopCategoryFilter)?.name?.zh||shopCategoryFilter}<button onClick={()=>setShopCategoryFilter('all')} className="hover:text-primary-dark"><X size={10}/></button></span>}
+                          {shopSeriesFilter!=='all' && <span className="px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-[11px] font-bold flex items-center gap-1">{data.categories.find(c=>c.id===shopSeriesFilter)?.name?.zh||shopSeriesFilter}<button onClick={()=>setShopSeriesFilter('all')}><X size={10}/></button></span>}
+                          {shopSkinFilter!=='all' && <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold flex items-center gap-1">{data.categories.find(c=>c.id===shopSkinFilter)?.name?.zh||shopSkinFilter}<button onClick={()=>setShopSkinFilter('all')}><X size={10}/></button></span>}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative"><input value={shopSearch} onChange={e=>setShopSearch(e.target.value)} placeholder={lang==='zh'?'搜尋...':'Search...'} className="pl-8 pr-3 py-2 rounded-xl bg-gray-100 border border-transparent focus:bg-white focus:border-primary/20 text-xs outline-none w-36 sm:w-48"/><Search size={12} className="absolute left-2.5 top-2.5 text-gray-400"/></div>
+                      <select value={shopSort} onChange={e=>setShopSort(e.target.value)} className="px-2.5 py-2 rounded-xl bg-gray-100 text-xs font-medium outline-none border border-transparent focus:bg-white focus:border-primary/20"><option value="featured">{lang==='zh'?'精選':'Featured'}</option><option value="bestseller">{lang==='zh'?'熱銷':'Bestseller'}</option><option value="newest">{lang==='zh'?'最新':'Newest'}</option><option value="price-low">{lang==='zh'?'價格低到高':'Price Low-High'}</option><option value="price-high">{lang==='zh'?'價格高到低':'Price High-Low'}</option><option value="rating">{lang==='zh'?'評分':'Rating'}</option></select>
+                    </div>
+                  </div>
+
+                  {filteredProducts.length===0 ? (
+                    <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center space-y-3"><Package size={36} className="mx-auto text-gray-300"/><p className="font-bold text-gray-700">{lang==='zh'?'未找到相關產品':'No products found'}</p><p className="text-xs text-gray-500">{lang==='zh'?'請嘗試調整篩選條件':'Try adjusting filters'}</p><button onClick={()=>{setShopSearch(''); setShopCategoryFilter('all'); setShopSkinFilter('all'); setShopSeriesFilter('all'); setShopPriceRange([0,2000]);}} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold">{lang==='zh'?'清除篩選':'Clear Filters'}</button></div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+                      {filteredProducts.map(prod=>(
+                        <div key={prod.id} className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col">
+                          <div className="relative aspect-square overflow-hidden bg-gray-50 cursor-pointer" onClick={()=>setSelectedProduct(prod)}>
+                            <img src={prod.images[0]} alt={t(prod.title)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
+                            {prod.compareAtPrice>prod.price && <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold">-{Math.round((1-prod.price/prod.compareAtPrice)*100)}%</span>}
+                            <button onClick={(e)=>{e.stopPropagation(); toggleWishlist(prod.id);}} className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center shadow border transition-all ${wishlist.includes(prod.id)?'bg-primary text-white border-primary':'bg-white text-gray-400 border-gray-200 hover:text-primary'}`}><Heart size={14} className={wishlist.includes(prod.id)?'fill-white':''}/></button>
+                            {prod.stock<=prod.lowStockThreshold && <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">{lang==='zh'?'低庫存':'Low Stock'}</span>}
+                          </div>
+                          <div className="p-3 sm:p-4 flex-1 flex flex-col">
+                            <h4 className="font-bold text-sm leading-tight line-clamp-2 cursor-pointer hover:text-primary" onClick={()=>setSelectedProduct(prod)}>{t(prod.title)}</h4>
+                            <p className="text-[11px] text-gray-500 mt-1 line-clamp-1">{t(prod.subtitle)||t(prod.shortDesc)}</p>
+                            <div className="mt-2 flex items-center gap-1"><Stars rating={prod.rating||5}/><span className="text-[10px] text-gray-400">({prod.reviewCount||0})</span></div>
+                            <div className="mt-auto pt-3 flex items-center justify-between">
+                              <div><span className="font-black text-[15px]">{formatPrice(prod.price)}</span>{prod.compareAtPrice>prod.price && <span className="ml-1.5 text-[11px] text-gray-400 line-through">{formatPrice(prod.compareAtPrice)}</span>}</div>
+                              <button onClick={()=>addToCart(prod.id, prod.variants?.[0]?.id||null, 1)} className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center hover:bg-primary transition-colors"><ShoppingBag size={14}/></button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <h3 className="text-2xl font-extrabold text-gray-900">
-                  {lang === 'zh' ? '教会愿景 (Vision)' : 'Our Vision'}
-                </h3>
-                <p className="text-gray-700 font-light text-base md:text-lg leading-relaxed">
-                  {t(data.settings.aboutVision)}
-                </p>
               </div>
 
-              <div className="bg-white p-8 md:p-10 rounded-2xl border border-gray-150 shadow-sm space-y-4 relative overflow-hidden group hover:border-primary/20 transition-all">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -z-10 group-hover:scale-110 transition-transform" />
-                <div className="inline-flex p-3 rounded-xl bg-primary/10 text-primary mb-2">
-                  <BookOpen size={24} />
+              {/* Mobile filter drawer */}
+              {showMobileFilter && (
+                <div className="fixed inset-0 z-[60] flex">
+                  <div className="absolute inset-0 bg-black/40" onClick={()=>setShowMobileFilter(false)}/>
+                  <div className="relative w-[82vw] max-w-[320px] bg-white h-full shadow-2xl overflow-y-auto p-5 space-y-5 animate-slide-in-right">
+                    <div className="flex items-center justify-between"><h4 className="font-black text-sm">{lang==='zh'?'篩選':'Filters'}</h4><button onClick={()=>setShowMobileFilter(false)} className="p-2 rounded-xl bg-gray-100"><X size={16}/></button></div>
+                    <div><p className="text-xs font-bold mb-2">{lang==='zh'?'系列':'Series'}</p><div className="space-y-1">{['all', ...navCategories.series.map(c=>c.id)].map(id=>{const c=data.categories.find(cc=>cc.id===id); const label=id==='all'?(lang==='zh'?'全部':'All'):t(c?.name); return <button key={id} onClick={()=>setShopSeriesFilter(id)} className={`w-full text-left text-xs px-3 py-2 rounded-xl ${shopSeriesFilter===id?'bg-primary/10 text-primary font-bold':'bg-gray-50 text-gray-600'}`}>{label}</button>;})}</div></div>
+                    <div><p className="text-xs font-bold mb-2">{lang==='zh'?'肌膚類別':'Skin Type'}</p><div className="space-y-1">{['all', ...navCategories.skinType.map(c=>c.id)].map(id=>{const c=data.categories.find(cc=>cc.id===id); const label=id==='all'?(lang==='zh'?'全部':'All'):t(c?.name); return <button key={id} onClick={()=>setShopSkinFilter(id)} className={`w-full text-left text-xs px-3 py-2 rounded-xl ${shopSkinFilter===id?'bg-primary/10 text-primary font-bold':'bg-gray-50 text-gray-600'}`}>{label}</button>;})}</div></div>
+                    <div><p className="text-xs font-bold mb-2">{lang==='zh'?'面部護理':'Face Care'}</p><div className="space-y-1">{['all', ...navCategories.faceCare.map(c=>c.id)].map(id=>{const c=data.categories.find(cc=>cc.id===id); const label=id==='all'?(lang==='zh'?'全部':'All'):t(c?.name); return <button key={id} onClick={()=>setShopCategoryFilter(id)} className={`w-full text-left text-xs px-3 py-2 rounded-xl ${shopCategoryFilter===id?'bg-primary/10 text-primary font-bold':'bg-gray-50 text-gray-600'}`}>{label}</button>;})}</div></div>
+                    <div><label className="text-xs font-bold mb-2 block">{lang==='zh'?'最高價格':'Max Price'}: {formatPrice(shopPriceRange[1])}</label><input type="range" min={0} max={2000} step={50} value={shopPriceRange[1]} onChange={e=>setShopPriceRange([0, parseInt(e.target.value)])} className="w-full accent-primary"/></div>
+                    <div className="flex gap-2 pt-2"><button onClick={()=>{setShopCategoryFilter('all'); setShopSkinFilter('all'); setShopSeriesFilter('all'); setShopPriceRange([0,2000]);}} className="flex-1 py-2.5 rounded-xl bg-gray-100 text-xs font-bold">{lang==='zh'?'清除':'Clear'}</button><button onClick={()=>setShowMobileFilter(false)} className="flex-1 py-2.5 rounded-xl bg-gray-900 text-white text-xs font-bold">{lang==='zh'?'應用':'Apply'}</button></div>
+                  </div>
                 </div>
-                <h3 className="text-2xl font-extrabold text-gray-900">
-                  {lang === 'zh' ? '教会使命 (Mission)' : 'Our Mission'}
-                </h3>
-                <p className="text-gray-700 font-light text-base md:text-lg leading-relaxed">
-                  {t(data.settings.aboutMission)}
-                </p>
+              )}
+            </div>
+          )}
+
+          {/* BUNDLES */}
+          {activeTab==='bundles' && (
+            <div className="max-w-7xl mx-auto px-4 py-10 animate-fade-in space-y-10">
+              <div className="text-center max-w-2xl mx-auto"><span className="text-primary font-bold text-xs uppercase tracking-widest">{lang==='zh'?'官網限定禮遇':'Exclusive Offers'}</span><h1 className="text-3xl font-black mt-2">{lang==='zh'?'限定修護套裝 低至 HK$1,198 起':'Exclusive Repair Sets from HK$1,198'}</h1><p className="text-sm text-gray-600 mt-3">{lang==='zh'?'購滿 $2000 獲贈6件療敏禮品，滿$3000 獲贈10件':'Spend $2000 get 6 gifts, $3000 get 10 gifts'}</p></div>
+              <div className="grid md:grid-cols-2 gap-6">
+                {data.bundles.filter(b=>b.active).map(bundle=>(
+                  <div key={bundle.id} className="bg-white rounded-3xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all flex flex-col md:flex-row">
+                    <div className="md:w-1/2 aspect-square md:aspect-auto relative bg-gray-50"><img src={bundle.image} alt={t(bundle.title)} className="absolute inset-0 w-full h-full object-cover"/><span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-red-500 text-white text-xs font-bold">{t(bundle.badge)||'Limited'}</span></div>
+                    <div className="md:w-1/2 p-6 flex flex-col justify-between space-y-4">
+                      <div><h3 className="font-black text-lg leading-tight">{t(bundle.title)}</h3><p className="text-xs text-gray-600 mt-2">{t(bundle.description)}</p><div className="flex items-center gap-2 mt-3"><span className="font-black text-xl">{formatPrice(bundle.price)}</span><span className="text-sm text-gray-400 line-through">{formatPrice(bundle.originalPrice)}</span><span className="px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-[11px] font-bold">-{Math.round((1-bundle.price/bundle.originalPrice)*100)}%</span></div><div className="mt-3 text-[11px] text-gray-500">{lang==='zh'?'有效期':'Valid'}: {bundle.validFrom} – {bundle.validTo}</div></div>
+                      <div className="flex gap-2">
+                        <button onClick={()=>{
+                          // add all products in bundle to cart
+                          bundle.productIds.forEach(pid=>addToCart(pid,null,1));
+                        }} className="flex-1 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-primary transition-colors flex items-center justify-center gap-1"><ShoppingBag size={14}/>{lang==='zh'?'加入套裝':'Add Bundle'}</button>
+                        <button onClick={()=>{ setShopSearch(bundle.title.en||''); switchTab('shop'); }} className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-bold hover:bg-gray-50">{lang==='zh'?'查看詳情':'Details'}</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* GWP detailed */}
+              <div className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8">
+                <h3 className="font-black text-lg flex items-center gap-2"><Gift size={18} className="text-primary"/>{lang==='zh'?'官網限定禮遇詳情':'GWP Details'}</h3>
+                <div className="grid md:grid-cols-2 gap-6 mt-6">
+                  {(data.settings.gwp?.rules||[]).map(r=>(
+                    <div key={r.id} className="rounded-2xl border border-gray-100 p-5 bg-[#fdf8f5] space-y-3">
+                      <div className="flex items-center gap-3"><img src={r.image} className="w-16 h-16 rounded-xl bg-white border p-1 object-contain"/><div><p className="font-bold text-sm">{t(r.title)}</p><p className="text-xs text-gray-500">{t(r.description)}</p></div></div>
+                      <div className="flex flex-wrap gap-1.5">{r.gifts?.map((g,i)=><span key={i} className="px-2 py-1 rounded-full bg-white border text-[11px]">{t(g.name)} x{g.qty}</span>)}</div>
+                      <div className="text-xs font-bold">Min {formatPrice(r.minSpend)}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Leadership / Pastor Team - Now with 3 tabs: Pastors / Co-Workers / Cell Leaders */}
-            <div className="space-y-10">
-              <div className="text-center max-w-2xl mx-auto space-y-3">
-                <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                  {t(data.settings.leadershipBadge) || (lang === 'zh' ? '属灵领袖与关怀同工' : 'Spiritual Guides & Shepherds')}
-                </span>
-                <h2 className="text-3xl font-extrabold text-gray-900">
-                  {t(data.settings.leadershipTitle) || (lang === 'zh' ? '牧者与事工团队' : 'Leadership Team')}
-                </h2>
-                <p className="text-gray-600 text-sm font-light leading-relaxed">
-                  {t(data.settings.leadershipIntro) || (lang === 'zh' 
-                    ? '神选召并赐予我们的忠心仆人，倾尽爱心，牧养群羊，引领社区事工蓬勃发展。' 
-                    : 'Servants called by God to shepherd the congregation and guide community ministries with love.')}
-                </p>
+          {/* MEMBERSHIP */}
+          {activeTab==='membership' && (
+            <div className="max-w-7xl mx-auto px-4 py-10 animate-fade-in space-y-12">
+              <div className="text-center max-w-3xl mx-auto space-y-3"><span className="text-primary font-bold text-xs uppercase tracking-widest">{lang==='zh'?'CS12 PRESTIGE':'CS12 PRESTIGE'}</span><h1 className="text-4xl font-black">PRESTIGE {lang==='zh'?'會員制度':'Membership'}</h1><p className="text-sm text-gray-600">{lang==='zh'?'累積消費，享專屬禮遇、積分、生日優惠及推薦獎勵':'Spend and enjoy exclusive gifts, points, birthday perks and referral rewards'}</p></div>
+
+              <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                {(data.settings.membership?.tiers||[]).map(tier=>(
+                  <div key={tier.id} className={`rounded-3xl border-2 p-6 space-y-4 ${tier.id==='signature'?'border-gray-900 bg-gray-900 text-white':'border-gray-200 bg-white'}`}>
+                    <div className="flex items-center justify-between"><span className={`px-3 py-1 rounded-full text-xs font-black tracking-widest ${tier.id==='signature'?'bg-white text-gray-900':'bg-gray-900 text-white'}`}>{tier.badge}</span>{tier.id==='signature'&&<Crown size={18} className="text-amber-300"/>}</div>
+                    <h3 className="text-2xl font-black">{t(tier.name)}</h3>
+                    <p className="text-sm opacity-80">{tier.id==='classic' ? (lang==='zh'?`單筆$${tier.minSpendToEnroll} 或 ${tier.accumulateMonths}個月內累積滿$${tier.minSpendToEnroll} 即可入會`:`Single $${tier.minSpendToEnroll} or accumulate within ${tier.accumulateMonths} months`) : (lang==='zh'?`單筆累積滿$${tier.minSpendToUpgrade} 升級尊尚`:`Accumulate $${tier.minSpendToUpgrade} to upgrade`)}</p>
+                    <div className="space-y-2 pt-2">
+                      {(t(tier.benefits)?.length ? t(tier.benefits) : tier.benefits?.en||[]).map?.((b,i)=>(
+                        <div key={i} className="flex items-start gap-2 text-sm"><CheckCircle size={14} className={`mt-0.5 shrink-0 ${tier.id==='signature'?'text-amber-300':'text-primary'}`}/><span className="opacity-90">{typeof b==='string'?b:t(b)||b}</span></div>
+                      )) || (tier.benefits?.[lang]||[]).map((b,i)=><div key={i} className="flex items-start gap-2 text-sm"><CheckCircle size={14} className={`mt-0.5 shrink-0 ${tier.id==='signature'?'text-amber-300':'text-primary'}`}/><span>{b}</span></div>)}
+                    </div>
+                    <div className="pt-4 border-t border-white/10 text-xs space-y-1 opacity-80">
+                      <p>{lang==='zh'?'積分比率':'Points Rate'}: $1 = {tier.pointsRate} {lang==='zh'?'分':'Credit'}</p>
+                      <p>{lang==='zh'?'推薦獎勵':'Referral'}: +{tier.referralBonus} {lang==='zh'?'分':'Credits'}</p>
+                      <p>{lang==='zh'?'生日禮遇':'Birthday'}: HK${tier.birthdayCoupon} + {tier.birthdayMultiplier}x {lang==='zh'?'積分':''} {tier.birthdayGift?`+ ${lang==='zh'?'生日禮物':'Gift'}`:''}</p>
+                    </div>
+                    <button onClick={()=>switchTab('shop')} className={`w-full py-3 rounded-xl font-bold text-sm ${tier.id==='signature'?'bg-white text-gray-900 hover:bg-gray-100':'bg-gray-900 text-white hover:bg-black'}`}>{lang==='zh'?'立即選購':'Shop Now'}</button>
+                  </div>
+                ))}
               </div>
 
-              {/* Tabs */}
-              <div className="flex justify-center">
-                <div className="inline-flex p-1 rounded-2xl bg-gray-100 border border-gray-200/80 shadow-inner gap-1">
-                  {LEADERSHIP_CATEGORIES.map(cat => {
-                    const isActive = aboutLeadershipTab === cat.id;
-                    const count = (data.leadership || []).filter(l => getLeaderCategory(l) === cat.id).length;
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => setAboutLeadershipTab(cat.id)}
-                        className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-                          isActive 
-                            ? 'bg-white text-primary shadow-md border border-primary/10' 
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
-                        }`}
-                      >
-                        <span>{lang === 'zh' ? cat.zh : cat.en}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-primary/10 text-primary' : 'bg-gray-200 text-gray-600'}`}>
-                          {count}
-                        </span>
-                      </button>
-                    );
+              <div className="max-w-5xl mx-auto bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 space-y-6">
+                <h3 className="font-black text-lg">{lang==='zh'?'會員權益對比':'Benefits Comparison'}</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b text-xs text-gray-500 uppercase"><th className="text-left py-3">{lang==='zh'?'權益':'Benefit'}</th><th className="text-center py-3">Classic</th><th className="text-center py-3">Signature</th></tr></thead>
+                    <tbody className="divide-y">
+                      <tr><td className="py-3 font-medium">{lang==='zh'?'入會門檻':'Enrollment'}</td><td className="text-center">HK$1500</td><td className="text-center">HK$6500</td></tr>
+                      <tr><td className="py-3 font-medium">{lang==='zh'?'生日禮遇':'Birthday Reward'}</td><td className="text-center">HK$100 + 2x</td><td className="text-center">HK$100 + Gift + 3x</td></tr>
+                      <tr><td className="py-3 font-medium">{lang==='zh'?'積分累積':'Points'}</td><td className="text-center">$1=1</td><td className="text-center">$1=1.5</td></tr>
+                      <tr><td className="py-3 font-medium">{lang==='zh'?'推薦獎勵':'Referral'}</td><td className="text-center">+50</td><td className="text-center">+100 / +150</td></tr>
+                      <tr><td className="py-3 font-medium">{lang==='zh'?'專屬禮遇':'Exclusive GWP'}</td><td className="text-center"><Check size={16} className="mx-auto text-green-500"/></td><td className="text-center"><Check size={16} className="mx-auto text-green-500"/></td></tr>
+                      <tr><td className="py-3 font-medium">{lang==='zh'?'新品優先':'Insider'}</td><td className="text-center">{lang==='zh'?'有':'Yes'}</td><td className="text-center">{lang==='zh'?'優先':'First'}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="text-[11px] text-gray-500 leading-relaxed space-y-1">
+                  <p>{lang==='zh'?'*生日月份額外積分上限 HK$10,000，積分有效期12個月，每年1月及7月通知兌換':'*Extra birthday points capped at HK$10,000 purchase, points expire in 12 months, redemption notified Jan & July'}</p>
+                  <p>{lang==='zh'?'*推薦獎勵需滿3個月會籍方可獲得，超過12個月無交易會籍將終止，生日當月入會不享當月生日禮遇':'*Referral requires 3 months membership, inactive 12 months membership terminated, birthday month join not entitled to birthday perks that month'}</p>
+                </div>
+              </div>
+
+              {fullCurrentCustomer && (
+                <div className="max-w-3xl mx-auto bg-gradient-to-br from-primary/10 to-white rounded-3xl border border-primary/20 p-6 flex items-center justify-between">
+                  <div><p className="font-bold">{lang==='zh'?`您好，${fullCurrentCustomer.name}！`:`Hi, ${fullCurrentCustomer.name}!`}</p><p className="text-sm text-gray-600 mt-1">{lang==='zh'?`目前等級：${t(customerTier?.name) || customerTier?.id || '未入會'} | 積分：${fullCurrentCustomer.points} | 累積消費：${formatPrice(fullCurrentCustomer.totalSpent||0)}`:`Tier: ${customerTier?.id||'None'} | Points: ${fullCurrentCustomer.points} | Spent: ${formatPrice(fullCurrentCustomer.totalSpent||0)}`}</p></div>
+                  <button onClick={()=>switchTab('account')} className="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-bold">{lang==='zh'?'查看會員中心':'My Prestige'}</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* REVIEWS */}
+          {activeTab==='reviews' && (
+            <div className="max-w-7xl mx-auto px-4 py-10 animate-fade-in space-y-8">
+              <div className="text-center"><h1 className="text-3xl font-black">{lang==='zh'?'真實用家 如實分享':'Real Users, Honest Reviews'}</h1><p className="text-sm text-gray-600 mt-2">{lang==='zh'?'敏感肌見證療敏奇蹟':'Sensitive skin witnessing miracle'}</p></div>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {data.reviews.map(r=>(
+                  <div key={r.id} className="bg-white rounded-3xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all">
+                    <div className="aspect-[4/3] bg-gray-50"><img src={r.image} alt={r.customerName} className="w-full h-full object-cover"/></div>
+                    <div className="p-5 space-y-3">
+                      <div className="flex items-center gap-3"><img src={r.avatar} className="w-10 h-10 rounded-full"/><div><p className="font-bold text-sm">{r.customerName}</p><Stars rating={r.rating}/></div>{r.verified && <span className="ml-auto px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-[10px] font-bold flex items-center gap-1"><CheckCircle size={10}/>{lang==='zh'?'已驗證':'Verified'}</span>}</div>
+                      <p className="text-sm text-gray-700 leading-relaxed">{t(r.comment)}</p>
+                      <p className="text-xs text-gray-500">{t(r.productTitle)} • {r.date}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ACCOUNT */}
+          {activeTab==='account' && (
+            <div className="max-w-6xl mx-auto px-4 py-10 animate-fade-in">
+              {!fullCurrentCustomer || !fullCurrentCustomer.email ? (
+                <div className="max-w-md mx-auto bg-white rounded-3xl border border-gray-100 p-8 space-y-6 shadow-sm">
+                  <div className="text-center space-y-2"><div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto"><User size={20}/></div><h2 className="text-2xl font-black">{authMode==='login'?(lang==='zh'?'登入帳號':'Login'):(lang==='zh'?'註冊帳號':'Register')}</h2><p className="text-xs text-gray-500">{lang==='zh'?'登入享會員積分與生日禮遇':'Login for points & birthday perks'}</p></div>
+                  <form onSubmit={authMode==='login'?handleCustomerLogin:handleCustomerRegister} className="space-y-4">
+                    {authMode==='register' && <div><label className="text-xs font-bold text-gray-700 mb-1 block">{lang==='zh'?'姓名 *':'Name *'}</label><input value={authForm.name} onChange={e=>setAuthForm({...authForm, name:e.target.value})} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>}
+                    <div><label className="text-xs font-bold text-gray-700 mb-1 block">{lang==='zh'?'電郵 *':'Email *'}</label><input type="email" value={authForm.email} onChange={e=>setAuthForm({...authForm, email:e.target.value})} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                    <div><label className="text-xs font-bold text-gray-700 mb-1 block">{lang==='zh'?'密碼 *':'Password *'}</label><input type="password" value={authForm.password} onChange={e=>setAuthForm({...authForm, password:e.target.value})} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                    {authMode==='register' && <>
+                      <div><label className="text-xs font-bold text-gray-700 mb-1 block">{lang==='zh'?'生日 (選填，享生日禮遇)':'Birthday (optional for birthday perks)'}</label><input type="date" value={authForm.birthday} onChange={e=>setAuthForm({...authForm, birthday:e.target.value})} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                      <div><label className="text-xs font-bold text-gray-700 mb-1 block">{lang==='zh'?'推薦碼 (選填)':'Referral Code (optional)'}</label><input value={authForm.referral} onChange={e=>setAuthForm({...authForm, referral:e.target.value})} placeholder="Y.A.N..." className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                      <label className="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" checked={authForm.newsletter} onChange={e=>setAuthForm({...authForm, newsletter:e.target.checked})} className="rounded"/><span>{lang==='zh'?'訂閱電子報獲取優惠':'Subscribe newsletter for offers'}</span></label>
+                    </>}
+                    {authError && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl p-2.5">{authError}</div>}
+                    <button type="submit" className="w-full py-3 rounded-xl bg-gray-900 text-white font-bold text-sm hover:bg-black transition-colors">{authMode==='login'?(lang==='zh'?'登入':'Login'):(lang==='zh'?'註冊':'Register')}</button>
+                    <div className="text-center text-xs text-gray-500">{authMode==='login'?(lang==='zh'?'還沒有帳號？':'No account?'): (lang==='zh'?'已有帳號？':'Have account?')}<button type="button" onClick={()=>{setAuthMode(authMode==='login'?'register':'login'); setAuthError('');}} className="ml-1 font-bold text-primary hover:underline">{authMode==='login'?(lang==='zh'?'立即註冊':'Register'):(lang==='zh'?'登入':'Login')}</button></div>
+                  </form>
+                  <div className="pt-4 border-t text-center"><button onClick={()=>switchTab('home')} className="text-xs text-gray-500 hover:underline">{lang==='zh'?'← 返回首頁':'← Back to Home'}</button></div>
+                </div>
+              ) : (
+                <div className="grid lg:grid-cols-[240px_1fr] gap-8">
+                  {/* Account sidebar */}
+                  <div className="space-y-4">
+                    <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-3">
+                      <img src={fullCurrentCustomer.avatar} className="w-12 h-12 rounded-full"/>
+                      <div><p className="font-bold text-sm">{fullCurrentCustomer.name}</p><p className="text-xs text-gray-500">{fullCurrentCustomer.email}</p><span className={`mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${customerTier?.id==='signature'?'bg-gray-900 text-white':'bg-primary/10 text-primary'}`}>{customerTier? t(customerTier.name): (lang==='zh'?'未入會':'Not Member')}</span></div>
+                    </div>
+                    <div className="bg-white rounded-2xl border border-gray-100 p-2">
+                      {[
+                        { id:'overview', label: lang==='zh'?'總覽':'Overview', icon: LayoutGrid },
+                        { id:'orders', label: lang==='zh'?`訂單 (${fullCurrentCustomer.ordersCount||0})`:`Orders (${fullCurrentCustomer.ordersCount||0})`, icon: Package },
+                        { id:'points', label: lang==='zh'?`積分 ${fullCurrentCustomer.points}`:`Points ${fullCurrentCustomer.points}`, icon: Award },
+                        { id:'membership', label: lang==='zh'?'會員權益':'Membership', icon: Crown },
+                        { id:'referral', label: lang==='zh'?'推薦獎勵':'Referral', icon: Users },
+                        { id:'addresses', label: lang==='zh'?'地址':'Addresses', icon: MapPin },
+                        { id:'wishlist', label: lang==='zh'?`收藏 ${wishlistCount}`:`Wishlist ${wishlistCount}`, icon: Heart },
+                      ].map(item=><button key={item.id} onClick={()=>setAccountTab(item.id)} className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 ${accountTab===item.id?'bg-primary/10 text-primary font-bold':'text-gray-600 hover:bg-gray-50'}`}><item.icon size={16}/>{item.label}</button>)}
+                      <div className="border-t mt-2 pt-2"><button onClick={handleCustomerLogout} className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"><LogOut size={16}/>{lang==='zh'?'登出':'Logout'}</button></div>
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="space-y-6">
+                    {accountTab==='overview' && (
+                      <div className="space-y-6">
+                        <div className="grid md:grid-cols-3 gap-4">
+                          <div className="bg-white rounded-2xl border border-gray-100 p-5"><p className="text-xs text-gray-500 uppercase font-bold">{lang==='zh'?'累積消費':'Total Spent'}</p><p className="text-2xl font-black mt-2">{formatPrice(fullCurrentCustomer.totalSpent||0)}</p><p className="text-xs text-gray-500 mt-1">{fullCurrentCustomer.ordersCount||0} {lang==='zh'?'筆訂單':'orders'}</p></div>
+                          <div className="bg-white rounded-2xl border border-gray-100 p-5"><p className="text-xs text-gray-500 uppercase font-bold">{lang==='zh'?'可用積分':'Points'}</p><p className="text-2xl font-black mt-2">{fullCurrentCustomer.points||0}</p><p className="text-xs text-gray-500 mt-1">{lang==='zh'?'可兌換產品':'Redeem products'}</p></div>
+                          <div className="bg-gradient-to-br from-gray-900 to-black text-white rounded-2xl p-5"><p className="text-xs text-white/60 uppercase font-bold">{lang==='zh'?'會員等級':'Tier'}</p><p className="text-2xl font-black mt-2 flex items-center gap-2">{customerTier? t(customerTier.name): (lang==='zh'?'未入會':'Not Member')} {customerTier?.id==='signature' && <Crown size={18} className="text-amber-300"/>}</p><p className="text-xs text-white/60 mt-1">{isBirthdayMonth(fullCurrentCustomer.birthday) ? (lang==='zh'?'🎂 生日月份 享額外積分！':'🎂 Birthday month extra points!') : (fullCurrentCustomer.birthday ? `${lang==='zh'?'生日':'Birthday'}: ${fullCurrentCustomer.birthday}` : '')}</p></div>
+                        </div>
+                        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                          <h4 className="font-bold text-sm mb-4">{lang==='zh'?'最近訂單':'Recent Orders'}</h4>
+                          {data.orders.filter(o=>o.customerId===fullCurrentCustomer.id).slice(0,3).map(order=>(
+                            <div key={order.id} className="flex items-center justify-between py-3 border-b last:border-0 text-sm"><div><p className="font-bold">{order.id}</p><p className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleDateString()} • {formatPrice(order.total)}</p></div><span className={`px-2 py-1 rounded-full text-[11px] font-bold ${order.fulfillmentStatus==='fulfilled'?'bg-green-50 text-green-700':'bg-amber-50 text-amber-700'}`}>{order.fulfillmentStatus}</span></div>
+                          ))}
+                          {data.orders.filter(o=>o.customerId===fullCurrentCustomer.id).length===0 && <p className="text-xs text-gray-500">{lang==='zh'?'暫無訂單':'No orders yet'}</p>}
+                        </div>
+                        <div className="bg-primary/5 rounded-2xl border border-primary/20 p-5 flex items-center justify-between">
+                          <div><p className="font-bold text-sm">{lang==='zh'?'您的推薦碼':'Your Referral Code'}</p><p className="text-2xl font-black tracking-widest mt-1">{fullCurrentCustomer.referralCode}</p><p className="text-xs text-gray-600 mt-1">{lang==='zh'?'分享給朋友，雙方獲積分獎勵':'Share with friends, both earn points'}</p></div>
+                          <button onClick={()=>{navigator.clipboard.writeText(fullCurrentCustomer.referralCode); alert(lang==='zh'?'已複製':'Copied');}} className="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold flex items-center gap-1"><Copy size={12}/>{lang==='zh'?'複製':'Copy'}</button>
+                        </div>
+                      </div>
+                    )}
+                    {accountTab==='orders' && (
+                      <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+                        <h4 className="font-bold">{lang==='zh'?'我的訂單':'My Orders'}</h4>
+                        <div className="space-y-3">
+                          {data.orders.filter(o=>o.customerId===fullCurrentCustomer.id).map(order=>(
+                            <div key={order.id} className="border border-gray-100 rounded-xl p-4 space-y-2">
+                              <div className="flex items-center justify-between"><span className="font-bold text-sm">{order.id}</span><span className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleString()}</span></div>
+                              <div className="text-xs text-gray-600 space-y-1">{order.items.map((it,i)=><div key={i} className="flex justify-between"><span>{t(it.title)} x{it.qty}</span><span>{formatPrice(it.price*it.qty)}</span></div>)}</div>
+                              <div className="flex justify-between text-sm font-bold border-t pt-2"><span>Total</span><span>{formatPrice(order.total)}</span></div>
+                              <div className="flex gap-2 text-[11px]"><span className="px-2 py-0.5 rounded-full bg-gray-100">{order.paymentMethod}</span><span className={`px-2 py-0.5 rounded-full ${order.paymentStatus==='paid'?'bg-green-50 text-green-700':'bg-amber-50 text-amber-700'}`}>{order.paymentStatus}</span><span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{order.fulfillmentStatus}</span></div>
+                              {order.gwpEligible && <div className="text-xs text-primary font-bold flex items-center gap-1"><Gift size={12}/>{lang==='zh'?'已獲贈禮品':'GWP Eligible'}: {t(order.gwpDetail?.title)}</div>}
+                            </div>
+                          ))}
+                          {data.orders.filter(o=>o.customerId===fullCurrentCustomer.id).length===0 && <p className="text-sm text-gray-500">{lang==='zh'?'暫無訂單，去選購吧！':'No orders, go shopping!'}</p>}
+                        </div>
+                      </div>
+                    )}
+                    {accountTab==='points' && (
+                      <div className="space-y-4">
+                        <div className="bg-white rounded-2xl border border-gray-100 p-6"><h4 className="font-bold">{lang==='zh'?'積分明細':'Points History'}</h4><p className="text-3xl font-black mt-3">{fullCurrentCustomer.points}</p><p className="text-xs text-gray-500 mt-1">{lang==='zh'?'積分有效期12個月':'Points expire in 12 months'}</p>
+                          <div className="mt-6 space-y-2 text-sm">
+                            <div className="flex justify-between text-xs font-bold text-gray-500 uppercase"><span>{lang==='zh'?'類型':'Type'}</span><span>{lang==='zh'?'積分':'Points'}</span><span>{lang==='zh'?'日期':'Date'}</span></div>
+                            {data.orders.filter(o=>o.customerId===fullCurrentCustomer.id).map(o=><div key={o.id} className="flex justify-between py-2 border-b last:border-0 text-xs"><span>{lang==='zh'?'購物獲得':'Purchase'} {o.id}</span><span className="text-green-600 font-bold">+{o.pointsEarned}</span><span className="text-gray-500">{new Date(o.createdAt).toLocaleDateString()}</span></div>)}
+                          </div>
+                        </div>
+                        <div className="bg-amber-50 rounded-2xl border border-amber-200 p-5 text-sm"><p className="font-bold text-amber-800">{lang==='zh'?'積分兌換將於每年1月及7月通過電郵通知':'Redemption notified via email Jan & July'}</p><p className="text-xs text-amber-700/80 mt-1">{lang==='zh'?'同一商品最多同時兌換2件，數量有限先到先得':'Max 2 same items redeem at once, first come first serve'}</p></div>
+                      </div>
+                    )}
+                    {accountTab==='membership' && (
+                      <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+                        <h4 className="font-bold flex items-center gap-2"><Crown size={16} className="text-amber-500"/>{lang==='zh'?'會員權益':'Membership Benefits'}</h4>
+                        {customerTier ? (
+                          <div className="space-y-3">
+                            <p className="text-sm">{lang==='zh'?`您是尊貴的 ${t(customerTier.name)} 會員`:`You are a valued ${t(customerTier.name)} member`}</p>
+                            <ul className="space-y-2">{(customerTier.benefits?.[lang]||customerTier.benefits?.en||[]).map((b,i)=><li key={i} className="flex gap-2 text-sm"><CheckCircle size={14} className="text-green-500 mt-0.5"/>{b}</li>)}</ul>
+                            <div className="pt-4 border-t">
+                              <p className="text-xs font-bold uppercase text-gray-500">{lang==='zh'?'升級進度':'Upgrade Progress'}</p>
+                              {customerTier.id==='classic' ? (
+                                <div className="mt-2"><div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-gray-900" style={{width:`${Math.min(100, ((fullCurrentCustomer.totalSpent||0)/8000)*100)}%`}}></div></div><p className="text-xs text-gray-600 mt-1">{formatPrice(fullCurrentCustomer.totalSpent||0)} / {formatPrice(8000)} {lang==='zh'?'升級至尊尚':'to Signature'}</p></div>
+                              ) : <p className="text-sm text-gray-600 mt-2">{lang==='zh'?'您已是最高等級會員，感謝支持！':'You are at highest tier, thank you!'}</p>}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 space-y-3"><p className="text-sm text-gray-600">{lang==='zh'?`累積消費滿 $${data.settings.membership?.tiers?.[0]?.minSpendToEnroll} 即可成為經典會員`:`Spend $${data.settings.membership?.tiers?.[0]?.minSpendToEnroll} to become Classic member`}</p><button onClick={()=>switchTab('shop')} className="px-5 py-2.5 rounded-xl bg-primary text-white font-bold text-sm">{lang==='zh'?'去購物':'Go Shopping'}</button></div>
+                        )}
+                      </div>
+                    )}
+                    {accountTab==='referral' && (
+                      <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+                        <h4 className="font-bold">{lang==='zh'?'推薦獎勵':'Referral Rewards'}</h4>
+                        <div className="rounded-2xl bg-gray-900 text-white p-5 flex items-center justify-between"><div><p className="text-xs text-white/60 uppercase font-bold">Your Code</p><p className="text-2xl font-black tracking-widest mt-1">{fullCurrentCustomer.referralCode}</p></div><button onClick={()=>{navigator.clipboard.writeText(fullCurrentCustomer.referralCode); alert('Copied');}} className="px-4 py-2 rounded-xl bg-white text-gray-900 text-xs font-bold"><Copy size={12} className="inline mr-1"/>{lang==='zh'?'複製':'Copy'}</button></div>
+                        <div className="text-sm space-y-2">
+                          <p>{lang==='zh'?'分享您的推薦碼給朋友：':'Share your referral code:'}</p>
+                          <ul className="list-disc pl-5 text-xs text-gray-600 space-y-1"><li>{lang==='zh'?'經典會員推薦新經典會員 +50分，推薦新尊尚 +80分':'Classic refers Classic +50, Signature +80'}</li><li>{lang==='zh'?'尊尚會員推薦新經典 +100分，推薦新尊尚 +150分':'Signature refers Classic +100, Signature +150'}</li><li>{lang==='zh'?'需滿3個月會籍方可獲得推薦獎勵':'Requires 3 months membership for bonus'}</li></ul>
+                          <p className="pt-3 font-bold">{lang==='zh'?'您推薦的朋友：':'Friends you referred:'}</p>
+                          <div className="space-y-2">{data.customers.filter(c=>c.referredBy===fullCurrentCustomer.referralCode).map(c=><div key={c.id} className="flex items-center justify-between text-xs border rounded-xl p-3"><span>{c.name} ({c.email}) - {t(data.settings.membership?.tiers?.find(t=>t.id===c.tier)?.name)||c.tier||'None'}</span><span className="text-gray-500">{c.joinedAt}</span></div>)}{data.customers.filter(c=>c.referredBy===fullCurrentCustomer.referralCode).length===0 && <p className="text-xs text-gray-500">{lang==='zh'?'暫無推薦':'No referrals yet'}</p>}</div>
+                        </div>
+                      </div>
+                    )}
+                    {accountTab==='addresses' && <div className="bg-white rounded-2xl border border-gray-100 p-6"><h4 className="font-bold mb-4">{lang==='zh'?'收貨地址':'Addresses'}</h4><p className="text-xs text-gray-500">{lang==='zh'?'功能開發中，下單時填寫地址即可保存':'Feature in development, address saved at checkout'}</p></div>}
+                    {accountTab==='wishlist' && (
+                      <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                        <h4 className="font-bold mb-4">{lang==='zh'?'我的收藏':'My Wishlist'} ({wishlistCount})</h4>
+                        {wishlist.length===0 ? <p className="text-sm text-gray-500">{lang==='zh'?'暫無收藏':'No wishlist'}</p> : <div className="grid grid-cols-2 md:grid-cols-3 gap-4">{wishlist.map(pid=>{const p=data.products.find(pp=>pp.id===pid); if(!p) return null; return <div key={pid} className="border rounded-xl p-3 flex flex-col"><img src={p.images[0]} className="aspect-square object-cover rounded-lg"/><p className="font-bold text-sm mt-2 line-clamp-1">{t(p.title)}</p><p className="text-xs text-gray-500">{formatPrice(p.price)}</p><div className="mt-2 flex gap-1.5"><button onClick={()=>addToCart(p.id,null,1)} className="flex-1 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-bold">{lang==='zh'?'加入購物車':'Add to Cart'}</button><button onClick={()=>toggleWishlist(pid)} className="px-2 py-1.5 rounded-lg border text-xs"><Trash2 size={12}/></button></div></div>;})}</div>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* CHECKOUT */}
+          {activeTab==='checkout' && (
+            <div className="max-w-6xl mx-auto px-4 py-8 animate-fade-in grid lg:grid-cols-[1fr_380px] gap-8">
+              <div className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 space-y-6">
+                <h2 className="text-2xl font-black flex items-center gap-2"><ShoppingBag size={20}/>{lang==='zh'?'結帳':'Checkout'}</h2>
+                <div className="flex items-center gap-2 text-xs">
+                  {[1,2,3].map(step=><div key={step} className="flex items-center gap-2"><div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold ${checkoutStep>=step?'bg-gray-900 text-white':'bg-gray-100 text-gray-400'}`}>{step}</div>{step<3 && <div className={`w-8 h-0.5 ${checkoutStep>step?'bg-gray-900':'bg-gray-200'}`}></div>}</div>)}
+                  <span className="ml-2 text-gray-500">{checkoutStep===1?(lang==='zh'?'收貨資訊':'Shipping') : checkoutStep===2?(lang==='zh'?'配送與付款':'Delivery & Payment') : (lang==='zh'?'確認訂單':'Review')}</span>
+                </div>
+
+                {checkoutStep===1 && (
+                  <div className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div><label className="text-xs font-bold mb-1 block">{lang==='zh'?'收件人 *':'Name *'}</label><input value={checkoutForm.name} onChange={e=>setCheckoutForm({...checkoutForm, name:e.target.value})} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                      <div><label className="text-xs font-bold mb-1 block">{lang==='zh'?'電話 *':'Phone *'}</label><input value={checkoutForm.phone} onChange={e=>setCheckoutForm({...checkoutForm, phone:e.target.value})} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                      <div className="md:col-span-2"><label className="text-xs font-bold mb-1 block">Email *</label><input value={checkoutForm.email} onChange={e=>setCheckoutForm({...checkoutForm, email:e.target.value})} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                      <div className="md:col-span-2"><label className="text-xs font-bold mb-1 block">{lang==='zh'?'地址 *':'Address *'}</label><input value={checkoutForm.address} onChange={e=>setCheckoutForm({...checkoutForm, address:e.target.value})} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                      <div><label className="text-xs font-bold mb-1 block">{lang==='zh'?'城市 *':'City *'}</label><input value={checkoutForm.city} onChange={e=>setCheckoutForm({...checkoutForm, city:e.target.value})} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                      <div><label className="text-xs font-bold mb-1 block">{lang==='zh'?'備註':'Notes'}</label><input value={checkoutForm.notes} onChange={e=>setCheckoutForm({...checkoutForm, notes:e.target.value})} placeholder={lang==='zh'?'選填':'Optional'} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                    </div>
+                    <button onClick={()=>setCheckoutStep(2)} className="w-full py-3 rounded-xl bg-gray-900 text-white font-bold text-sm">{lang==='zh'?'下一步 配送與付款':'Next: Delivery & Payment'} <ArrowRight size={14} className="inline ml-1"/></button>
+                  </div>
+                )}
+                {checkoutStep===2 && (
+                  <div className="space-y-6">
+                    <div><h4 className="font-bold text-sm mb-3">{lang==='zh'?'配送方式':'Shipping Method'}</h4><div className="space-y-2"><label className="flex items-center justify-between p-3 rounded-xl border border-primary bg-primary/5 cursor-pointer"><span className="flex items-center gap-2"><Truck size={16}/><span className="text-sm font-medium">{shippingCost===0?(lang==='zh'?'免運費 (已達門檻)':'Free Shipping (threshold met)'):(lang==='zh'?`標準配送 HK$${shippingCost}`:`Standard Shipping HK$${shippingCost}`)}</span></span><input type="radio" checked readOnly className="accent-primary"/></label><p className="text-xs text-gray-500">{lang==='zh'?`滿 HK$${data.settings.shipping?.freeThreshold} 免運費`:`Free shipping over HK$${data.settings.shipping?.freeThreshold}`}</p></div></div>
+                    <div><h4 className="font-bold text-sm mb-3">{lang==='zh'?'付款方式':'Payment Method'}</h4><div className="space-y-2">
+                      {[
+                        {id:'credit_card', label: lang==='zh'?'信用卡':'Credit Card', icon: CreditCard},
+                        {id:'paypal', label:'PayPal', icon: Globe},
+                        {id:'fps', label: lang==='zh'?'轉數快 FPS':'FPS', icon: Zap},
+                      ].map(m=><label key={m.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer ${checkoutForm.paymentMethod===m.id?'border-primary bg-primary/5':'border-gray-200 bg-white'}`}><span className="flex items-center gap-2"><m.icon size={16}/><span className="text-sm font-medium">{m.label}</span></span><input type="radio" name="payment" checked={checkoutForm.paymentMethod===m.id} onChange={()=>setCheckoutForm({...checkoutForm, paymentMethod:m.id})} className="accent-primary"/></label>)}
+                    </div></div>
+                    <div className="flex gap-2"><button onClick={()=>setCheckoutStep(1)} className="flex-1 py-3 rounded-xl border border-gray-200 font-bold text-sm">{lang==='zh'?'上一步':'Back'}</button><button onClick={()=>setCheckoutStep(3)} className="flex-[2] py-3 rounded-xl bg-gray-900 text-white font-bold text-sm">{lang==='zh'?'下一步 確認訂單':'Next: Review Order'}</button></div>
+                  </div>
+                )}
+                {checkoutStep===3 && (
+                  <div className="space-y-4">
+                    <h4 className="font-bold text-sm">{lang==='zh'?'確認訂單資訊':'Review Order'}</h4>
+                    <div className="bg-gray-50 rounded-xl p-4 text-xs space-y-1"><p><span className="font-bold">{lang==='zh'?'收件人':'Name'}:</span> {checkoutForm.name} | {checkoutForm.phone}</p><p><span className="font-bold">{lang==='zh'?'地址':'Address'}:</span> {checkoutForm.address}, {checkoutForm.city}</p><p><span className="font-bold">Email:</span> {checkoutForm.email}</p><p><span className="font-bold">{lang==='zh'?'付款':'Payment'}:</span> {checkoutForm.paymentMethod}</p></div>
+                    <div className="flex gap-2"><button onClick={()=>setCheckoutStep(2)} className="flex-1 py-3 rounded-xl border border-gray-200 font-bold text-sm">{lang==='zh'?'上一步':'Back'}</button><button onClick={handleCheckout} className="flex-[2] py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"><CheckCircle size={16}/>{lang==='zh'?'確認下單':'Place Order'}</button></div>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white rounded-3xl border border-gray-100 p-6 h-fit space-y-4">
+                <h4 className="font-bold text-sm">{lang==='zh'?'訂單摘要':'Order Summary'} ({cartCount})</h4>
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                  {cart.map((ci, idx)=>{
+                    const prod=data.products.find(p=>p.id===ci.productId);
+                    if(!prod) return null;
+                    let price=prod.price; let title=t(prod.title);
+                    if(ci.variantId){ const v=prod.variants?.find(v=>v.id===ci.variantId); if(v){ price=v.price; title=`${t(prod.title)} - ${t(v.name)}`; } }
+                    return <div key={idx} className="flex gap-3 text-xs"><img src={prod.images[0]} className="w-12 h-12 rounded-lg object-cover border"/><div className="flex-1"><p className="font-bold line-clamp-1">{title}</p><p className="text-gray-500">x{ci.qty} • {formatPrice(price)}</p></div><span className="font-bold">{formatPrice(price*ci.qty)}</span></div>;
                   })}
                 </div>
-              </div>
-
-              {/* Tab Description */}
-              <div className="text-center">
-                {(() => {
-                  const cat = LEADERSHIP_CATEGORIES.find(c => c.id === aboutLeadershipTab);
-                  if (!cat) return null;
-                  return (
-                    <p className="text-xs font-medium text-gray-500">
-                      {lang === 'zh' ? cat.descZh : cat.descEn}
-                    </p>
-                  );
-                })()}
-              </div>
-
-              {/* Filtered Grid */}
-              {(() => {
-                const filtered = (data.leadership || []).filter(l => getLeaderCategory(l) === aboutLeadershipTab);
-                if (filtered.length === 0) {
-                  return (
-                    <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center space-y-4 max-w-xl mx-auto">
-                      <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center mx-auto text-gray-400">
-                        <Users size={28} />
-                      </div>
-                      <h4 className="text-lg font-bold text-gray-900">
-                        {lang === 'zh' ? `暂无${LEADERSHIP_CATEGORIES.find(c=>c.id===aboutLeadershipTab)?.zh}资料` : `No ${LEADERSHIP_CATEGORIES.find(c=>c.id===aboutLeadershipTab)?.en} yet`}
-                      </h4>
-                      <p className="text-sm text-gray-500 font-light">
-                        {lang === 'zh' 
-                          ? `您可以在后台管理 - 关于我们 - 牧者与领袖标签中，添加${LEADERSHIP_CATEGORIES.find(c=>c.id===aboutLeadershipTab)?.zh}成员，填写照片链接与简介后将显示在此。`
-                          : `You can add ${LEADERSHIP_CATEGORIES.find(c=>c.id===aboutLeadershipTab)?.en} in Admin Console - About Us - Pastors & Leaders tab. Add photo URLs and bios to display them here.`}
-                      </p>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {filtered.map((leader) => (
-                      <div key={leader.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-md transition-all flex flex-col group">
-                        <div 
-                          className="relative w-full aspect-[3/4] overflow-hidden bg-gradient-to-b from-gray-50 via-gray-100/60 to-gray-200/50 cursor-zoom-in"
-                          onClick={() => setSelectedImage({ url: leader.image, title: `${t(leader.name)} - ${t(leader.role)}`, images: [leader.image], index: 0 })}
-                          title={lang === 'zh' ? '点击放大照片' : 'Click to view full image'}
-                        >
-                          <img 
-                            src={leader.image} 
-                            alt={t(leader.name)} 
-                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-300"
-                          />
-                          <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur text-white text-[10px] font-bold tracking-wider uppercase border border-white/20">
-                            {getLeaderCategoryLabel(getLeaderCategory(leader), lang)}
-                          </div>
-                        </div>
-                        <div className="p-6 flex-grow flex flex-col space-y-3">
-                          <div className="space-y-1.5">
-                            <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider inline-block">
-                              {t(leader.role)}
-                            </span>
-                            <h4 className="text-xl font-extrabold text-gray-900 leading-snug">{t(leader.name)}</h4>
-                          </div>
-                          <p className="text-gray-600 text-sm font-light leading-relaxed pt-1">
-                            {t(leader.bio)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-        )}
-
-        {/* ==================== PAGE: MINISTRIES ==================== */}
-        {activeTab === 'ministries' && (
-          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-              <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {t(data.settings.ministriesBadge) || (lang === 'zh' ? '走入人群，服侍弱势' : 'Outreach & Community Service')}
-              </span>
-              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                {t(data.settings.ministriesTitle) || (lang === 'zh' ? '教会事工介绍' : 'Our Ministries')}
-              </h1>
-              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                {t(data.settings.ministriesIntro) || (lang === 'zh' 
-                  ? '大山脚浸信教会不仅专注于信徒身心灵的牧养，更带着沉甸甸的负担投身于百利镇周边社区。我们相信，爱需要行动来显明，福音是看得见的。' 
-                  : 'BMBCC focuses on shepherding believers as well as reaching out to the surrounding communities. We believe love requires action and the gospel should be visible.')}
-              </p>
-            </div>
-
-            {/* Full Ministry List with Alternate Layout */}
-            <div className="space-y-16">
-              {data.ministries.map((min, index) => (
-                <div 
-                  key={min.id}
-                  className={`flex flex-col lg:flex-row gap-8 lg:gap-12 items-center bg-white p-6 md:p-8 rounded-2xl border border-gray-150 shadow-sm hover:shadow-md transition-all ${
-                    index % 2 === 1 ? 'lg:flex-row-reverse' : ''
-                  }`}
-                >
-                  <div 
-                    className="w-full lg:w-1/2 h-64 sm:h-80 md:h-96 relative overflow-hidden rounded-xl shrink-0 cursor-zoom-in"
-                    onClick={() => setSelectedMinistry(min)}
-                  >
-                    <img 
-                      src={min.image} 
-                      alt={t(min.name)} 
-                      className="absolute inset-0 w-full h-full object-cover hover:scale-105 transition-all duration-700"
-                    />
-                  </div>
-                  <div className="w-full lg:w-1/2 space-y-6">
-                    <div className="inline-flex px-3 py-1 rounded bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider">
-                      {lang === 'zh' ? `事工 ${index + 1}` : `Ministry ${index + 1}`}
-                    </div>
-                    <h2 
-                      className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight leading-tight cursor-pointer hover:text-primary transition-colors"
-                      onClick={() => setSelectedMinistry(min)}
-                    >
-                      {t(min.name)}
-                    </h2>
-                    <div className="w-16 h-1 bg-primary rounded" />
-                    <p className="text-gray-700 text-sm md:text-base font-light leading-relaxed whitespace-pre-line line-clamp-6">
-                      {t(min.description)}
-                    </p>
-                    <div className="pt-2 flex flex-wrap gap-3">
-                      <button 
-                        onClick={() => setSelectedMinistry(min)}
-                        className="px-5 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-black transition-all flex items-center gap-1.5 shadow-md"
-                      >
-                        <Info size={16} />
-                        <span>{lang === 'zh' ? '查看详情' : 'View Details'}</span>
-                      </button>
-                      <button 
-                        onClick={() => openTimetableSection('ministry')}
-                        className="px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-dark transition-all flex items-center gap-1.5 shadow-md shadow-primary/15"
-                      >
-                        <Clock size={16} />
-                        <span>{lang === 'zh' ? '查看相关聚会时间' : 'View Timetable'}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ==================== PAGE: TIMETABLE ==================== */}
-        {activeTab === 'timetable' && (() => {
-          // Dynamic available days & languages from data
-          const allTimetableItems = [
-            ...(data.timetable || []),
-            ...(data.ministryTimetable || []),
-            ...(data.cellGroupTimetable || [])
-          ];
-
-          const rawDays = allTimetableItems.map(item => t(item.day)).filter(Boolean);
-          const uniqueDays = Array.from(new Set(rawDays));
-          
-          const rawLangs = allTimetableItems.map(item => t(item.language)).filter(Boolean);
-          const uniqueLangs = Array.from(new Set(rawLangs));
-
-          // Filter logic helper
-          const filterList = (list) => {
-            if (!list) return [];
-            return list.filter(item => {
-              const nameStr = t(item.name).toLowerCase();
-              const dayStr = t(item.day).toLowerCase();
-              const timeStr = String(item.time || '').toLowerCase();
-              const locStr = t(item.location).toLowerCase();
-              const langStr = t(item.language).toLowerCase();
-              const frequencyStr = t(item.frequency).toLowerCase();
-              const q = timetableSearchQuery.toLowerCase().trim();
-
-              const matchesSearch = !q || nameStr.includes(q) || dayStr.includes(q) || timeStr.includes(q) || locStr.includes(q) || langStr.includes(q) || frequencyStr.includes(q);
-              const matchesDay = timetableFilterDay === 'all' || t(item.day) === timetableFilterDay;
-              const matchesLang = timetableFilterLang === 'all' || t(item.language) === timetableFilterLang;
-
-              return matchesSearch && matchesDay && matchesLang;
-            });
-          };
-
-          const filteredWeekly = timetableFilterSection === 'all' || timetableFilterSection === 'weekly' ? filterList(data.timetable) : [];
-          const filteredMinistry = timetableFilterSection === 'all' || timetableFilterSection === 'ministry' ? filterList(data.ministryTimetable) : [];
-          const filteredCellGroup = timetableFilterSection === 'all' || timetableFilterSection === 'cellgroup' ? filterList(data.cellGroupTimetable) : [];
-
-          const totalFilteredCount = filteredWeekly.length + filteredMinistry.length + filteredCellGroup.length;
-
-          // Group by Day helper for Timeline view
-          const getGroupedByDay = (items) => {
-            return items.reduce((acc, item) => {
-              const dayName = t(item.day) || (lang === 'zh' ? '其他' : 'Other');
-              if (!acc[dayName]) acc[dayName] = [];
-              acc[dayName].push(item);
-              return acc;
-            }, {});
-          };
-
-          const handleCopyInfo = (item) => {
-            const text = `${t(item.name)} | ${t(item.day)} ${item.time}${t(item.frequency) ? ` | ${t(item.frequency)}` : ''} | ${t(item.location)} (${t(item.language)})`;
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              navigator.clipboard.writeText(text);
-              setCopiedModalItem(true);
-              setTimeout(() => setCopiedModalItem(false), 2000);
-            }
-          };
-
-          const renderSectionHeader = (title, iconEl, count) => (
-            <div className="flex items-center justify-between border-b border-gray-200/80 pb-3 mb-6 mt-10 first:mt-0">
-              <div className="flex items-center gap-2">
-                {iconEl}
-                <span className="text-lg font-extrabold text-gray-900">{title}</span>
-              </div>
-              <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
-                {count} {lang === 'zh' ? '项日程' : 'Items'}
-              </span>
-            </div>
-          );
-
-          const renderSection = (title, iconEl, items) => {
-            if (items.length === 0) return null;
-
-            return (
-              <div className="space-y-6">
-                {renderSectionHeader(title, iconEl, items.length)}
-
-                {/* Cards View */}
-                {timetableViewMode === 'cards' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {items.map((item) => {
-                      const style = getDayBadgeStyle(t(item.day));
-                      const langBadgeStyle = getLangBadgeStyle(t(item.language));
-
-                      return (
-                        <div
-                          key={item.id}
-                          className="group bg-white rounded-2xl border border-gray-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden relative"
-                        >
-                          {/* Accent top gradient bar */}
-                          <div className={`h-1.5 w-full bg-gradient-to-r ${style.gradient}`} />
-
-                          <div className="p-6 space-y-5 flex-1">
-                            {/* Badges row */}
-                            <div className="flex items-center justify-between gap-2">
-                              <span className={`px-3 py-1 rounded-full text-xs ${style.pill} border ${style.border} flex items-center gap-1.5`}>
-                                <span className={`w-2 h-2 rounded-full ${style.dot}`} />
-                                {t(item.day)}
-                              </span>
-                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${langBadgeStyle}`}>
-                                {t(item.language)}
-                              </span>
-                            </div>
-
-                            {/* Meeting Title */}
-                            <div>
-                              <h3 className="text-xl font-extrabold text-gray-900 group-hover:text-primary transition-colors leading-snug">
-                                {t(item.name)}
-                              </h3>
-                            </div>
-
-                            {/* Time Card */}
-                            <div className="bg-gray-50 p-3 rounded-xl border border-gray-150 flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                                <Clock size={18} />
-                              </div>
-                              <div>
-                                <div className="text-[11px] uppercase font-bold text-gray-400 tracking-wider">
-                                  {lang === 'zh' ? '聚会时间' : 'Gathering Time'}
-                                </div>
-                                <div className="text-sm font-bold text-gray-800">
-                                  {item.time}
-                                </div>
-                              </div>
-                            </div>
-
-                            {t(item.frequency) && (
-                              <div className="flex items-center gap-2.5 text-xs text-gray-600 font-medium">
-                                <CalendarDays size={16} className="text-primary shrink-0" />
-                                <span><span className="font-bold text-gray-700">{lang === 'zh' ? '频率：' : 'Frequency: '}</span>{t(item.frequency)}</span>
-                              </div>
-                            )}
-
-                            {/* Location */}
-                            <div className="flex items-start gap-2.5 text-xs text-gray-600 font-medium">
-                              <MapPin size={16} className="text-primary shrink-0 mt-0.5" />
-                              <span className="leading-relaxed">{t(item.location)}</span>
-                            </div>
-                          </div>
-
-                          {/* Card Action Footer */}
-                          <div className="px-6 py-4 bg-gray-50/70 border-t border-gray-100 flex items-center justify-between gap-2">
-                            <button
-                              onClick={() => setSelectedTimetableModal(item)}
-                              className="flex-1 py-2 px-3 rounded-xl bg-white border border-gray-250 hover:border-primary hover:text-primary text-gray-700 text-xs font-bold shadow-2xs transition-all flex items-center justify-center gap-1.5"
-                            >
-                              <Info size={14} />
-                              <span>{lang === 'zh' ? '查看详情与指南' : 'View Details'}</span>
-                            </button>
-                            
-                            <button
-                              onClick={() => handleCopyInfo(item)}
-                              title={lang === 'zh' ? '复制时间与地点信息' : 'Copy gathering details'}
-                              className="p-2 rounded-xl bg-white border border-gray-250 text-gray-500 hover:text-primary hover:border-primary transition-all shadow-2xs"
-                            >
-                              <Copy size={15} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Timeline View */}
-                {timetableViewMode === 'timeline' && (
-                  <div className="space-y-8">
-                    {Object.entries(getGroupedByDay(items)).map(([dayTitle, dayItems]) => {
-                      const style = getDayBadgeStyle(dayTitle);
-
-                      return (
-                        <div key={dayTitle} className="bg-white rounded-3xl border border-gray-200/80 shadow-sm p-6 sm:p-8 space-y-6">
-                          {/* Day Header */}
-                          <div className="flex items-center justify-between border-b border-gray-150 pb-4">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 rounded-2xl bg-gradient-to-br ${style.gradient} text-white flex items-center justify-center font-bold shadow-md`}>
-                                <CalendarCheck size={20} />
-                              </div>
-                              <div>
-                                <h2 className="text-xl font-extrabold text-gray-900">{dayTitle}</h2>
-                                <p className="text-xs text-gray-500">
-                                  {lang === 'zh' ? `共 ${dayItems.length} 场崇拜 / 团契` : `${dayItems.length} services/fellowships`}
-                                </p>
-                              </div>
-                            </div>
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${style.pill} ${style.border}`}>
-                              {dayTitle}
-                            </span>
-                          </div>
-
-                          {/* Items Timeline list */}
-                          <div className="relative pl-4 sm:pl-6 space-y-6 border-l-2 border-primary/20 ml-2 sm:ml-4">
-                            {dayItems.map((item) => (
-                              <div key={item.id} className="relative group">
-                                {/* Glowing node dot on vertical timeline */}
-                                <div className="absolute -left-[25px] sm:-left-[33px] top-1.5 w-4 h-4 rounded-full bg-white border-4 border-primary shadow-xs group-hover:scale-125 transition-transform" />
-
-                                <div className="bg-gray-50/80 hover:bg-primary/5 p-4 sm:p-5 rounded-2xl border border-gray-200/80 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <h3 className="text-base font-extrabold text-gray-900 group-hover:text-primary transition-colors">
-                                        {t(item.name)}
-                                      </h3>
-                                      <span className={`text-[11px] px-2.5 py-0.5 rounded-full border ${getLangBadgeStyle(t(item.language))}`}>
-                                        {t(item.language)}
-                                      </span>
-                                    </div>
-
-                                    <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-gray-600">
-                                      <div className="flex items-center gap-1.5 font-bold text-gray-800 bg-white px-2.5 py-1 rounded-lg border border-gray-200">
-                                        <Clock size={14} className="text-primary" />
-                                        <span>{item.time}</span>
-                                      </div>
-                                      {t(item.frequency) && (
-                                        <div className="flex items-center gap-1.5">
-                                          <CalendarDays size={14} className="text-gray-400" />
-                                          <span>{t(item.frequency)}</span>
-                                        </div>
-                                      )}
-                                      <div className="flex items-center gap-1.5">
-                                        <MapPin size={14} className="text-gray-400" />
-                                        <span>{t(item.location)}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-2 self-end md:self-center shrink-0">
-                                    <button
-                                      onClick={() => setSelectedTimetableModal(item)}
-                                      className="px-3.5 py-2 rounded-xl bg-white border border-gray-250 hover:border-primary hover:text-primary text-xs font-bold text-gray-700 shadow-2xs transition-all flex items-center gap-1.5"
-                                    >
-                                      <Info size={14} />
-                                      <span>{lang === 'zh' ? '详情' : 'Details'}</span>
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Table View */}
-                {timetableViewMode === 'table' && (
-                  <div className="bg-white rounded-3xl border border-gray-200/80 shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-gray-50/90 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                            <th className="py-4 px-6">{lang === 'zh' ? '聚会名称' : 'Meeting / Service'}</th>
-                            <th className="py-4 px-3">{lang === 'zh' ? '聚会时间' : 'Day & Time'}</th>
-                            <th className="py-4 px-3">{lang === 'zh' ? '频率' : 'Freq'}</th>
-                            <th className="py-4 px-6">{lang === 'zh' ? '地点 / 平台' : 'Location / Format'}</th>
-                            <th className="py-4 px-6">{lang === 'zh' ? '媒介语言' : 'Language'}</th>
-                            <th className="py-4 px-6 text-right">{lang === 'zh' ? '操作' : 'Action'}</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-150">
-                          {items.map((item) => {
-                            const style = getDayBadgeStyle(t(item.day));
-                            return (
-                              <tr key={item.id} className="hover:bg-primary/5 transition-colors text-sm text-gray-700 group">
-                                <td className="py-5 px-6 font-extrabold text-gray-900 group-hover:text-primary transition-colors">
-                                  {t(item.name)}
-                                </td>
-                                <td className="py-4.5 px-6">
-                                  <div className="flex items-center gap-2">
-                                    <span className={`px-2.5 py-0.5 rounded-full text-xs ${style.pill} border ${style.border} shrink-0`}>
-                                      {t(item.day)}
-                                    </span>
-                                    <span className="font-bold text-gray-700">{item.time}</span>
-                                  </div>
-                                </td>
-                                <td className="py-5 px-3 text-xs font-medium text-gray-600 whitespace-nowrap">{t(item.frequency) || '-'}</td>
-                                <td className="py-4.5 px-6 text-gray-600 font-medium">
-                                  <div className="flex items-center gap-1.5">
-                                    <MapPin size={15} className="text-primary/70 shrink-0" />
-                                    <span>{t(item.location)}</span>
-                                  </div>
-                                </td>
-                                <td className="py-4.5 px-6">
-                                  <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${getLangBadgeStyle(t(item.language))}`}>
-                                    {t(item.language)}
-                                  </span>
-                                </td>
-                                <td className="py-4.5 px-6 text-right">
-                                  <button
-                                    onClick={() => setSelectedTimetableModal(item)}
-                                    className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-primary-dark hover:underline"
-                                  >
-                                    <span>{lang === 'zh' ? '查看指南' : 'View Details'}</span>
-                                    <ChevronRight size={14} />
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          };
-
-          return (
-            <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-              {/* Header - standardized to match other pages */}
-              <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-                <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                  {t(data.settings.timetableBadge) || (lang === 'zh' ? '与我们一同朝见神与相聚' : 'Fellowship & Grow Together')}
-                </span>
-                <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                  {t(data.settings.timetableTitle) || (lang === 'zh' ? '崇拜时间表' : 'Service Timetable')}
-                </h1>
-                <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                  {t(data.settings.timetableIntro) || (lang === 'zh' 
-                    ? '我们诚挚地邀请您和您的家人参与我们的周聚会，共同在敬拜、祷告、真理和爱心团契里，经历生命的翻转与复兴。' 
-                    : 'We warmly invite you and your family to join our weekly gatherings for worship, prayer, truth, and genuine community.')}
-                </p>
-              </div>
-
-              {/* Filters & Control Toolbar */}
-              <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm space-y-4 mb-8">
-                <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-                  {/* Search Bar */}
-                  <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input 
-                      type="text"
-                      value={timetableSearchQuery}
-                      onChange={(e) => setTimetableSearchQuery(e.target.value)}
-                      placeholder={lang === 'zh' ? '搜索聚会名称、时间、地点或语言...' : 'Search service, location, language, or time...'}
-                      className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-250 bg-gray-50/50 text-sm font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-white transition-all"
-                    />
-                    {timetableSearchQuery && (
-                      <button 
-                        onClick={() => setTimetableSearchQuery('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full hover:bg-gray-200/60"
-                      >
-                        <X size={15} />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* View Mode Switcher */}
-                  <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl self-start lg:self-auto border border-gray-200/60">
-                    <button
-                      onClick={() => setTimetableViewMode('cards')}
-                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                        timetableViewMode === 'cards' 
-                          ? 'bg-white text-primary shadow-sm' 
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                      }`}
-                      title={lang === 'zh' ? '网格卡片视图' : 'Grid View'}
-                    >
-                      <LayoutGrid size={16} />
-                      <span>{lang === 'zh' ? '卡片模式' : 'Grid'}</span>
-                    </button>
-                    <button
-                      onClick={() => setTimetableViewMode('timeline')}
-                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                        timetableViewMode === 'timeline' 
-                          ? 'bg-white text-primary shadow-sm' 
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                      }`}
-                      title={lang === 'zh' ? '按星期时间轴视图' : 'Day Timeline View'}
-                    >
-                      <CalendarDays size={16} />
-                      <span>{lang === 'zh' ? '日程轴模式' : 'Timeline'}</span>
-                    </button>
-                    <button
-                      onClick={() => setTimetableViewMode('table')}
-                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                        timetableViewMode === 'table' 
-                          ? 'bg-white text-primary shadow-sm' 
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                      }`}
-                      title={lang === 'zh' ? '表格视图' : 'Table View'}
-                    >
-                      <ListFilter size={16} />
-                      <span>{lang === 'zh' ? '列表表格' : 'Table'}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Section, day & language filters */}
-                <div className="space-y-3 pt-2 border-t border-gray-100">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1"><Filter size={12} />{lang === 'zh' ? '类别:' : 'Section:'}</span>
-                    {[{ id: 'all', zh: '全部', en: 'All' }, { id: 'weekly', zh: '崇拜时间表', en: 'Service Timetable' }, { id: 'ministry', zh: '事工时间表', en: 'Ministry Timetable' }, { id: 'cellgroup', zh: '小组时间表', en: 'Cellgroup Timetable' }].map(section => (
-                      <button key={section.id} onClick={() => setTimetableFilterSection(section.id)} className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${timetableFilterSection === section.id ? 'bg-gray-900 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{lang === 'zh' ? section.zh : section.en}</button>
-                    ))}
-                  </div>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  {/* Day Pills */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1">
-                      <Filter size={12} />
-                      {lang === 'zh' ? '按星期:' : 'Day:'}
-                    </span>
-                    <button
-                      onClick={() => setTimetableFilterDay('all')}
-                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                        timetableFilterDay === 'all'
-                          ? 'bg-gray-900 text-white shadow-xs'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {lang === 'zh' ? '全部日期' : 'All Days'}
-                    </button>
-                    {uniqueDays.map(dayName => (
-                      <button
-                        key={dayName}
-                        onClick={() => setTimetableFilterDay(dayName)}
-                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                          timetableFilterDay === dayName
-                            ? 'bg-primary text-white shadow-xs'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        {dayName}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Language Filter Pills */}
-                  {uniqueLangs.length > 1 && (
-                    <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-auto">
-                      <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1">
-                        <Globe size={12} />
-                        {lang === 'zh' ? '语言:' : 'Lang:'}
-                      </span>
-                      <button
-                        onClick={() => setTimetableFilterLang('all')}
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold transition-all ${
-                          timetableFilterLang === 'all'
-                            ? 'bg-primary/20 text-primary border border-primary/30 font-bold'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        {lang === 'zh' ? '全部语言' : 'All'}
-                      </button>
-                      {uniqueLangs.map(lName => (
-                        <button
-                          key={lName}
-                          onClick={() => setTimetableFilterLang(lName)}
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold transition-all ${
-                            timetableFilterLang === lName
-                              ? 'bg-primary/20 text-primary border border-primary/30 font-bold'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          {lName}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  </div>
+                <div className="border-t pt-4 space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-gray-500">{lang==='zh'?'小計':'Subtotal'}</span><span className="font-bold">{formatPrice(cartSubtotal)}</span></div>
+                  {appliedCoupon && <div className="flex justify-between text-green-600"><span className="flex items-center gap-1"><Tag size={12}/>{appliedCoupon.code}</span><span>-{formatPrice(discountAmount)}</span></div>}
+                  <div className="flex justify-between"><span className="text-gray-500">{lang==='zh'?'運費':'Shipping'}</span><span className={shippingCost===0?'text-green-600 font-bold':''}>{shippingCost===0?(lang==='zh'?'免運費':'Free'):formatPrice(shippingCost)}</span></div>
+                  <div className="flex justify-between font-black text-base pt-2 border-t"><span>Total</span><span>{formatPrice(cartTotal)}</span></div>
+                  {gwpEligible && <div className="bg-primary/10 border border-primary/20 rounded-xl p-2.5 text-xs flex gap-2"><Gift size={14} className="text-primary shrink-0 mt-0.5"/><div><p className="font-bold text-primary">{lang==='zh'?'已符合滿贈禮遇！':'GWP Eligible!'}</p><p className="text-gray-700">{t(gwpEligible.title)}</p></div></div>}
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-xs flex gap-2"><Award size={14} className="text-amber-600 shrink-0 mt-0.5"/><div><p className="font-bold text-amber-800">{lang==='zh'?`此單可獲 ${pointsEarnedPreview} 積分`:`Earn ${pointsEarnedPreview} points`}</p><p className="text-amber-700/80">{fullCurrentCustomer ? (isBirthdayMonth(fullCurrentCustomer.birthday)? (lang==='zh'?'🎂 生日月份享額外積分！':'🎂 Birthday month extra points!') : '') : (lang==='zh'?'登入會員享積分獎勵':'Login to earn points')}</p></div></div>
                 </div>
               </div>
+            </div>
+          )}
 
-              {totalFilteredCount === 0 ? (
-                <div className="bg-white rounded-3xl p-12 text-center border border-gray-200 shadow-sm max-w-lg mx-auto space-y-4">
-                  <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center gap-2 justify-center mx-auto border border-amber-200">
-                    <CalendarCheck size={32} />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900">
-                    {lang === 'zh' ? '未找到相关聚会' : 'No Matching Gatherings Found'}
-                  </h3>
-                  <p className="text-xs text-gray-500 max-w-sm mx-auto">
-                    {lang === 'zh' 
-                      ? '您可以尝试清除搜索关键词或重置日期与语言筛选条件。' 
-                      : 'Try clearing your search query or resetting the day and language filters.'}
-                  </p>
-                  <button
-                    onClick={() => {
-                      setTimetableSearchQuery('');
-                      setTimetableFilterDay('all');
-                      setTimetableFilterSection('all');
-                      setTimetableFilterLang('all');
-                    }}
-                    className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-md hover:bg-primary-dark transition-all"
-                  >
-                    {lang === 'zh' ? '重置筛选条件' : 'Reset All Filters'}
-                  </button>
+          {/* ADMIN */}
+          {activeTab==='admin' && (
+            <div className="min-h-[70vh] max-w-[1600px] mx-auto px-2 sm:px-4 py-6">
+              {!isAdminLoggedIn ? (
+                <div className="max-w-md mx-auto bg-white rounded-3xl border border-gray-200 p-8 space-y-6 shadow-sm mt-10">
+                  <div className="text-center space-y-2"><div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto"><Shield size={28}/></div><h2 className="text-2xl font-black">{lang==='zh'?'管理員登入':'Admin Login'}</h2><p className="text-xs text-gray-500">{lang==='zh'?'請輸入管理密碼以進入後台':'Enter admin password'}</p></div>
+                  <form onSubmit={handleAdminLogin} className="space-y-4">
+                    <div><label className="text-xs font-bold text-gray-700 mb-1 block">{lang==='zh'?'管理密碼':'Admin Password'}</label><input type="password" value={adminPasswordInput} onChange={e=>setAdminPasswordInput(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-1 focus:ring-primary outline-none" placeholder="••••••••"/></div>
+                    {adminLoginError && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl p-2.5">{adminLoginError}</div>}
+                    <button type="submit" className="w-full py-3 rounded-xl bg-gray-900 text-white font-bold text-sm hover:bg-black transition-colors">{lang==='zh'?'登入後台':'Login to Admin'}</button>
+                  </form>
                 </div>
               ) : (
-                <div className="space-y-16">
-                  {renderSection(
-                    lang === 'zh' ? '崇拜时间表' : 'Service Timetable',
-                    <CalendarCheck className="text-primary shrink-0" size={22} />,
-                    filteredWeekly
-                  )}
-
-                  {renderSection(
-                    lang === 'zh' ? '各事工时间表' : 'Ministry Timetable',
-                    <HandHeart className="text-primary shrink-0" size={22} />,
-                    filteredMinistry
-                  )}
-
-                  {renderSection(
-                    lang === 'zh' ? '细胞小组时间表' : 'Cellgroup Timetable',
-                    <Users className="text-primary shrink-0" size={22} />,
-                    filteredCellGroup
-                  )}
-                </div>
-              )}
-
-              {/* Detailed Service Modal Dialog */}
-              {selectedTimetableModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-                  <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-100 space-y-6 p-6 sm:p-8 relative">
-                    {/* Close button */}
-                    <button 
-                      onClick={() => setSelectedTimetableModal(null)}
-                      className="absolute top-5 right-5 p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      <X size={20} />
-                    </button>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${getDayBadgeStyle(t(selectedTimetableModal.day)).pill}`}>
-                          {t(selectedTimetableModal.day)}
-                        </span>
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getLangBadgeStyle(t(selectedTimetableModal.language))}`}>
-                          {t(selectedTimetableModal.language)}
-                        </span>
-                      </div>
-                      <h2 className="text-2xl font-black text-gray-900 leading-tight">
-                        {t(selectedTimetableModal.name)}
-                      </h2>
-                    </div>
-
-                    <div className="space-y-3.5 bg-gray-50/80 p-4 rounded-2xl border border-gray-200/80 text-sm">
-                      <div className="flex items-center gap-3 text-gray-800">
-                        <Clock className="text-primary shrink-0" size={18} />
-                        <div>
-                          <div className="text-[11px] font-bold text-gray-400 uppercase">{lang === 'zh' ? '时间' : 'Time'}</div>
-                          <div className="font-bold">{selectedTimetableModal.time}</div>
-                        </div>
-                      </div>
-
-                      {t(selectedTimetableModal.frequency) && (
-                        <div className="flex items-center gap-3 text-gray-800 pt-2 border-t border-gray-200/60">
-                          <CalendarDays className="text-primary shrink-0" size={18} />
-                          <div>
-                            <div className="text-[11px] font-bold text-gray-400 uppercase">{lang === 'zh' ? '聚会频率' : 'Frequency'}</div>
-                            <div className="font-bold">{t(selectedTimetableModal.frequency)}</div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex items-start gap-3 text-gray-800 pt-2 border-t border-gray-200/60">
-                        <MapPin className="text-primary shrink-0 mt-0.5" size={18} />
-                        <div>
-                          <div className="text-[11px] font-bold text-gray-400 uppercase">{lang === 'zh' ? '地点 / 会堂' : 'Location / Sanctuary'}</div>
-                          <div className="font-bold">{t(selectedTimetableModal.location)}</div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 text-gray-800 pt-2 border-t border-gray-200/60">
-                        <Globe className="text-primary shrink-0" size={18} />
-                        <div>
-                          <div className="text-[11px] font-bold text-gray-400 uppercase">{lang === 'zh' ? '使用语言' : 'Language'}</div>
-                          <div className="font-bold">{t(selectedTimetableModal.language)}</div>
-                        </div>
-                      </div>
-
-                      {selectedTimetableModal.picContact && t(selectedTimetableModal.picContact) && (
-                        <div className="flex items-center gap-3 text-gray-800 pt-2 border-t border-gray-200/60">
-                          <Phone className="text-primary shrink-0" size={18} />
-                          <div>
-                            <div className="text-[11px] font-bold text-gray-400 uppercase">{lang === 'zh' ? '负责人联系方式' : 'PIC Contact'}</div>
-                            <div className="font-bold">{t(selectedTimetableModal.picContact)}</div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Actions in Modal */}
-                    <div className="space-y-2.5 pt-2">
-                      <button
-                        onClick={() => handleCopyInfo(selectedTimetableModal)}
-                        className={`w-full py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-                          copiedModalItem 
-                            ? 'bg-emerald-600 text-white shadow-md' 
-                            : 'bg-primary text-white hover:bg-primary-dark shadow-md'
-                        }`}
-                      >
-                        {copiedModalItem ? (
-                          <>
-                            <CheckCircle size={16} />
-                            <span>{lang === 'zh' ? '已复制聚会详情到剪贴板！' : 'Copied Details to Clipboard!'}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy size={16} />
-                            <span>{lang === 'zh' ? '复制聚会时间与地点信息' : 'Copy Gathering Details'}</span>
-                          </>
-                        )}
-                      </button>
-
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setSelectedTimetableModal(null);
-                            setActiveTab('about');
-                            window.scrollTo(0, 0);
-                          }}
-                          className="flex-1 py-2.5 rounded-xl border border-gray-250 text-gray-700 text-xs font-bold hover:bg-gray-50 transition-all text-center"
-                        >
-                          {lang === 'zh' ? '联系教会/负责人' : 'Contact Pastoral Team'}
-                        </button>
-                        <button
-                          onClick={() => setSelectedTimetableModal(null)}
-                          className="py-2.5 px-4 rounded-xl border border-gray-200 text-gray-500 text-xs font-bold hover:bg-gray-100 transition-all"
-                        >
-                          {lang === 'zh' ? '关闭' : 'Close'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Notice Footer Card */}
-              <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 rounded-2xl p-6 border border-amber-200/80 flex flex-col sm:flex-row items-start gap-4 shadow-xs mt-8 sm:mt-10 mb-6">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-                  <Info size={20} />
-                </div>
-                <div className="space-y-2 flex-1">
-                  <h4 className="font-extrabold text-amber-900 text-sm">
-                    {lang === 'zh' ? '新朋友与聚会温馨提示' : 'Kind Notice for Visitors & Holidays'}
-                  </h4>
-                  <p className="text-xs text-amber-900/80 leading-relaxed">
-                    {lang === 'zh'
-                      ? '由于部分聚会（如祷告会、特别讲座等）在公共假期可能调整时间或举行联合崇拜，新朋友在第一次参加前欢迎先致电咨询，或通过网站后台联系牧者同工，以便我们安排最热情的接待。'
-                      : 'Some special or prayer gatherings may merge or adjust timing on public holidays. First-time visitors are warmly welcome to contact our team in advance for directions and hospitality.'}
-                  </p>
-                  <div className="pt-1 flex items-center gap-3">
-                    <button
-                      onClick={() => { setActiveTab('about'); window.scrollTo(0, 0); }}
-                      className="text-xs font-bold text-amber-900 hover:text-amber-700 underline flex items-center gap-1"
-                    >
-                      <span>{lang === 'zh' ? '前往联系牧者与寻找交通路线' : 'Contact Pastors & View Directions'}</span>
-                      <ArrowRight size={13} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* ==================== PAGE: EVENTS ==================== */}
-        {activeTab === 'events' && (
-          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-              <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {t(data.settings.eventsBadge) || (lang === 'zh' ? '教会精彩纪实与未来计划' : 'Highlights & Upcoming Outlines')}
-              </span>
-              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                {t(data.settings.eventsTitle) || (lang === 'zh' ? '特别活动预告' : 'Special Events')}
-              </h1>
-              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                {t(data.settings.eventsIntro) || (lang === 'zh' 
-                  ? '在这里，您可以了解到教会近期举办的大型特殊崇拜、节日庆典、关怀行动和社区营会，欢迎带同亲友报名并一同参盛。' 
-                  : 'Here, you can learn about our upcoming special worship services, holiday celebrations, welfare activities, and camps. Welcome to register and attend with friends!')}
-              </p>
-            </div>
-
-            {/* Events Grid */}
-            {data.events.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {data.events.map((evt) => (
-                  <button
-                    key={evt.id}
-                    type="button"
-                    onClick={() => { setSelectedEvent(evt); setEventDetailsOpen(true); }}
-                    aria-label={`${lang === 'zh' ? '查看活动详情：' : 'View event details: '}${t(evt.title)}`}
-                    className="group text-left bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm flex flex-col hover:shadow-lg hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-all duration-300"
-                  >
-                    <div className="relative h-52 overflow-hidden bg-gray-100">
-                      <img 
-                        src={evt.image} 
-                        alt={t(evt.title)} 
-                        className="w-full h-full object-cover hover:scale-103 transition-transform duration-500"
-                      />
-                      <div className="absolute top-4 left-4 bg-primary text-white py-1 px-3 rounded-lg font-bold text-xs shadow-md">
-                        {evt.date}
-                      </div>
-                    </div>
-                    <div className="p-6 flex-grow flex flex-col justify-between space-y-6">
-                      <div className="space-y-3">
-                        <h3 className="font-extrabold text-lg text-gray-900 leading-tight">
-                          {t(evt.title)}
-                        </h3>
-                        <p className="text-gray-600 text-xs font-light leading-relaxed whitespace-pre-line">
-                          {t(evt.description)}
-                        </p>
-                      </div>
-
-                      <div className="pt-4 border-t border-gray-100 text-xs text-gray-500 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Clock size={13} className="text-primary" />
-                          <span>{evt.time}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin size={13} className="text-primary shrink-0" />
-                          <span className="truncate">{t(evt.location)}</span>
-                        </div>
-                      </div>
-                      {evt.registrationUrl && (
-                        <a
-                          href={evt.registrationUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="mt-3 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white text-xs font-bold transition-all shadow-sm"
-                        >
-                          <ExternalLink size={13} />
-                          <span>{lang === 'zh' ? '立即报名' : 'Register Now'}</span>
-                        </a>
-                      )}
-                      <div className="text-xs font-bold text-primary opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 pt-1">
-                        {lang === 'zh' ? '点击查看详情 →' : 'Click for full details →'}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-                <Calendar className="mx-auto text-gray-400 mb-3" size={48} />
-                <p className="text-gray-500 font-light text-base">{lang === 'zh' ? '目前没有安排新活动。' : 'No upcoming events planned at the moment.'}</p>
-              </div>
-            )}
-          </div>
-        )}
-
-
-         {/* ==================== PAGE: OFFERINGS ==================== */}
-        {activeTab === 'offerings' && (
-          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-              <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {lang === 'zh' ? '忠心管家 · 感恩奉献' : 'Faithful Stewardship · Thankful Giving'}
-              </span>
-              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                {lang === 'zh' ? '奉献指南' : 'Offerings & Tithes'}
-              </h1>
-              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                {t(data.offerings?.intro)}
-              </p>
-            </div>
-
-            {/* Scripture Quote */}
-            <div className="max-w-3xl mx-auto mb-12">
-              <div className="bg-primary/5 border-l-4 border-primary p-6 rounded-r-xl">
-                <p className="text-gray-700 italic text-sm md:text-base leading-relaxed font-light">
-                  {t(data.offerings?.scripture)}
-                </p>
-              </div>
-            </div>
-
-            {/* Offering Methods */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-              {(data.offerings?.methods || []).map((method, idx) => (
-                <div key={method.id || idx} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col">
-                  <div className="bg-primary/5 p-6 text-center border-b border-gray-100">
-                    <div className="inline-flex p-3 rounded-xl bg-primary/10 text-primary mb-3">
-                      {method.icon === 'heart' && <HandHeart size={28} />}
-                      {method.icon === 'building' && <Building size={28} />}
-                      {method.icon === 'smartphone' && <Smartphone size={28} />}
-                      {!['heart','building','smartphone'].includes(method.icon) && <Gift size={28} />}
-                    </div>
-                    <h3 className="font-extrabold text-lg text-gray-900">{t(method.title)}</h3>
-                  </div>
-                  <div className="p-6 flex-grow space-y-4 flex flex-col justify-between">
-                    <div className="space-y-4">
-                      <p className="text-gray-600 text-sm font-light leading-relaxed">{t(method.description)}</p>
-                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                        <p className="text-gray-700 text-xs font-medium leading-relaxed whitespace-pre-line">{t(method.details)}</p>
-                      </div>
-                    </div>
-                    {method.qrCodeUrl && (
-                      <div className="pt-4 border-t border-gray-100 flex flex-col items-center justify-center space-y-2 mt-4">
-                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                          {lang === 'zh' ? '扫码奉献' : 'Scan to Give'}
-                        </span>
-                        <div 
-                          className="p-2 border border-gray-200 rounded-xl bg-white shadow-sm max-w-[160px] cursor-zoom-in hover:border-primary transition-colors"
-                          onClick={() => setSelectedImage({ url: method.qrCodeUrl, title: t(method.title) })}
-                        >
-                          <img src={method.qrCodeUrl} alt="QR Code" className="w-full h-auto rounded-lg" onError={(e) => { e.target.style.display = 'none'; }} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-           </div>
-
-            {/* Contact Note */}
-            <div className="max-w-2xl mx-auto bg-amber-50 rounded-xl p-5 border border-amber-200/60 flex items-start gap-3.5">
-              <Info className="text-amber-600 shrink-0 mt-0.5" size={20} />
-              <p className="text-xs text-amber-900 font-light leading-relaxed">{t(data.offerings?.contactNote)}</p>
-            </div>
-          </div>
-        )}
-
-        {/* ==================== PAGE: BULLETINS & SERMONS ==================== */}
-        {activeTab === 'bulletins' && (() => {
-          const bulletins = data.bulletins || [];
-          const allBulletinCategories = [...new Set(bulletins.map(b => t(b.category)))];
-          const filteredBulletins = bulletins.filter(b => {
-            const matchesCategory = bulletinCategoryFilter === 'all' || t(b.category) === bulletinCategoryFilter;
-            const q = bulletinSearchQuery.toLowerCase().trim();
-            const matchesSearch = !q ||
-              t(b.title).toLowerCase().includes(q) ||
-              t(b.category).toLowerCase().includes(q) ||
-              (b.date && b.date.toLowerCase().includes(q)) ||
-              (b.summary && t(b.summary).toLowerCase().includes(q)) ||
-              (b.highlights && t(b.highlights).toLowerCase().includes(q));
-            return matchesCategory && matchesSearch;
-          });
-
-          const sermons = data.sermons || [];
-          const allPreachers = [...new Set(sermons.map(s => t(s.preacher)))];
-          const allSeries = [...new Set(sermons.map(s => t(s.series)))];
-          
-          const filteredSermons = sermons.filter(s => {
-            const matchesFilter = sermonFilter === 'all' || t(s.preacher) === sermonFilter || t(s.series) === sermonFilter;
-            const q = sermonSearchQuery.toLowerCase().trim();
-            const matchesSearch = !q ||
-              t(s.title).toLowerCase().includes(q) ||
-              t(s.preacher).toLowerCase().includes(q) ||
-              t(s.series).toLowerCase().includes(q) ||
-              (s.scripture && s.scripture.toLowerCase().includes(q)) ||
-              (s.date && s.date.toLowerCase().includes(q)) ||
-              (s.description && t(s.description).toLowerCase().includes(q));
-            return matchesFilter && matchesSearch;
-          });
-          
-          // Helper to extract YouTube video ID
-          const getYoutubeEmbedUrl = (url) => {
-            if (!url) return '';
-            const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
-            return match ? `https://www.youtube.com/embed/${match[1]}` : '';
-          };
-          
-          return (
-            <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-              <div className="text-center max-w-3xl mx-auto space-y-4 mb-10">
-                <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                  {t(data.settings.bulletinsBadge) || (lang === 'zh' ? '教会资源中心' : 'Church Resource Centre')}
-                </span>
-                <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                  {t(data.settings.bulletinsTitle) || (lang === 'zh' ? '家事与讲道库' : 'Bulletins & Sermon Library')}
-                </h1>
-                <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                  {t(data.settings.bulletinsIntro) || (lang === 'zh'
-                    ? '查阅每周家事、代祷事项，或回顾过往讲道信息。'
-                    : 'Access weekly bulletins, prayer items, and past sermon messages.')}
-                </p>
-              </div>
-
-              {/* Tab Switcher */}
-              <div className="flex justify-center mb-8">
-                <div className="inline-flex bg-gray-100 rounded-xl p-1 gap-1 border border-gray-200/60 shadow-xs">
-                  <button
-                    onClick={() => setBulletinsTab('bulletins')}
-                    className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
-                      bulletinsTab === 'bulletins'
-                        ? 'bg-white text-primary shadow-sm font-bold'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                    }`}
-                  >
-                    <FileText size={16} />
-                    <span>{lang === 'zh' ? '家事下载' : 'Weekly Bulletins'}</span>
-                    <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-bold">
-                      {bulletins.length}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setBulletinsTab('sermons')}
-                    className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
-                      bulletinsTab === 'sermons'
-                        ? 'bg-white text-primary shadow-sm font-bold'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                    }`}
-                  >
-                    <BookOpen size={16} />
-                    <span>{lang === 'zh' ? '讲道库' : 'Sermon Library'}</span>
-                    <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-bold">
-                      {sermons.length}
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Bulletins Tab */}
-              {bulletinsTab === 'bulletins' && (
-                <div className="space-y-8">
-                  {/* Bulletins Filters & Control Toolbar */}
-                  <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm space-y-4 mb-8">
-                    <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-                      {/* Search Bar */}
-                      <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input 
-                          type="text"
-                          value={bulletinSearchQuery}
-                          onChange={(e) => setBulletinSearchQuery(e.target.value)}
-                          placeholder={lang === 'zh' ? '搜索家事标题、类别、日期或摘要...' : 'Search bulletin title, category, date, or summary...'}
-                          className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-250 bg-gray-50/50 text-sm font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-white transition-all"
-                        />
-                        {bulletinSearchQuery && (
-                          <button 
-                            onClick={() => setBulletinSearchQuery('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full hover:bg-gray-200/60"
-                          >
-                            <X size={15} />
-                          </button>
-                        )}
-                      </div>
-
-                      {/* View Mode Switcher */}
-                      <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl self-start lg:self-auto border border-gray-200/60">
-                        <button
-                          onClick={() => setBulletinViewMode('cards')}
-                          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                            bulletinViewMode === 'cards' 
-                              ? 'bg-white text-primary shadow-sm' 
-                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                          }`}
-                          title={lang === 'zh' ? '卡片视图' : 'Cards View'}
-                        >
-                          <LayoutGrid size={16} />
-                          <span>{lang === 'zh' ? '卡片模式' : 'Cards'}</span>
-                        </button>
-                        <button
-                          onClick={() => setBulletinViewMode('table')}
-                          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                            bulletinViewMode === 'table' 
-                              ? 'bg-white text-primary shadow-sm' 
-                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                          }`}
-                          title={lang === 'zh' ? '表格视图' : 'Table View'}
-                        >
-                          <ListFilter size={16} />
-                          <span>{lang === 'zh' ? '列表表格' : 'Table'}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Category Filter Pills */}
-                    {allBulletinCategories.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-100">
-                        <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1">
-                          <Filter size={12} />
-                          {lang === 'zh' ? '按类别:' : 'Category:'}
-                        </span>
-                        <button
-                          onClick={() => setBulletinCategoryFilter('all')}
-                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                            bulletinCategoryFilter === 'all'
-                              ? 'bg-gray-900 text-white shadow-xs'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          {lang === 'zh' ? '全部类别' : 'All Categories'}
-                        </button>
-                        {allBulletinCategories.map(cat => (
-                          <button
-                            key={cat}
-                            onClick={() => setBulletinCategoryFilter(cat)}
-                            className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                              bulletinCategoryFilter === cat
-                                ? 'bg-primary text-white shadow-xs'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                          >
-                            {cat}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Empty state if search/filter matches 0 items */}
-                  {filteredBulletins.length === 0 ? (
-                    <div className="bg-white rounded-3xl p-12 text-center border border-gray-200 shadow-sm max-w-lg mx-auto space-y-4">
-                      <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center gap-2 justify-center mx-auto border border-amber-200">
-                        <FileText size={32} />
-                      </div>
-                      <h3 className="text-xl font-bold text-gray-900">
-                        {lang === 'zh' ? '未找到相关家事' : 'No Matching Bulletins Found'}
-                      </h3>
-                      <p className="text-xs text-gray-500 max-w-sm mx-auto">
-                        {lang === 'zh'
-                          ? '您可以尝试清除搜索关键词或重置类别筛选条件。'
-                          : 'Try clearing your search query or resetting the category filter.'}
-                      </p>
-                      <button
-                        onClick={() => {
-                          setBulletinSearchQuery('');
-                          setBulletinCategoryFilter('all');
-                        }}
-                        className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-md hover:bg-primary-dark transition-all"
-                      >
-                        {lang === 'zh' ? '重置筛选条件' : 'Reset All Filters'}
-                      </button>
-                    </div>
-                  ) : bulletinViewMode === 'cards' ? (
-                    /* Cards View Mode */
-                    <div className="space-y-6">
-                      {filteredBulletins.map((bulletin) => (
-                        <div key={bulletin.id} className="bg-white rounded-2xl border border-gray-150 shadow-sm hover:shadow-md transition-all overflow-hidden">
-                          <div className="flex flex-col md:flex-row">
-                            <div className="md:w-16 bg-primary/5 flex items-center justify-center p-4 md:p-0 shrink-0">
-                              <FileText className="text-primary" size={24} />
-                            </div>
-                            <div className="flex-grow p-6">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                                <div onClick={() => setSelectedBulletinModal(bulletin)} className="cursor-pointer group">
-                                  <h3 className="font-extrabold text-lg text-gray-900 group-hover:text-primary transition-colors">{t(bulletin.title)}</h3>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 text-primary text-[11px] font-bold">
-                                      <Calendar size={11} />
-                                      <span>{bulletin.date}</span>
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600 text-[11px] font-medium">
-                                      {t(bulletin.category)}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => setSelectedBulletinModal(bulletin)}
-                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition-all shrink-0"
-                                  >
-                                    <Info size={14} />
-                                    <span>{lang === 'zh' ? '查看详情' : 'Details'}</span>
-                                  </button>
-                                  {bulletin.fileUrl && bulletin.fileUrl !== '#' && (
-                                    <a href={bulletin.fileUrl} target="_blank" rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all shrink-0">
-                                      <Download size={14} />
-                                      <span>{lang === 'zh' ? '下载家事' : 'Download PDF'}</span>
-                                    </a>
-                                  )}
-                                </div>
-                              </div>
-                              <p className="text-gray-600 text-sm font-light leading-relaxed mb-3">{t(bulletin.summary)}</p>
-                              {bulletin.highlights && (
-                                <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                                  <p className="text-gray-700 text-xs font-medium leading-relaxed whitespace-pre-line">{t(bulletin.highlights)}</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    /* Table View Mode */
-                    <div className="bg-white rounded-3xl border border-gray-200/80 shadow-sm overflow-hidden">
-                      <div className="p-4 sm:p-6 bg-primary/5 border-b border-gray-200/80 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <FileText className="text-primary shrink-0" size={22} />
-                          <span className="text-base font-extrabold text-gray-900">
-                            {lang === 'zh' ? '教会家事与月刊列表' : 'Church Bulletins & Newsletters Overview'}
-                          </span>
-                        </div>
-                        <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
-                          {filteredBulletins.length} {lang === 'zh' ? '份资源' : 'Items'}
-                        </span>
-                      </div>
-
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-gray-50/90 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                              <th className="py-4 px-6">{lang === 'zh' ? '家事标题' : 'Bulletin Title'}</th>
-                              <th className="py-4 px-6">{lang === 'zh' ? '发布日期' : 'Date'}</th>
-                              <th className="py-4 px-6">{lang === 'zh' ? '类别' : 'Category'}</th>
-                              <th className="py-4 px-6">{lang === 'zh' ? '摘要概览' : 'Summary'}</th>
-                              <th className="py-4 px-6 text-right">{lang === 'zh' ? '操作' : 'Action'}</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-150">
-                            {filteredBulletins.map((bulletin) => (
-                              <tr key={bulletin.id} className="hover:bg-primary/5 transition-colors text-sm text-gray-700 group">
-                                <td 
-                                  onClick={() => setSelectedBulletinModal(bulletin)}
-                                  className="py-4.5 px-6 font-extrabold text-gray-900 group-hover:text-primary transition-colors cursor-pointer"
-                                >
-                                  {t(bulletin.title)}
-                                </td>
-                                <td className="py-4.5 px-6">
-                                  <span className="px-2.5 py-1 rounded-full text-xs bg-primary/10 text-primary font-bold inline-flex items-center gap-1">
-                                    <Calendar size={12} />
-                                    <span>{bulletin.date}</span>
-                                  </span>
-                                </td>
-                                <td className="py-4.5 px-6">
-                                  <span className="text-xs px-2.5 py-1 rounded-full font-semibold border bg-gray-100 text-gray-700 border-gray-200">
-                                    {t(bulletin.category)}
-                                  </span>
-                                </td>
-                                <td className="py-4.5 px-6 text-gray-600 font-medium text-xs max-w-xs truncate">
-                                  {t(bulletin.summary)}
-                                </td>
-                                <td className="py-4.5 px-6 text-right whitespace-nowrap">
-                                  <button
-                                    onClick={() => setSelectedBulletinModal(bulletin)}
-                                    className="inline-flex items-center gap-1 text-xs font-bold text-gray-700 hover:text-primary mr-3 hover:underline"
-                                  >
-                                    <span>{lang === 'zh' ? '查看详情' : 'Details'}</span>
-                                  </button>
-                                  {bulletin.fileUrl && bulletin.fileUrl !== '#' ? (
-                                    <a
-                                      href={bulletin.fileUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-dark shadow-2xs transition-all"
-                                    >
-                                      <Download size={13} />
-                                      <span>{lang === 'zh' ? '下载' : 'PDF'}</span>
-                                    </a>
-                                  ) : (
-                                    <span className="text-xs text-gray-400 font-medium">{lang === 'zh' ? '无文件' : 'N/A'}</span>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Sermons Tab */}
-              {bulletinsTab === 'sermons' && (
-                <div className="space-y-8">
-                  {/* Sermons Filters & Control Toolbar */}
-                  <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm space-y-4 mb-8">
-                    <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-                      {/* Search Bar */}
-                      <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input 
-                          type="text"
-                          value={sermonSearchQuery}
-                          onChange={(e) => setSermonSearchQuery(e.target.value)}
-                          placeholder={lang === 'zh' ? '搜索讲题、讲员、系列、经文或日期...' : 'Search sermon title, preacher, series, scripture, or date...'}
-                          className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-250 bg-gray-50/50 text-sm font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-white transition-all"
-                        />
-                        {sermonSearchQuery && (
-                          <button 
-                            onClick={() => setSermonSearchQuery('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full hover:bg-gray-200/60"
-                          >
-                            <X size={15} />
-                          </button>
-                        )}
-                      </div>
-
-                      {/* View Mode Switcher */}
-                      <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl self-start lg:self-auto border border-gray-200/60">
-                        <button
-                          onClick={() => setSermonViewMode('cards')}
-                          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                            sermonViewMode === 'cards' 
-                              ? 'bg-white text-primary shadow-sm' 
-                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                          }`}
-                          title={lang === 'zh' ? '卡片网格视图' : 'Grid View'}
-                        >
-                          <LayoutGrid size={16} />
-                          <span>{lang === 'zh' ? '卡片模式' : 'Grid'}</span>
-                        </button>
-                        <button
-                          onClick={() => setSermonViewMode('table')}
-                          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                            sermonViewMode === 'table' 
-                              ? 'bg-white text-primary shadow-sm' 
-                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                          }`}
-                          title={lang === 'zh' ? '表格视图' : 'Table View'}
-                        >
-                          <ListFilter size={16} />
-                          <span>{lang === 'zh' ? '列表表格' : 'Table'}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Filter Pills (Series & Preachers) */}
-                    {(allSeries.length > 0 || allPreachers.length > 0) && (
-                      <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-100">
-                        <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1">
-                          <Filter size={12} />
-                          {lang === 'zh' ? '分类筛选:' : 'Filter by:'}
-                        </span>
-                        <button
-                          onClick={() => setSermonFilter('all')}
-                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                            sermonFilter === 'all'
-                              ? 'bg-gray-900 text-white shadow-xs'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          {lang === 'zh' ? '全部系列与讲员' : 'All Sermons'}
-                        </button>
-                        {allSeries.map(series => (
-                          <button
-                            key={series}
-                            onClick={() => setSermonFilter(series)}
-                            className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                              sermonFilter === series
-                                ? 'bg-primary text-white shadow-xs'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                          >
-                            📌 {series}
-                          </button>
-                        ))}
-                        {allPreachers.map(preacher => (
-                          <button
-                            key={preacher}
-                            onClick={() => setSermonFilter(preacher)}
-                            className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                              sermonFilter === preacher
-                                ? 'bg-primary text-white shadow-xs'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                          >
-                            🎙️ {preacher}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Empty state if search/filter matches 0 items */}
-                  {filteredSermons.length === 0 ? (
-                    <div className="bg-white rounded-3xl p-12 text-center border border-gray-200 shadow-sm max-w-lg mx-auto space-y-4">
-                      <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center gap-2 justify-center mx-auto border border-amber-200">
-                        <BookOpen size={32} />
-                      </div>
-                      <h3 className="text-xl font-bold text-gray-900">
-                        {lang === 'zh' ? '未找到相关讲道' : 'No Matching Sermons Found'}
-                      </h3>
-                      <p className="text-xs text-gray-500 max-w-sm mx-auto">
-                        {lang === 'zh'
-                          ? '您可以尝试清除搜索关键词或重置讲员/系列筛选条件。'
-                          : 'Try clearing your search query or resetting the preacher/series filter.'}
-                      </p>
-                      <button
-                        onClick={() => {
-                          setSermonSearchQuery('');
-                          setSermonFilter('all');
-                        }}
-                        className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-md hover:bg-primary-dark transition-all"
-                      >
-                        {lang === 'zh' ? '重置筛选条件' : 'Reset All Filters'}
-                      </button>
-                    </div>
-                  ) : sermonViewMode === 'cards' ? (
-                    /* Cards View Mode */
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                      {filteredSermons.map((sermon) => (
-                        <div key={sermon.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col group">
-                          {/* Video Thumbnail / Embed */}
-                          <div className="relative aspect-video bg-gray-900 cursor-pointer" onClick={() => setSelectedSermonModal(sermon)}>
-                            {sermon.videoUrl && getYoutubeEmbedUrl(sermon.videoUrl) ? (
-                              <iframe
-                                src={getYoutubeEmbedUrl(sermon.videoUrl)}
-                                title={t(sermon.title)}
-                                className="absolute inset-0 w-full h-full pointer-events-auto"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                              />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center text-white">
-                                <BookOpen size={48} className="opacity-30" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="p-5 flex-grow flex flex-col justify-between space-y-3">
-                            <div>
-                              <div className="flex items-center gap-2 mb-2 justify-between">
-                                <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-bold">
-                                  {t(sermon.series)}
-                                </span>
-                                <span className="inline-flex items-center gap-1 text-gray-400 text-[10px] font-medium">
-                                  <Calendar size={10} />
-                                  {sermon.date}
-                                </span>
-                              </div>
-                              <h3 onClick={() => setSelectedSermonModal(sermon)} className="font-extrabold text-sm text-gray-900 leading-tight group-hover:text-primary transition-colors cursor-pointer">{t(sermon.title)}</h3>
-                              {sermon.scripture && (
-                                <p className="text-xs text-primary font-medium mt-1 italic">📖 {sermon.scripture}</p>
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-gray-600 text-xs font-light leading-relaxed line-clamp-2">{t(sermon.description)}</p>
-                              <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                                <div className="flex items-center gap-1.5">
-                                  <Users size={12} className="text-gray-400" />
-                                  <span className="text-xs font-bold text-gray-700">{t(sermon.preacher)}</span>
-                                </div>
-                                <button
-                                  onClick={() => setSelectedSermonModal(sermon)}
-                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
-                                >
-                                  <span>{lang === 'zh' ? '观看/详情' : 'Watch Video'}</span>
-                                  <ChevronRight size={13} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    /* Table View Mode */
-                    <div className="bg-white rounded-3xl border border-gray-200/80 shadow-sm overflow-hidden">
-                      <div className="p-4 sm:p-6 bg-primary/5 border-b border-gray-200/80 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="text-primary shrink-0" size={22} />
-                          <span className="text-base font-extrabold text-gray-900">
-                            {lang === 'zh' ? '在线讲道与证道视频总览' : 'Sermon Library Overview'}
-                          </span>
-                        </div>
-                        <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
-                          {filteredSermons.length} {lang === 'zh' ? '场证道' : 'Sermons'}
-                        </span>
-                      </div>
-
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-gray-50/90 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                              <th className="py-4 px-6">{lang === 'zh' ? '讲题与经文' : 'Sermon Title & Scripture'}</th>
-                              <th className="py-4 px-6">{lang === 'zh' ? '讲道系列' : 'Series'}</th>
-                              <th className="py-4 px-6">{lang === 'zh' ? '主讲人 / 牧者' : 'Preacher'}</th>
-                              <th className="py-4 px-6">{lang === 'zh' ? '聚会日期' : 'Date'}</th>
-                              <th className="py-4 px-6 text-right">{lang === 'zh' ? '操作' : 'Action'}</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-150">
-                            {filteredSermons.map((sermon) => (
-                              <tr key={sermon.id} className="hover:bg-primary/5 transition-colors text-sm text-gray-700 group">
-                                <td 
-                                  onClick={() => setSelectedSermonModal(sermon)}
-                                  className="py-4.5 px-6 font-extrabold text-gray-900 group-hover:text-primary transition-colors cursor-pointer"
-                                >
-                                  <div>{t(sermon.title)}</div>
-                                  {sermon.scripture && (
-                                    <div className="text-xs text-primary font-medium mt-0.5 italic">📖 {sermon.scripture}</div>
-                                  )}
-                                </td>
-                                <td className="py-4.5 px-6">
-                                  <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-primary/10 text-primary border border-primary/20">
-                                    {t(sermon.series)}
-                                  </span>
-                                </td>
-                                <td className="py-4.5 px-6 font-bold text-gray-800">
-                                  <div className="flex items-center gap-1.5">
-                                    <Users size={14} className="text-gray-400" />
-                                    <span>{t(sermon.preacher)}</span>
-                                  </div>
-                                </td>
-                                <td className="py-4.5 px-6 font-medium text-gray-600 text-xs">
-                                  {sermon.date}
-                                </td>
-                                <td className="py-4.5 px-6 text-right whitespace-nowrap">
-                                  <button
-                                    onClick={() => setSelectedSermonModal(sermon)}
-                                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-all shadow-2xs"
-                                  >
-                                    <PlayCircle size={14} />
-                                    <span>{lang === 'zh' ? '观看视频' : 'Watch Video'}</span>
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Detailed Bulletin Modal Dialog */}
-              {selectedBulletinModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-                  <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-100 space-y-6 p-6 sm:p-8 relative">
-                    <button 
-                      onClick={() => setSelectedBulletinModal(null)}
-                      className="absolute top-5 right-5 p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      <X size={20} />
-                    </button>
-                    <div className="space-y-2 pr-6">
-                      <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary">
-                          {selectedBulletinModal.date}
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
-                          {t(selectedBulletinModal.category)}
-                        </span>
-                      </div>
-                      <h2 className="text-2xl font-black text-gray-900 leading-tight">
-                        {t(selectedBulletinModal.title)}
-                      </h2>
-                    </div>
-                    <div className="space-y-4 text-sm">
-                      <p className="text-gray-700 font-medium leading-relaxed">{t(selectedBulletinModal.summary)}</p>
-                      {selectedBulletinModal.highlights && (
-                        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200/80">
-                          <div className="text-xs font-bold text-gray-500 uppercase mb-2">{lang === 'zh' ? '要点与代祷事项' : 'Highlights & Prayer Items'}</div>
-                          <p className="text-gray-800 text-xs font-medium leading-relaxed whitespace-pre-line">{t(selectedBulletinModal.highlights)}</p>
-                        </div>
-                      )}
-                    </div>
-                    <div className="pt-2 flex gap-3">
-                      {selectedBulletinModal.fileUrl && selectedBulletinModal.fileUrl !== '#' && (
-                        <a
-                          href={selectedBulletinModal.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 py-3 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-md"
-                        >
-                          <Download size={16} />
-                          <span>{lang === 'zh' ? '下载家事 (PDF)' : 'Download PDF'}</span>
-                        </a>
-                      )}
-                      <button
-                        onClick={() => setSelectedBulletinModal(null)}
-                        className="py-3 px-6 rounded-xl border border-gray-200 text-gray-600 text-xs font-bold hover:bg-gray-100 transition-all"
-                      >
-                        {lang === 'zh' ? '关闭' : 'Close'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Detailed Sermon Video Modal Dialog */}
-              {selectedSermonModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
-                  <div className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-gray-100 space-y-5 p-6 sm:p-8 relative">
-                    <button 
-                      onClick={() => setSelectedSermonModal(null)}
-                      className="absolute top-5 right-5 p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors z-10"
-                    >
-                      <X size={20} />
-                    </button>
-                    <div className="space-y-1.5 pr-6">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">
-                          {t(selectedSermonModal.series)}
-                        </span>
-                        <span className="text-xs text-gray-500 font-medium">
-                          {selectedSermonModal.date} • {t(selectedSermonModal.preacher)}
-                        </span>
-                      </div>
-                      <h2 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">
-                        {t(selectedSermonModal.title)}
-                      </h2>
-                      {selectedSermonModal.scripture && (
-                        <p className="text-xs text-primary font-bold italic">📖 {selectedSermonModal.scripture}</p>
-                      )}
-                    </div>
-                    
-                    {/* Video Player */}
-                    <div className="relative aspect-video bg-black rounded-2xl overflow-hidden shadow-md">
-                      {selectedSermonModal.videoUrl && getYoutubeEmbedUrl(selectedSermonModal.videoUrl) ? (
-                        <iframe
-                          src={getYoutubeEmbedUrl(selectedSermonModal.videoUrl)}
-                          title={t(selectedSermonModal.title)}
-                          className="absolute inset-0 w-full h-full"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4 text-center">
-                          <BookOpen size={48} className="opacity-40 mb-2" />
-                          <p className="text-sm">{lang === 'zh' ? '无法嵌入视频，或未提供视频链接。' : 'No embeddable video URL provided.'}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <p className="text-xs sm:text-sm text-gray-600 font-normal leading-relaxed">{t(selectedSermonModal.description)}</p>
-
-                    <div className="pt-2 flex justify-end">
-                      <button
-                        onClick={() => setSelectedSermonModal(null)}
-                        className="py-2.5 px-6 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition-all"
-                      >
-                        {lang === 'zh' ? '关闭' : 'Close'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Notice Footer Card (with proper top spacing just like timetable) */}
-              <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 rounded-2xl p-6 border border-amber-200/80 flex flex-col sm:flex-row items-start gap-4 shadow-xs mt-8 sm:mt-10 mb-6">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-                  <Info size={20} />
-                </div>
-                <div className="space-y-2 flex-1">
-                  <h4 className="font-extrabold text-amber-900 text-sm">
-                    {lang === 'zh' ? '家事与讲道资源温馨提示' : 'Resource Center Notice & Support'}
-                  </h4>
-                  <p className="text-xs text-amber-900/80 leading-relaxed">
-                    {lang === 'zh'
-                      ? '每周家事通常于每周五或六完成上传；若您在下载 PDF 档案或观看讲道视频时遇到任何问题，或需获取过往月份之内部资料，欢迎随时联系教会行政同工查询。'
-                      : 'Weekly bulletins are updated usually on Friday or Saturday. If you experience issues downloading files or viewing sermon videos, or need archived materials from previous months, please feel free to contact our administrative office.'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* ==================== PAGE: SERVICES & WORSHIPS ==================== */}
-        {activeTab === 'services' && (() => {
-          const services = data.services || [];
-          const getServiceType = (s) => (s.type || 'service');
-          // Count for tabs
-          const countAll = services.length;
-          const countService = services.filter(s => getServiceType(s) !== 'worship').length;
-          const countWorship = services.filter(s => getServiceType(s) === 'worship').length;
-          // Filter by main tab (service/worship) first to derive series list
-          const servicesByMainTab = services.filter(s => {
-            if (serviceMainTab === 'all') return true;
-            return getServiceType(s) === serviceMainTab;
-          });
-          const allSeries = [...new Set(servicesByMainTab.map(s => t(s.series)))];
-          const filteredServices = services.filter(s => {
-            const matchesMainTab = serviceMainTab === 'all' || getServiceType(s) === serviceMainTab;
-            const matchesFilter = serviceFilter === 'all' || t(s.series) === serviceFilter;
-            const q = serviceSearchQuery.toLowerCase().trim();
-            const matchesSearch = !q || t(s.title).toLowerCase().includes(q) || t(s.series).toLowerCase().includes(q) || s.date.includes(q) || t(s.description).toLowerCase().includes(q);
-            return matchesMainTab && matchesFilter && matchesSearch;
-          });
-          return (
-            <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-              <div className="text-center max-w-3xl mx-auto space-y-4 mb-10">
-                <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                  {t(data.settings.servicesBadge) || (lang === 'zh' ? '崇拜与敬拜 · 完整回顾' : 'Services & Worships · Full Replay')}
-                </span>
-                <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                  {t(data.settings.servicesTitle) || (lang === 'zh' ? '崇拜与敬拜' : 'Services & Worships')}
-                </h1>
-                <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                  {t(data.settings.servicesIntro) || (lang === 'zh'
-                    ? '回顾完整主日崇拜与敬拜赞美录影，包括敬拜、证道、祷告及教会报告事项。崇拜与敬拜分开标签，方便查找。'
-                    : 'Revisit full Sunday service & worship recordings, including praise, sermon, prayer, and announcements. Browse by Services and Worships tabs.')}
-                </p>
-              </div>
-
-              {/* Main Tabs: Services & Worships */}
-              <div className="flex justify-center mb-6">
-                <div className="inline-flex bg-gray-100 rounded-xl p-1 gap-1 border border-gray-200/60 shadow-xs">
-                  <button
-                    onClick={() => { setServiceMainTab('all'); setServiceFilter('all'); }}
-                    className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
-                      serviceMainTab === 'all'
-                        ? 'bg-white text-primary shadow-sm font-bold'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                    }`}
-                  >
-                    <Layers size={16} />
-                    <span>{lang === 'zh' ? '全部' : 'All'}</span>
-                    <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-bold">
-                      {countAll}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => { setServiceMainTab('service'); setServiceFilter('all'); }}
-                    className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
-                      serviceMainTab === 'service'
-                        ? 'bg-white text-primary shadow-sm font-bold'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                    }`}
-                  >
-                    <Video size={16} />
-                    <span>{lang === 'zh' ? '崇拜录影' : 'Services'}</span>
-                    <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-bold">
-                      {countService}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => { setServiceMainTab('worship'); setServiceFilter('all'); }}
-                    className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
-                      serviceMainTab === 'worship'
-                        ? 'bg-white text-primary shadow-sm font-bold'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                    }`}
-                  >
-                    <PlayCircle size={16} />
-                    <span>{lang === 'zh' ? '敬拜录影' : 'Worships'}</span>
-                    <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-bold">
-                      {countWorship}
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Filters & Control Toolbar */}
-              <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm space-y-4 mb-8">
-                <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-                  {/* Search Bar */}
-                  <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input 
-                      type="text"
-                      value={serviceSearchQuery}
-                      onChange={(e) => setServiceSearchQuery(e.target.value)}
-                      placeholder={lang === 'zh' ? '搜索标题、系列或日期...' : 'Search title, series, or date...'}
-                      className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-250 bg-gray-50/50 text-sm font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-white transition-all"
-                    />
-                    {serviceSearchQuery && (
-                      <button 
-                        onClick={() => setServiceSearchQuery('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full hover:bg-gray-200/60"
-                      >
-                        <X size={15} />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* View Mode Switcher */}
-                  <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl self-start lg:self-auto border border-gray-200/60">
-                    <button
-                      onClick={() => setServiceViewMode('cards')}
-                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                        serviceViewMode === 'cards' 
-                          ? 'bg-white text-primary shadow-sm' 
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                      }`}
-                      title={lang === 'zh' ? '卡片网格视图' : 'Grid View'}
-                    >
-                      <LayoutGrid size={16} />
-                      <span>{lang === 'zh' ? '卡片模式' : 'Grid'}</span>
-                    </button>
-                    <button
-                      onClick={() => setServiceViewMode('table')}
-                      className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                        serviceViewMode === 'table' 
-                          ? 'bg-white text-primary shadow-sm' 
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                      }`}
-                      title={lang === 'zh' ? '表格视图' : 'Table View'}
-                    >
-                      <ListFilter size={16} />
-                      <span>{lang === 'zh' ? '列表表格' : 'Table'}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Filter Pills */}
-                {allSeries.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-100">
-                    <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1">
-                      <Filter size={12} />
-                      {lang === 'zh' ? '分类筛选:' : 'Filter by:'}
-                    </span>
-                    <button
-                      onClick={() => setServiceFilter('all')}
-                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                        serviceFilter === 'all'
-                          ? 'bg-gray-900 text-white shadow-xs'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {lang === 'zh' ? '全部系列' : 'All Services'}
-                    </button>
-                    {allSeries.map(series => (
-                      <button
-                        key={series}
-                        onClick={() => setServiceFilter(series)}
-                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                          serviceFilter === series
-                            ? 'bg-primary text-white shadow-xs'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        📌 {series}
-                      </button>
+                <div className="grid lg:grid-cols-[220px_1fr] gap-4">
+                  {/* Admin sidebar */}
+                  <aside className="bg-white rounded-2xl border border-gray-200 p-2 h-fit lg:sticky lg:top-[88px] space-y-1">
+                    <div className="px-3 py-2 flex items-center justify-between"><span className="font-black text-sm">{ta('adminPanel')}</span><button onClick={handleAdminLogout} className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600"><LogOut size={14}/></button></div>
+                    {[
+                      { id:'dashboard', icon: LayoutGrid, label: ta('dashboard') },
+                      { id:'appearance', icon: SettingsIcon, label: ta('appearance') },
+                      { id:'settings', icon: SettingsIcon, label: ta('generalSettings') },
+                      { id:'banners', icon: ImageIcon, label: ta('banners') },
+                      { id:'categories', icon: Layers, label: ta('categories') },
+                      { id:'products', icon: Package, label: ta('products') },
+                      { id:'bundles', icon: Gift, label: ta('bundles') },
+                      { id:'coupons', icon: Tag, label: ta('coupons') },
+                      { id:'gwp', icon: Gift, label: ta('gwp') },
+                      { id:'orders', icon: ShoppingBag, label: ta('orders') },
+                      { id:'customers', icon: Users, label: ta('customers') },
+                      { id:'membership', icon: Crown, label: ta('membership') },
+                      { id:'reviews', icon: Star, label: ta('reviews') },
+                      { id:'media', icon: Camera, label: ta('media') },
+                      { id:'backup', icon: Download, label: ta('backup') },
+                    ].map(item=>(
+                      <button key={item.id} onClick={()=>{ setAdminActiveSection(item.id); if(item.id==='backup') requestBackupAccess(); }} className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-medium flex items-center gap-2 ${adminActiveSection===item.id?'bg-gray-900 text-white font-bold':'text-gray-600 hover:bg-gray-50'}`}><item.icon size={14}/>{item.label}</button>
                     ))}
-                  </div>
-                )}
-              </div>
+                    {adminSuccessMessage && <div className="mt-3 p-2.5 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs font-bold flex items-center gap-1.5"><CheckCircle size={12}/>{adminSuccessMessage}</div>}
+                    {autoSaveStatus && <div className={`mt-2 p-2 rounded-lg text-[11px] ${autoSaveStatus==='saving'?'bg-blue-50 text-blue-700 border border-blue-200':autoSaveStatus==='success'?'bg-green-50 text-green-700 border border-green-200':'bg-red-50 text-red-700 border border-red-200'}`}>{autoSaveMessage}</div>}
+                  </aside>
 
-              {/* Empty state */}
-              {filteredServices.length === 0 ? (
-                <div className="bg-white rounded-3xl p-12 text-center border border-gray-200 shadow-sm max-w-lg mx-auto space-y-4">
-                  <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center gap-2 justify-center mx-auto border border-amber-200">
-                    <Video size={32} />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900">
-                    {lang === 'zh'
-                      ? (serviceMainTab === 'worship' ? '未找到相关敬拜录影' : serviceMainTab === 'service' ? '未找到相关崇拜录影' : '未找到相关录影')
-                      : (serviceMainTab === 'worship' ? 'No Matching Worships Found' : serviceMainTab === 'service' ? 'No Matching Services Found' : 'No Matching Recordings Found')}
-                  </h3>
-                  <p className="text-xs text-gray-500 max-w-sm mx-auto">
-                    {lang === 'zh'
-                      ? '您可以尝试清除搜索关键词、重置系列筛选或切换崇拜/敬拜标签。'
-                      : 'Try clearing search, resetting series filter, or switching Services/Worships tabs.'}
-                  </p>
-                  <button
-                    onClick={() => {
-                      setServiceSearchQuery('');
-                      setServiceFilter('all');
-                      setServiceMainTab('all');
-                    }}
-                    className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold shadow-md hover:bg-primary-dark transition-all"
-                  >
-                    {lang === 'zh' ? '重置筛选条件' : 'Reset All Filters'}
-                  </button>
-                </div>
-              ) : serviceViewMode === 'cards' ? (
-                /* Cards View Mode */
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {filteredServices.map((service) => (
-                    <div key={service.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col group">
-                      {/* Video Thumbnail / Embed */}
-                      <div className="relative aspect-video bg-gray-900 cursor-pointer" onClick={() => setSelectedServiceModal(service)}>
-                        {service.videoUrl && getYoutubeEmbedUrl(service.videoUrl) ? (
-                          <iframe
-                            src={getYoutubeEmbedUrl(service.videoUrl)}
-                            title={t(service.title)}
-                            className="absolute inset-0 w-full h-full pointer-events-auto"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                        ) : (
-                          <div className="absolute inset-0 flex items-center justify-center text-white">
-                            <Video size={48} className="opacity-30" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-5 flex-grow flex flex-col justify-between space-y-3">
-                        <div>
-                          <div className="flex items-center gap-2 mb-2 justify-between flex-wrap">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getServiceType(service) === 'worship' ? 'bg-violet-100 text-violet-700' : 'bg-primary/10 text-primary'}`}>
-                                {getServiceType(service) === 'worship' ? (lang === 'zh' ? '敬拜' : 'Worship') : (lang === 'zh' ? '崇拜' : 'Service')}
-                              </span>
-                              <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-700 text-[10px] font-bold">
-                                {t(service.series)}
-                              </span>
-                            </div>
-                            <span className="inline-flex items-center gap-1 text-gray-400 text-[10px] font-medium">
-                              <Calendar size={10} />
-                              {service.date}
-                            </span>
-                          </div>
-                          <h3 onClick={() => setSelectedServiceModal(service)} className="font-extrabold text-sm text-gray-900 leading-tight group-hover:text-primary transition-colors cursor-pointer">{t(service.title)}</h3>
-                        </div>
-                        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                          <button
-                            onClick={() => setSelectedServiceModal(service)}
-                            className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
-                          >
-                            <PlayCircle size={14} />
-                            {lang === 'zh' ? '观看录影' : 'Watch Recording'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                /* Table View Mode */
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="bg-gray-50 border-b border-gray-200">
-                          <th className="px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">{lang === 'zh' ? '日期' : 'Date'}</th>
-                          <th className="px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">{lang === 'zh' ? '类型' : 'Type'}</th>
-                          <th className="px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">{lang === 'zh' ? '标题' : 'Title'}</th>
-                          <th className="px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider">{lang === 'zh' ? '系列' : 'Series'}</th>
-                          <th className="px-5 py-3.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">{lang === 'zh' ? '操作' : 'Action'}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {filteredServices.map((service) => (
-                          <tr key={service.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-5 py-3.5 text-xs text-gray-600 font-medium whitespace-nowrap">{service.date}</td>
-                            <td className="px-5 py-3.5">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getServiceType(service) === 'worship' ? 'bg-violet-100 text-violet-700' : 'bg-primary/10 text-primary'}`}>
-                                {getServiceType(service) === 'worship' ? (lang === 'zh' ? '敬拜' : 'Worship') : (lang === 'zh' ? '崇拜' : 'Service')}
-                              </span>
-                            </td>
-                            <td className="px-5 py-3.5">
-                              <span className="text-sm font-bold text-gray-900">{t(service.title)}</span>
-                            </td>
-                            <td className="px-5 py-3.5">
-                              <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-bold">{t(service.series)}</span>
-                            </td>
-                            <td className="px-5 py-3.5 text-right">
-                              <button
-                                onClick={() => setSelectedServiceModal(service)}
-                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-all shadow-2xs"
-                              >
-                                <PlayCircle size={14} />
-                                <span>{lang === 'zh' ? '观看录影' : 'Watch'}</span>
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Service Detail Modal */}
-              {selectedServiceModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
-                  <div className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-gray-100 space-y-5 p-6 sm:p-8 relative">
-                    <button 
-                      onClick={() => setSelectedServiceModal(null)}
-                      className="absolute top-5 right-5 p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors z-10"
-                    >
-                      <X size={20} />
-                    </button>
-                    <div className="space-y-1.5 pr-6">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${ (selectedServiceModal.type || 'service') === 'worship' ? 'bg-violet-100 text-violet-700' : 'bg-primary/10 text-primary'}`}>
-                          {(selectedServiceModal.type || 'service') === 'worship' ? (lang === 'zh' ? '敬拜' : 'Worship') : (lang === 'zh' ? '崇拜' : 'Service')}
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
-                          {t(selectedServiceModal.series)}
-                        </span>
-                        <span className="text-xs text-gray-500 font-medium">
-                          {selectedServiceModal.date}
-                        </span>
-                      </div>
-                      <h2 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">
-                        {t(selectedServiceModal.title)}
-                      </h2>
-                    </div>
-                    
-                    {/* Video Player */}
-                    <div className="relative aspect-video bg-black rounded-2xl overflow-hidden shadow-md">
-                      {selectedServiceModal.videoUrl && getYoutubeEmbedUrl(selectedServiceModal.videoUrl) ? (
-                        <iframe
-                          src={getYoutubeEmbedUrl(selectedServiceModal.videoUrl)}
-                          title={t(selectedServiceModal.title)}
-                          className="absolute inset-0 w-full h-full"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4 text-center">
-                          <Video size={48} className="opacity-40 mb-2" />
-                          <p className="text-sm">{lang === 'zh' ? '无法嵌入视频，或未提供视频链接。' : 'No embeddable video URL provided.'}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <p className="text-xs sm:text-sm text-gray-600 font-normal leading-relaxed">{t(selectedServiceModal.description)}</p>
-
-                    <div className="pt-2 flex justify-end">
-                      <button
-                        onClick={() => setSelectedServiceModal(null)}
-                        className="py-2.5 px-6 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition-all"
-                      >
-                        {lang === 'zh' ? '关闭' : 'Close'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Notice Footer Card */}
-              <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 rounded-2xl p-6 border border-amber-200/80 flex flex-col sm:flex-row items-start gap-4 shadow-xs mt-8 sm:mt-10 mb-6">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-                  <Info size={20} />
-                </div>
-                <div className="space-y-2 flex-1">
-                  <h4 className="font-extrabold text-amber-900 text-sm">
-                    {lang === 'zh' ? '崇拜与敬拜录影温馨提示' : 'Services & Worships Recording Notice'}
-                  </h4>
-                  <p className="text-xs text-amber-900/80 leading-relaxed">
-                    {lang === 'zh'
-                      ? '崇拜与敬拜录影通常于主日后一周内上传。若您在观看视频时遇到任何问题，欢迎随时联系教会行政同工查询。'
-                      : 'Services & worship recordings are typically uploaded within one week after Sunday. If you experience issues viewing the videos, please contact our administrative office.'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* ==================== PAGE: CELL GROUPS ==================== */}
-        {activeTab === 'cellgroups' && (
-          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-              <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {t(data.settings.cellGroupsBadge) || (lang === 'zh' ? '小组生活 · 彼此相顾' : 'Community Life · Caring for One Another')}
-              </span>
-              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                {t(data.settings.cellGroupsTitle) || (lang === 'zh' ? '细胞小组' : 'Cell Groups')}
-              </h1>
-              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                {t(data.settings.cellGroupsIntro) || (lang === 'zh'
-                  ? '小组是我们教会最重要的团契生活单元。每个小组定期聚会，一同查经、祷告、分享生命，在主爱中彼此建立。欢迎加入我们的小组！'
-                  : 'Cell groups are the heart of our fellowship life. Each group meets regularly for Bible study, prayer, and life sharing, building each other up in the Lord\'s love. Join us!')}
-              </p>
-            </div>
-
-            {(data.cellGroups || []).length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {data.cellGroups.map((group) => (
-                  <div key={group.id} className="bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col">
-                    <div 
-                      className="relative h-48 overflow-hidden cursor-zoom-in"
-                      onClick={() => setSelectedCellGroup(group)}
-                    >
-                      <img src={group.image} alt={t(group.name)} className="w-full h-full object-cover hover:scale-105 transition-all duration-500" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                      <div className="absolute bottom-4 left-4 text-white">
-                        <h3 className="font-extrabold text-xl">{t(group.name)}</h3>
-                        <span className="text-xs text-white/80 bg-primary/80 px-2 py-0.5 rounded mt-1 inline-block">{t(group.target)}</span>
-                      </div>
-                    </div>
-                    <div className="p-6 space-y-4 flex-grow flex flex-col">
-                      <h3 
-                        className="font-extrabold text-lg text-gray-900 cursor-pointer hover:text-primary transition-colors"
-                        onClick={() => setSelectedCellGroup(group)}
-                      >
-                        {t(group.name)}
-                      </h3>
-                      <p className="text-gray-600 text-sm font-light leading-relaxed line-clamp-3">{t(group.description)}</p>
-                      <div className="space-y-2 text-xs text-gray-500 border-t border-gray-100 pt-4 mt-auto">
-                        <div className="flex items-center gap-2">
-                          <Users size={14} className="text-primary shrink-0" />
-                          <span className="font-medium text-gray-700">{lang === 'zh' ? '负责人：' : 'Leader: '}</span>
-                          <span>{t(group.leader)}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock size={14} className="text-primary shrink-0" />
-                          <span className="font-medium text-gray-700">{lang === 'zh' ? '聚会时间：' : 'Schedule: '}</span>
-                          <span>{t(group.schedule)}</span>
-                        </div>
-                      </div>
-                      <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button onClick={() => setSelectedCellGroup(group)} className="py-2.5 rounded-lg bg-gray-900 text-white text-xs font-bold hover:bg-black transition-all flex items-center justify-center gap-1.5 shadow-sm"><Info size={14} /><span>{lang === 'zh' ? '查看详情' : 'View Details'}</span></button>
-                        <button onClick={() => openTimetableSection('cellgroup')} className="py-2.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-primary/15"><Clock size={14} /><span>{lang === 'zh' ? '查看聚会时间' : 'View Timetable'}</span></button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-                <Users className="mx-auto text-gray-400 mb-3" size={48} />
-                <p className="text-gray-500 font-light">{lang === 'zh' ? '目前暂无小组信息。' : 'No cell groups listed at the moment.'}</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ==================== PAGE: NEW FRIEND GUIDE ==================== */}
-        {activeTab === 'newfriend' && (
-          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-              <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {lang === 'zh' ? '欢迎来到神的家' : 'Welcome to God\'s Family'}
-              </span>
-              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight flex items-center justify-center gap-3">
-                <Compass className="text-primary" size={36} />
-                <span>{lang === 'zh' ? '新朋友指南' : 'New Friend Guide'}</span>
-              </h1>
-              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                {t(data.newFriendGuide?.welcome)}
-              </p>
-            </div>
-
-            <div className="space-y-8 max-w-4xl mx-auto">
-              {(data.newFriendGuide?.sections || []).map((section, index) => (
-                <div key={section.id || index} className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 md:p-8 hover:shadow-md transition-all">
-                  <div className="flex items-start gap-4">
-                    <div className="shrink-0 w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-extrabold text-sm">
-                      {index + 1}
-                    </div>
-                    <div className="flex-grow space-y-3">
-                      <h2 className="text-xl font-extrabold text-gray-900">{t(section.title)}</h2>
-                      <div className="w-12 h-1 bg-primary rounded" />
-                      <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(section.content)}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Quick Contact CTA */}
-            <div className="mt-12 bg-primary/5 rounded-2xl p-8 text-center max-w-3xl mx-auto border border-primary/10">
-              <HelpCircle className="mx-auto text-primary mb-3" size={32} />
-              <h3 className="text-lg font-extrabold text-gray-900 mb-2">
-                {lang === 'zh' ? '还有疑问？随时联系我们！' : 'Still have questions? Contact us anytime!'}
-              </h3>
-              <p className="text-gray-600 text-sm font-light mb-4">
-                {lang === 'zh' ? '我们的接待团队随时准备为您解答任何问题。' : 'Our welcome team is ready to answer any questions you may have.'}
-              </p>
-              <div className="flex flex-wrap justify-center gap-4">
-                <a href={`tel:${data.settings.contactPhone}`} className="px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold flex items-center gap-2 hover:bg-primary-dark transition-all">
-                  <Phone size={16} />
-                  <span>{data.settings.contactPhone}</span>
-                </a>
-                <button onClick={() => { setActiveTab('maps'); window.scrollTo(0, 0); }}
-                  className="px-5 py-2.5 rounded-lg border border-primary text-primary text-sm font-semibold flex items-center gap-2 hover:bg-primary/5 transition-all">
-                  <Navigation size={16} />
-                  <span>{lang === 'zh' ? '查看地图与方向' : 'View Map & Directions'}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ==================== PAGE: FELLOWSHIP HIGHLIGHTS ==================== */}
-        {activeTab === 'fellowshipHighlights' && (
-          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-              <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {lang === 'zh' ? '聚会点滴瞬间' : 'Cherished Moments'}
-              </span>
-              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight flex items-center justify-center gap-3">
-                <Camera className="text-primary" size={36} />
-                <span>{lang === 'zh' ? '聚会点滴' : 'Fellowship Highlights'}</span>
-              </h1>
-              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                {lang === 'zh' 
-                  ? '回顾我们团契生活中的精彩瞬间，一起珍藏这些美好的回忆。' 
-                  : 'Relive the cherished moments from our fellowship life and treasure these beautiful memories together.'}
-              </p>
-            </div>
-
-            {(data.fellowshipHighlights || []).length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {(data.fellowshipHighlights || []).map((highlight) => (
-                  <button
-                    key={highlight.id}
-                    type="button"
-                    onClick={() => setSelectedFellowshipHighlight(highlight)}
-                    className="group text-left bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-sm flex flex-col hover:shadow-lg hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-all duration-300"
-                  >
-                    <div className="relative h-52 overflow-hidden bg-gray-100">
-                      {highlight.images && highlight.images.length > 0 ? (
-                        <img 
-                          src={highlight.images[0]} 
-                          alt={highlight.title[lang] || highlight.title.zh} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-                          <Camera size={48} className="text-primary/40" />
-                        </div>
-                      )}
-                      <div className="absolute top-4 left-4 bg-primary text-white py-1 px-3 rounded-lg font-bold text-xs shadow-md">
-                        {highlight.date}
-                      </div>
-                      <div className="absolute bottom-4 right-4 bg-black/60 text-white px-2 py-0.5 rounded text-xs font-bold">
-                        {highlight.images?.length || 0} {lang === 'zh' ? '张' : 'photos'}
-                      </div>
-                    </div>
-                    <div className="p-6 flex-grow flex flex-col justify-between space-y-4">
-                      <div>
-                        <h3 className="font-extrabold text-lg text-gray-900 leading-tight group-hover:text-primary transition-colors">
-                          {highlight.title[lang] || highlight.title.zh}
-                        </h3>
-                        <p className="text-gray-600 text-xs font-light leading-relaxed mt-2 line-clamp-3">
-                          {highlight.description[lang] || highlight.description.zh}
-                        </p>
-                      </div>
-                      <div className="text-xs font-bold text-primary opacity-0 transition-opacity group-hover:opacity-100 pt-1 flex items-center gap-1">
-                        {lang === 'zh' ? '点击浏览照片 →' : 'Click to browse photos →'}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-                <Camera className="mx-auto text-gray-400 mb-3" size={48} />
-                <p className="text-gray-500 font-light text-base">
-                  {lang === 'zh' ? '暂无聚会点滴集。' : 'No fellowship highlights yet.'}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ==================== PAGE: MAPS ==================== */}
-        {activeTab === 'maps' && (
-          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-            <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-              <span className="text-primary font-bold uppercase tracking-wider text-xs">
-                {t(data.settings.mapsBadge) || (lang === 'zh' ? '找到我们' : 'Find Us')}
-              </span>
-              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight flex items-center justify-center gap-3">
-                <MapIcon className="text-primary" size={36} />
-                <span>{t(data.settings.mapsTitle) || (lang === 'zh' ? '教会地图与交通指南' : 'Church Map & Directions')}</span>
-              </h1>
-              <p className="text-gray-600 font-light text-base md:text-lg leading-relaxed">
-                {t(data.settings.mapsIntro) || (lang === 'zh' ? '我们在多个地点设有聚会点，请选择离您最近的地点。' : 'We have fellowship points at multiple locations. Choose the one closest to you.')}
-              </p>
-            </div>
-
-            {/* Multiple Church Locations */}
-            {(data.maps || []).length > 0 ? (
-              <div className="space-y-12">
-                {(data.maps || []).map((church) => (
-                  <div key={church.id} className="space-y-6">
-                    {/* Church Name Header */}
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                        <MapIcon size={20} />
-                      </div>
-                      <h2 className="text-2xl font-extrabold text-gray-900">{t(church.name)}</h2>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                      {/* Map Embed */}
-                      <div className="lg:col-span-2 rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-gray-100 min-h-[400px]">
-                        {getGoogleMapsEmbedUrl(church) ? (
-                          <iframe
-                            src={getGoogleMapsEmbedUrl(church)}
-                            width="100%"
-                            height="100%"
-                            style={{ border: 0, minHeight: '400px' }}
-                            allowFullScreen=""
-                            loading="lazy"
-                            referrerPolicy="no-referrer-when-downgrade"
-                            title={t(church.name)}
-                            className="w-full h-full"
-                          />
-                        ) : (
-                          <div className="min-h-[400px] flex flex-col items-center justify-center text-center p-8 text-gray-500">
-                            <MapIcon size={48} className="text-gray-300 mb-3" />
-                            <p className="text-sm font-medium">{lang === 'zh' ? '尚未设置嵌入地图链接' : 'Map embed URL has not been set yet.'}</p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Info Sidebar */}
+                  {/* Admin content */}
+                  <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-6 min-h-[70vh]">
+                    {/* Dashboard */}
+                    {adminActiveSection==='dashboard' && (
                       <div className="space-y-6">
-                        {/* Address */}
-                        <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
-                          <div className="flex items-center gap-2 text-primary">
-                            <MapPin size={20} />
-                            <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '地址' : 'Address'}</h3>
-                          </div>
-                          <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(church.address)}</p>
-                          <a
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t(church.address))}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-primary text-xs font-semibold hover:text-primary-dark transition-all"
-                          >
-                            <Navigation size={14} />
-                            <span>{lang === 'zh' ? '在 Google Maps 中打开' : 'Open in Google Maps'}</span>
-                          </a>
+                        <h2 className="text-xl font-black">{ta('dashboard')}</h2>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                          {[
+                            { label: ta('totalProducts'), value: data.products.length, icon: Package, color: 'bg-blue-50 text-blue-600' },
+                            { label: ta('totalOrders'), value: data.orders.length, icon: ShoppingBag, color: 'bg-emerald-50 text-emerald-600' },
+                            { label: ta('totalCustomers'), value: data.customers.length, icon: Users, color: 'bg-violet-50 text-violet-600' },
+                            { label: ta('totalRevenue'), value: formatPrice(data.orders.reduce((s,o)=>s+o.total,0)), icon: DollarSign, color: 'bg-amber-50 text-amber-600' },
+                          ].map((k,i)=><div key={i} className="rounded-2xl border border-gray-100 p-4 flex items-center gap-3"><div className={`w-10 h-10 rounded-xl ${k.color} flex items-center justify-center`}><k.icon size={18}/></div><div><p className="text-[11px] text-gray-500 uppercase font-bold">{k.label}</p><p className="font-black text-lg">{k.value}</p></div></div>)}
                         </div>
-
-                        {/* Directions */}
-                        <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
-                          <div className="flex items-center gap-2 text-primary">
-                            <Navigation size={20} />
-                            <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '交通指南' : 'Directions'}</h3>
-                          </div>
-                          <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(church.directions)}</p>
+                        <div className="grid lg:grid-cols-2 gap-6">
+                          <div className="rounded-2xl border border-gray-100 p-4"><h4 className="font-bold text-sm mb-3 flex items-center gap-2"><AlertTriangle size={14} className="text-amber-500"/>{ta('lowStock')}</h4><div className="space-y-2">{data.products.filter(p=>p.stock<=p.lowStockThreshold).slice(0,5).map(p=><div key={p.id} className="flex items-center justify-between text-xs border-b last:border-0 py-2"><span>{t(p.title)} ({p.sku})</span><span className="px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-bold">{p.stock} left</span></div>)}{data.products.filter(p=>p.stock<=p.lowStockThreshold).length===0 && <p className="text-xs text-gray-500">{lang==='zh'?'暫無低庫存':'No low stock'}</p>}</div></div>
+                          <div className="rounded-2xl border border-gray-100 p-4"><h4 className="font-bold text-sm mb-3">{ta('recentOrders')}</h4><div className="space-y-2">{data.orders.slice(0,5).map(o=><div key={o.id} className="flex items-center justify-between text-xs border-b last:border-0 py-2"><div><p className="font-bold">{o.id}</p><p className="text-gray-500">{new Date(o.createdAt).toLocaleDateString()} • {formatPrice(o.total)}</p></div><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${o.fulfillmentStatus==='fulfilled'?'bg-green-50 text-green-700':'bg-amber-50 text-amber-700'}`}>{o.fulfillmentStatus}</span></div>)}</div></div>
                         </div>
-
-                        {/* Landmarks */}
-                        {church.landmarks && (
-                          <div className="bg-white rounded-2xl border border-gray-150 shadow-sm p-6 space-y-3">
-                            <div className="flex items-center gap-2 text-primary">
-                              <MapIcon size={20} />
-                              <h3 className="font-extrabold text-gray-900">{lang === 'zh' ? '附近地标' : 'Nearby Landmarks'}</h3>
-                            </div>
-                            <p className="text-gray-700 text-sm font-light leading-relaxed whitespace-pre-line">{t(church.landmarks)}</p>
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="max-w-2xl mx-auto text-center py-16 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-                <MapIcon className="mx-auto text-gray-400 mb-3" size={48} />
-                <h2 className="font-extrabold text-lg text-gray-900 mb-2">
-                  {lang === 'zh' ? '地图资料尚未设置' : 'Map information is not set yet'}
-                </h2>
-                <p className="text-gray-600 text-sm font-light mb-5 px-6">
-                  {lang === 'zh' ? '您仍可使用以下教会地址在 Google Maps 中搜寻。' : 'You can still search for the church using the address below.'}
-                </p>
-                <p className="text-gray-700 text-sm font-medium mb-5 px-6">{data.settings.contactAddress}</p>
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.settings.contactAddress)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-dark transition-all"
-                >
-                  <Navigation size={16} />
-                  <span>{lang === 'zh' ? '在 Google Maps 中打开' : 'Open in Google Maps'}</span>
-                </a>
-              </div>
-            )}
-          </div>
-        )}
+                    )}
 
-        {/* ==================== PAGE: ADMIN PANEL ==================== */}
-        {activeTab === 'admin' && (
-          <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
-            
-            {/* Case: Not logged in */}
-            {!isAdminLoggedIn ? (
-              <div className="max-w-md mx-auto bg-white p-8 md:p-10 rounded-2xl border border-gray-150 shadow-md space-y-6">
-                <div className="text-center space-y-3">
-                  <div className="inline-flex p-3 rounded-2xl bg-amber-50 text-amber-600 mb-2 border border-amber-100">
-                    <Lock size={32} />
-                  </div>
-                  <h1 className="text-2xl font-extrabold text-gray-900">
-                    {lang === 'zh' ? '管理员安全登录' : 'Admin Secure Login'}
-                  </h1>
-                  <p className="text-xs text-gray-500 font-light leading-relaxed">
-                    {lang === 'zh' 
-                      ? '后台管理可供修改教会基本信息、聚会日程、社区事工内容、主页轮播图及更换网站主题配色。' 
-                      : 'Log in to update church info, weekly schedules, ministries, banner carousel images, and website theme colors.'}
-                  </p>
-                </div>
+                    {/* Appearance - Fixed Chinese font & color palette */}
+                    {adminActiveSection==='appearance' && (
+                      <div className="space-y-8">
+                        <div><h2 className="text-xl font-black">{ta('appearance')}</h2><p className="text-xs text-gray-500 mt-1">{lang==='zh'?'自訂品牌配色、字體、文字大小 - 修復中文字體與調色板靈活性':'Customize brand colors, fonts, text scale - Fixed Chinese fonts & palette flexibility'}</p></div>
 
-                <form onSubmit={handleAdminLogin} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                      {lang === 'zh' ? '管理登录密码' : 'Admin Password'}
-                    </label>
-                    <input 
-                      type="password"
-                      value={adminPasswordInput}
-                      onChange={(e) => setAdminPasswordInput(e.target.value)}
-                      placeholder="••••••••"
-                      required
-                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm transition-all"
-                    />
-                  </div>
-
-                  {adminLoginError && (
-                    <div className="text-xs text-red-600 bg-red-50 p-2.5 rounded border border-red-100 flex items-center gap-1.5">
-                      <AlertTriangle size={14} className="shrink-0" />
-                      <span>{adminLoginError}</span>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    className="w-full py-3 rounded-lg bg-primary hover:bg-primary-dark text-white font-semibold text-sm transition-all shadow-md shadow-primary/20 flex items-center justify-center gap-2"
-                  >
-                    <Shield size={16} />
-                    <span>{lang === 'zh' ? '确认登录' : 'Confirm Login'}</span>
-                  </button>
-                </form>
-
-                <div className="pt-2 border-t border-gray-100 text-center">
-                  <span className="text-[10px] text-gray-400 font-mono">
-                    {lang === 'zh' ? '密码由 Cloudflare Secret 安全验证' : 'Password verified securely by Cloudflare Secret'}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              
-              /* Case: Logged in and viewing Admin Console */
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden flex flex-col lg:flex-row min-h-[680px]">
-                
-                {/* Admin Sidebar Navigation */}
-                <div className="w-full lg:w-64 bg-gray-50 border-b lg:border-b-0 lg:border-r border-gray-200 shrink-0 p-5 flex flex-col justify-between gap-6">
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-2 pb-4 border-b border-gray-200">
-                      <div className="bg-amber-100 text-amber-700 p-2 rounded-lg">
-                        <Shield size={20} />
-                      </div>
-                      <div>
-                        <span className="font-extrabold text-sm text-gray-900 block leading-tight">{lang === 'zh' ? '网站控制中心' : 'Control Center'}</span>
-                        <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">{lang === 'zh' ? '超级管理员' : 'Administrator'}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      {[
-                        { id: 'settings', label: lang === 'zh' ? '基本设置 & 配色' : 'General & Colors', icon: SettingsIcon, group: 'about' },
-                        { id: 'about', label: lang === 'zh' ? '关于我们设置' : 'About Us Settings', icon: Users, group: 'about' },
-                        { id: 'carousel', label: lang === 'zh' ? '横幅幻灯片' : 'Banner Slides', icon: Sparkles },
-                        { id: 'timetable', label: lang === 'zh' ? '聚会时间表日程管理' : 'Schedule Timetable Manager', icon: Calendar },
-                        { id: 'ministries', label: lang === 'zh' ? '核心事工管理' : 'Ministries Content', icon: Heart },
-                        { id: 'events', label: lang === 'zh' ? '活动内容发布' : 'Events Post', icon: CalendarCheck },
-                        { id: 'fellowshipHighlights', label: lang === 'zh' ? '聚会点滴管理' : 'Fellowship Highlights', icon: Camera },
-                        { id: 'offerings', label: lang === 'zh' ? '奉献设置' : 'Offerings Settings', icon: HandHeart },
-                        { id: 'bulletins', label: lang === 'zh' ? '家事与讲道库' : 'Bulletins & Sermon Library', icon: BookOpen },
-                        { id: 'services', label: lang === 'zh' ? '崇拜与敬拜管理' : 'Services & Worships Manager', icon: Video },
-                        { id: 'cellgroups', label: lang === 'zh' ? '小组管理' : 'Cell Groups', icon: Compass },
-                        { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide', icon: HelpCircle },
-                        { id: 'maps', label: lang === 'zh' ? '地图设置' : 'Maps Settings', icon: MapIcon },
-                        { id: 'media', label: lang === 'zh' ? '媒体存储管理' : 'Media Storage', icon: HardDrive },
-                        { id: 'backup', label: lang === 'zh' ? '数据备份与恢复' : 'Backup & Restore', icon: Download }
-                      ].map((sec) => (
-                        <button
-                          key={sec.id}
-                          onClick={() => {
-                            if (sec.id === 'backup') {
-                              requestBackupAccess();
-                              return;
-                            }
-                            setAdminActiveSection(sec.id);
-                            if (sec.id === 'about') setAboutSettingsTab('about');
-                            setBackupAccessGranted(false);
-                            resetAdminEditors();
-                          }}
-                          className={`w-full text-left px-3.5 py-3 rounded-lg text-xs font-semibold flex items-center gap-2.5 transition-all ${
-                            adminActiveSection === sec.id
-                              ? 'bg-primary text-white shadow-sm'
-                              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                          }`}
-                        >
-                          <sec.icon size={15} />
-                          <span>{sec.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleAdminLogout}
-                    className="w-full py-2.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
-                  >
-                    <LogOut size={14} />
-                    <span>{lang === 'zh' ? '安全退出后台' : 'Sign Out Console'}</span>
-                  </button>
-                </div>
-
-                {/* Admin Editor Panel Body */}
-                <div className="flex-grow p-6 md:p-8 lg:p-10 space-y-6 max-h-[750px] overflow-y-auto">
-                  
-                  {/* SUCCESS BANNER */}
-                  {adminSuccessMessage && (
-                    <div className="bg-emerald-50 text-emerald-800 p-3.5 rounded-xl border border-emerald-200 text-xs font-semibold flex items-center gap-2 animate-fade-in">
-                      <CheckCircle size={16} className="shrink-0" />
-                      <span>{adminSuccessMessage}</span>
-                    </div>
-                  )}
-
-                  {backupReauthOpen && (
-                    <div className="fixed inset-0 z-50 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-                      <div className="w-full max-w-md bg-white rounded-2xl border border-amber-200 shadow-2xl p-6 space-y-5 animate-fade-in">
-                        <div className="text-center space-y-3">
-                          <div className="inline-flex p-3 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100">
-                            <Lock size={28} />
-                          </div>
-                          <h2 className="text-lg font-extrabold text-gray-900">
-                            {lang === 'zh' ? '请再次验证管理员身份' : 'Re-enter Admin Login'}
-                          </h2>
-                          <p className="text-xs text-gray-500 leading-relaxed">
-                            {lang === 'zh'
-                              ? '备份与恢复包含 GitHub Token、同步开关、导入和重置等高风险设置。请重新输入管理员密码后才可进入。'
-                              : 'Backup & Restore contains sensitive GitHub token, sync toggle, import, and reset controls. Please re-enter the admin password to continue.'}
-                          </p>
-                        </div>
-
-                        <form onSubmit={handleBackupReauth} className="space-y-4">
+                        {/* Theme Colors - Flexible palette */}
+                        <div className="space-y-4 border-b pb-8">
+                          <h3 className="font-bold text-sm flex items-center gap-2"><SettingsIcon size={14}/>{ta('theme')}</h3>
                           <div>
-                            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                              {lang === 'zh' ? '管理员密码' : 'Admin Password'}
-                            </label>
-                            <input
-                              type="password"
-                              value={backupPasswordInput}
-                              onChange={(e) => setBackupPasswordInput(e.target.value)}
-                              placeholder="••••••••"
-                              autoFocus
-                              required
-                              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary text-sm transition-all"
-                            />
+                            <label className="text-xs font-bold text-gray-700 mb-2 block">{ta('colorPresets')}</label>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              {Object.entries(colorsMap).map(([key, col])=>(
+                                <button key={key} onClick={()=>updateSetting('themeColor',null,key)} className={`p-3 rounded-xl border text-left transition-all ${data.settings.themeColor===key?'border-gray-900 bg-gray-900 text-white':'border-gray-200 bg-white hover:border-gray-300'}`}>
+                                  <div className="flex items-center gap-2"><div className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{backgroundColor:`rgb(${col.primary})`}}></div><span className="text-xs font-bold">{col.name}</span></div>
+                                  <div className="mt-2 flex gap-1">{[col.primary, col.secondary||col.primary, col.accent||col.primary].map((c,i)=><div key={i} className="w-4 h-4 rounded-full border border-white/50" style={{backgroundColor:`rgb(${c})`}}></div>)}</div>
+                                </button>
+                              ))}
+                              <button onClick={()=>updateSetting('themeColor',null,'custom')} className={`p-3 rounded-xl border-2 border-dashed text-left ${data.settings.themeColor==='custom'?'border-gray-900 bg-gray-900 text-white':'border-gray-300 bg-white hover:border-gray-400'}`}><span className="text-xs font-bold">{lang==='zh'?'自訂顏色 🎨':'Custom 🎨'}</span><p className="text-[10px] mt-1 opacity-70">{lang==='zh'?'使用調色板自由選擇':'Use palette picker'}</p></button>
+                            </div>
                           </div>
 
-                          {backupLoginError && (
-                            <div className="text-xs text-red-600 bg-red-50 p-2.5 rounded border border-red-100 flex items-center gap-1.5">
-                              <AlertTriangle size={14} className="shrink-0" />
-                              <span>{backupLoginError}</span>
+                          {data.settings.themeColor==='custom' && (
+                            <div className="space-y-4 bg-gray-50 rounded-2xl p-5 border">
+                              <h4 className="font-bold text-xs uppercase tracking-wider flex items-center gap-2"><span>{ta('customPalette')}</span><span className="text-[10px] bg-primary text-white px-2 py-0.5 rounded-full">{lang==='zh'?'靈活取色':'Flexible'}</span></h4>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {[
+                                  { key:'primary', label: ta('primary'), desc: lang==='zh'?'主按鈕、連結':'Main buttons & links' },
+                                  { key:'secondary', label: ta('secondary'), desc: lang==='zh'?'次要元素':'Secondary elements' },
+                                  { key:'accent', label: ta('accent'), desc: lang==='zh'?'強調、標籤':'Highlights & badges' },
+                                  { key:'background', label: ta('background'), desc: lang==='zh'?'頁面背景':'Page background' },
+                                ].map(field=>(
+                                  <div key={field.key} className="bg-white rounded-xl border p-3 space-y-2">
+                                    <div className="flex items-center justify-between"><div><p className="text-xs font-bold">{field.label}</p><p className="text-[10px] text-gray-500">{field.desc}</p></div><span className="text-[10px] font-mono text-gray-500">{data.settings.customPalette?.[field.key]||''}</span></div>
+                                    <div className="flex items-center gap-2">
+                                      <input type="color" value={data.settings.customPalette?.[field.key]||'#d4a5a5'} onChange={e=>{ const updated={...data}; if(!updated.settings.customPalette) updated.settings.customPalette={}; updated.settings.customPalette[field.key]=e.target.value; saveAllData(updated); }} />
+                                      <input type="text" value={data.settings.customPalette?.[field.key]||'#d4a5a5'} onChange={e=>{ const updated={...data}; if(!updated.settings.customPalette) updated.settings.customPalette={}; updated.settings.customPalette[field.key]=e.target.value; saveAllData(updated); }} className="flex-1 px-2 py-1.5 rounded-lg border border-gray-200 text-xs font-mono" placeholder="#d4a5a5"/>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="flex items-center gap-2 pt-2">
+                                <div className="flex gap-1">{Object.entries(data.settings.customPalette||{}).map(([k,v])=><div key={k} className="w-8 h-8 rounded-full border-2 border-white shadow-sm" style={{backgroundColor:v}} title={`${k}: ${v}`}></div>)}</div>
+                                <span className="text-xs text-gray-500">{lang==='zh'?'即時預覽生效':'Live preview active'}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3 pt-3 border-t">
+                                <div><label className="text-[11px] font-bold text-gray-700 mb-1 block">{lang==='zh'?'自訂主色 Hex':'Custom Primary Hex'}</label><div className="flex gap-2"><input type="color" value={data.settings.customThemeColor||'#d4a5a5'} onChange={e=>updateSetting('customThemeColor',null,e.target.value)}/><input type="text" value={data.settings.customThemeColor||'#d4a5a5'} onChange={e=>updateSetting('customThemeColor',null,e.target.value)} className="flex-1 px-2 py-1.5 rounded border text-xs font-mono"/></div></div>
+                                <div><label className="text-[11px] font-bold text-gray-700 mb-1 block">{lang==='zh'?'快速選色':'Quick Colors'}</label><div className="flex gap-1 flex-wrap">{['#d4a5a5','#a8c3b0','#e8c9a0','#3c70b4','#f472b6','#84cc16','#06b6d4','#f59e0b'].map(hex=><button key={hex} onClick={()=>{ const u={...data}; if(!u.settings.customPalette) u.settings.customPalette={}; u.settings.customPalette.primary=hex; u.settings.customThemeColor=hex; saveAllData(u); }} className="w-6 h-6 rounded-full border-2 border-white shadow-sm" style={{backgroundColor:hex}}></button>)}</div></div>
+                              </div>
                             </div>
                           )}
-
-                          <div className="flex gap-3">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setBackupReauthOpen(false);
-                                setBackupPasswordInput('');
-                                setBackupLoginError('');
-                              }}
-                              className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-semibold transition-all"
-                            >
-                              {lang === 'zh' ? '取消' : 'Cancel'}
-                            </button>
-                            <button
-                              type="submit"
-                              className="flex-1 py-2.5 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-1.5"
-                            >
-                              <Shield size={14} />
-                              <span>{lang === 'zh' ? '验证并进入' : 'Verify & Open'}</span>
-                            </button>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-                  )}
-
-                  {adminActiveSection !== 'backup' && (
-                    <div className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${autoSaveStatus === 'saving'
-                      ? 'bg-blue-50 text-blue-700 border-blue-200'
-                      : autoSaveStatus === 'success'
-                      ? 'bg-green-50 text-green-700 border-green-200'
-                      : autoSaveStatus === 'error'
-                      ? 'bg-red-50 text-red-700 border-red-200'
-                      : autoSaveToGithub && githubPat && githubRepo
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-gray-50 text-gray-500 border-gray-200'
-                    }`}>
-                      {autoSaveStatus === 'saving' ? (
-                        <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                      ) : autoSaveStatus === 'success' ? (
-                        <CheckCircle size={15} className="shrink-0" />
-                      ) : autoSaveStatus === 'error' ? (
-                        <AlertTriangle size={15} className="shrink-0" />
-                      ) : (
-                        <Download size={15} className="shrink-0" />
-                      )}
-                      <span>
-                        {autoSaveMessage || (autoSaveToGithub && githubPat && githubRepo
-                          ? (lang === 'zh' ? 'GitHub 自动同步已启用。保存内容时会自动同步。' : 'GitHub auto-sync is enabled. Saves will sync automatically.')
-                          : (lang === 'zh' ? 'GitHub 自动同步未启用；设置仅在“备份与恢复”中管理。' : 'GitHub auto-sync is not enabled; settings are managed only in Backup & Restore.'))}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* SECTION 1: SETTINGS */}
-                  {adminActiveSection === 'settings' && (
-                    <div className="space-y-6">
-                      <div>
-                        <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '基本信息与颜色设置' : 'General Settings & Brand Color'}</h2>
-                        <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '修改教会的中英文名称、标语、主题、配色等' : 'Modify church name, slogan, description, and website theme color'}</p>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
-                        
-                        {/* Church Name Chinese */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">教会名称 (中文)</label>
-                          <input 
-                            type="text"
-                            value={data.settings.churchName.zh}
-                            onChange={(e) => updateSetting('churchName', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
                         </div>
 
-                        {/* Church Name English */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Church Name (English)</label>
-                          <input 
-                            type="text"
-                            value={data.settings.churchName.en}
-                            onChange={(e) => updateSetting('churchName', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
+                        {/* Text scale */}
+                        <div className="space-y-3 border-b pb-8">
+                          <label className="font-bold text-sm flex items-center justify-between"><span>{ta('textScale')}</span><span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">{data.settings.textScale}%</span></label>
+                          <input type="range" min={80} max={140} step={5} value={data.settings.textScale} onChange={e=>updateSetting('textScale',null, parseInt(e.target.value))} className="w-full accent-primary"/>
+                          <div className="flex justify-between text-[10px] text-gray-400"><span>80% Small</span><span>100% Default</span><span>140% Large</span></div>
                         </div>
 
-{/* Header Logo */}
-                        <div className="md:col-span-2 rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                            <div className="w-16 h-16 rounded-xl border border-gray-200 bg-white flex items-center justify-center overflow-hidden shrink-0">
-                              {data.settings.headerLogo ? (
-                                <img src={data.settings.headerLogo} alt="Header logo preview" className="w-full h-full object-contain p-1" />
-                              ) : (
-                                <div className="bg-primary text-white p-2 rounded-lg">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m-6-8h12" /></svg>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <label className="block text-xs font-bold text-gray-800 mb-1">
-                                {lang === 'zh' ? '顶部菜单教会标志 / Header Logo' : 'Header Church Logo / 顶部菜单教会标志'}
-                              </label>
-                              <p className="text-[10px] text-gray-500 leading-relaxed">
-                                {lang === 'zh' ? '粘贴图片链接（URL）后将取代顶部左侧的绿色十字标志；清空输入框即可恢复默认十字。设置会随网站内容一同保存。' : 'Paste an image URL to replace the green cross at the top-left. Clear the field to restore the default cross. The setting is saved with the site content.'}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <input
-                              type="text"
-                              value={data.settings.headerLogo || ''}
-                              onChange={(e) => updateSetting('headerLogo', null, e.target.value)}
-                              placeholder="https://..."
-                              className="flex-1 min-w-[220px] px-3 py-2 rounded-lg border border-gray-300 text-xs bg-white focus:ring-1 focus:ring-primary focus:outline-none"
-                            />
-                            {data.settings.headerLogo && (
-                              <button type="button" onClick={() => updateSetting('headerLogo', null, '')} className="px-3 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition-all flex items-center gap-1.5">
-                                <Trash2 size={14} />
-                                <span>{lang === 'zh' ? '恢复绿色十字' : 'Restore Green Cross'}</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Church Abbreviation */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">教会简称 / Abbreviation (e.g. BMBCC)</label>
-                          <input
-                            type="text"
-                            value={data.settings.churchAbbreviation || ''}
-                            onChange={(e) => updateSetting('churchAbbreviation', null, e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        {/* Church Tagline/Subtitle */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '教会副标题 (中文)' : 'Church Tagline (Chinese)'}</label>
-                          <input
-                            type="text"
-                            value={data.settings.churchTagline?.zh || ''}
-                            onChange={(e) => updateSetting('churchTagline', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Church Tagline (English)</label>
-                          <input
-                            type="text"
-                            value={data.settings.churchTagline?.en || ''}
-                            onChange={(e) => updateSetting('churchTagline', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        {/* Church Slogan Chinese */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">主页核心标语 (中文)</label>
-                          <input 
-                            type="text"
-                            value={data.settings.slogan.zh}
-                            onChange={(e) => updateSetting('slogan', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        {/* Church Slogan English */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Main Slogan (English)</label>
-                          <input 
-                            type="text"
-                            value={data.settings.slogan.en}
-                            onChange={(e) => updateSetting('slogan', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        <div></div>
-
-                        {/* Theme Year Vision Chinese */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">年度主题异象 (中文)</label>
-                          <textarea 
-                            rows={2}
-                            value={data.settings.themeYear.zh}
-                            onChange={(e) => updateSetting('themeYear', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        {/* Theme Year Vision English */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Theme/Vision Text (English)</label>
-                          <textarea 
-                            rows={2}
-                            value={data.settings.themeYear.en}
-                            onChange={(e) => updateSetting('themeYear', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        {/* Slogan Description Chinese */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">主页欢迎引导词 (中文)</label>
-                          <textarea 
-                            rows={2}
-                            value={data.settings.description.zh}
-                            onChange={(e) => updateSetting('description', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        {/* Slogan Description English */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Welcome Description (English)</label>
-                          <textarea 
-                            rows={2}
-                            value={data.settings.description.en}
-                            onChange={(e) => updateSetting('description', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        {/* ===== Bottom CTA Banner ===== */}
-                        <div className="md:col-span-2 pt-4 mt-2 border-t border-gray-100">
-                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2"><Heart size={14} className="text-primary" /> {lang === 'zh' ? '首页底部 CTA 横幅' : 'Home Bottom CTA Banner'}</h3>
-                          <p className="text-[10px] text-gray-500 mb-3">{lang === 'zh' ? '“耶稣爱你，我们欢迎你！” 区域的标题和描述' : 'Edit title and description of the bottom welcome banner'}</p>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">底部 CTA 标题 (中文)</label>
-                          <input type="text" value={data.settings.ctaTitle?.zh || ''} onChange={(e) => updateSetting('ctaTitle','zh',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Bottom CTA Title (English)</label>
-                          <input type="text" value={data.settings.ctaTitle?.en || ''} onChange={(e) => updateSetting('ctaTitle','en',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">底部 CTA 描述 (中文)</label>
-                          <textarea rows={3} value={data.settings.ctaDescription?.zh || ''} onChange={(e) => updateSetting('ctaDescription','zh',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Bottom CTA Description (English)</label>
-                          <textarea rows={3} value={data.settings.ctaDescription?.en || ''} onChange={(e) => updateSetting('ctaDescription','en',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        {/* Contact details */}
-                        <div className="md:col-span-2 pt-4 mt-2 border-t border-gray-100">
-                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3">{lang === 'zh' ? '联系信息' : 'Contact Information'}</h3>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">联系电话 / Hotline Phone</label>
-                          <input 
-                            type="text"
-                            value={data.settings.contactPhone}
-                            onChange={(e) => updateSetting('contactPhone', null, e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">电子邮箱 / Email Address</label>
-                          <input 
-                            type="email"
-                            value={data.settings.contactEmail}
-                            onChange={(e) => updateSetting('contactEmail', null, e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-bold text-gray-700 mb-1">教会地址 / Church Address</label>
-                          <input 
-                            type="text"
-                            value={data.settings.contactAddress}
-                            onChange={(e) => updateSetting('contactAddress', null, e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        {/* Admin password change setting temporarily hidden.
-                            Password rotation is handled in Cloudflare Pages secrets. */}
-                                                {/* SHOW LOGIN BUTTON TOGGLE */}
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-bold text-gray-700 mb-1">
-                            {lang === 'zh' ? '显示登录按钮 / Show Login Button' : 'Show Login Button / 显示登录按钮'}
-                          </label>
-                          <p className="text-[10px] text-gray-500 mb-2">
-                            {lang === 'zh'
-                              ? '关闭后，登录按钮将从导航栏隐藏，提高安全性。仍可通过网址 #/admin 访问。'
-                              : 'When disabled, the login button will be hidden from navigation for better security. You can still access admin via URL #/admin'}
-                          </p>
-                          <button
-                            onClick={() => updateSetting('showLoginButton', null, !data.settings.showLoginButton)}
-                            className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
-                              data.settings.showLoginButton
-                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                                : 'bg-gray-100 text-gray-600 border border-gray-300'
-                            }`}
-                          >
-                            <Shield size={14} />
-                            <span>
-                              {data.settings.showLoginButton
-                                ? (lang === 'zh' ? '✓ 登录按钮已显示' : '✓ Login Button Visible')
-                                : (lang === 'zh' ? '✗ 登录按钮已隐藏' : '✗ Login Button Hidden')}
-                            </span>
-                          </button>
-                          <p className="text-[10px] text-amber-600 mt-2 font-medium">
-                            {lang === 'zh'
-                              ? '💡 提示：访问后台管理网址 = 您的网站网址 + #/admin'
-                              : '💡 Tip: Admin access URL = your site URL + #/admin'}
-                          </p>
-                        </div>
-
-                        {/* PAGE VISIBILITY TOGGLES */}
-                        <div className="md:col-span-2 pt-4 border-t border-gray-100">
-                          <label className="block text-xs font-bold text-gray-800 mb-3 uppercase tracking-wide">
-                            {lang === 'zh' ? '页面显示控制 / Page Visibility' : 'Page Visibility / 页面显示控制'}
-                          </label>
-                          <p className="text-[10px] text-gray-500 mb-3">
-                            {lang === 'zh' ? '关闭不需要的页面，它们将从导航菜单中隐藏' : 'Toggle off pages you don\'t need - they will be hidden from the navigation menu'}
-                          </p>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                            {[
-                              { key: 'ministries', zh: '主要事工', en: 'Ministries' },
-                              { key: 'timetable', zh: '聚会时间', en: 'Timetable' },
-                              { key: 'events', zh: '特别活动', en: 'Events' },
-                              { key: 'fellowshipHighlights', zh: '聚会点滴', en: 'Fellowship Highlights' },
-                              { key: 'offerings', zh: '奉献', en: 'Offerings' },
-                              { key: 'bulletins', zh: '家事与讲道', en: 'Bulletins & Sermons' },
-                              { key: 'services', zh: '崇拜与敬拜', en: 'Services & Worships' },
-                              { key: 'cellgroups', zh: '小组', en: 'Cell Groups' },
-                              { key: 'newfriend', zh: '新朋友指南', en: 'New Friend Guide' },
-                              { key: 'maps', zh: '地图', en: 'Maps' }
-                            ].map((page) => {
-                              const isVisible = (data.pageVisibility || {})[page.key] !== false;
-                              return (
-                                <button
-                                  key={page.key}
-                                  onClick={() => togglePageVisibility(page.key)}
-                                  className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition-all text-left ${
-                                    isVisible
-                                      ? 'border-primary bg-primary/5 text-primary'
-                                      : 'border-gray-200 bg-gray-50 text-gray-400'
-                                  }`}
-                                >
-                                  <div className={`w-3 h-3 rounded-full border-2 ${
-                                    isVisible ? 'border-primary bg-primary' : 'border-gray-300 bg-white'
-                                  }`}>
-                                    {isVisible && <Check size={10} className="text-white" />}
-                                  </div>
-                                  <span className="text-[10px] text-center font-medium">{lang === 'zh' ? page.zh : page.en}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* EVENT POP-UP SETTINGS */}
-                        <div className="md:col-span-2 pt-4 border-t border-gray-100">
-                          <div className="flex items-center justify-between gap-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                            <div>
-                              <label className="block text-xs font-bold text-gray-800 uppercase tracking-wide">{lang === 'zh' ? '活动弹窗提醒 / Event Alert Pop-up' : 'Event Alert Pop-up / 活动弹窗提醒'}</label>
-                              <p className="mt-1 text-[10px] leading-relaxed text-gray-500">{lang === 'zh' ? '开启后，访客每次打开网站都会看到活动提醒；有多个活动时可左右切换。' : 'When enabled, visitors see an event alert every time they open the website. Multiple events can be browsed like a carousel.'}</p>
-                            </div>
-                            <button
-                              type="button"
-                              role="switch"
-                              aria-checked={data.settings.eventPopupEnabled === true}
-                              onClick={() => updateSetting('eventPopupEnabled', null, !data.settings.eventPopupEnabled)}
-                              className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${data.settings.eventPopupEnabled ? 'bg-primary' : 'bg-gray-300'}`}
-                            >
-                              <span
-                                className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${data.settings.eventPopupEnabled ? 'translate-x-5' : 'translate-x-0'}`}
-                              />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* OVERALL TEXT SIZE */}
-                        <div className="md:col-span-2 pt-4 border-t border-gray-100">
-                          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                              <div>
-                                <label htmlFor="overall-text-size" className="block text-xs font-bold text-gray-800 uppercase tracking-wide">
-                                  {lang === 'zh' ? '整体文字大小 / Overall Text Size' : 'Overall Text Size / 整体文字大小'}
-                                </label>
-                                <p className="mt-1 text-[10px] leading-relaxed text-gray-500">
-                                  {lang === 'zh' ? '调整网站所有页面的整体文字大小，保存后会立即生效。' : 'Adjust the overall text size across every page. Changes take effect immediately.'}
-                                </p>
-                              </div>
-                              <span className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-sm font-extrabold text-primary shadow-sm border border-primary/10">
-                                {data.settings.textScale || 100}%
-                              </span>
-                            </div>
-                            <div className="mt-4 flex items-center gap-3">
-                              <span className="text-[10px] text-gray-500" aria-hidden="true">A</span>
-                              <input
-                                id="overall-text-size"
-                                type="range"
-                                min="80"
-                                max="140"
-                                step="5"
-                                value={data.settings.textScale || 100}
-                                onChange={(e) => updateSetting('textScale', null, Number(e.target.value))}
-                                className="h-2 w-full cursor-pointer accent-primary"
-                                aria-label={lang === 'zh' ? '整体文字大小' : 'Overall text size'}
-                              />
-                              <span className="text-lg font-semibold text-gray-700" aria-hidden="true">A</span>
-                            </div>
-                            <div className="mt-1 flex justify-between pl-5 text-[10px] text-gray-400">
-                              <span>{lang === 'zh' ? '较小' : 'Smaller'}</span>
-                              <span>{lang === 'zh' ? '默认' : 'Default'}</span>
-                              <span>{lang === 'zh' ? '较大' : 'Larger'}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* FONT FAMILY SETTINGS */}
-                        <div className="md:col-span-2 pt-4 border-t border-gray-100">
-                          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-                            <div>
-                              <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wide">{lang === 'zh' ? '字体类型 / Font Type' : 'Font Type / 字体类型'}</h3>
-                              <p className="mt-1 text-[10px] leading-relaxed text-gray-500">{lang === 'zh' ? '分别选择中文和英文版网站的字体。切换网站语言即可预览相应字体。' : 'Choose separate typefaces for the Chinese and English versions. Switch the site language to preview each typeface.'}</p>
-                            </div>
-                            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                              <div>
-                                <label htmlFor="font-family-zh" className="mb-1 block text-xs font-bold text-gray-700">中文字体 / Chinese Font</label>
-                                <select id="font-family-zh" value={data.settings.fontFamilyZh || 'noto-sans-sc'} onChange={(e) => updateSetting('fontFamilyZh', null, e.target.value)} className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary">
-                                  {fontFamilyOptions.zh.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}
-                                </select>
-                              </div>
-                              <div>
-                                <label htmlFor="font-family-en" className="mb-1 block text-xs font-bold text-gray-700">English Font / 英文字体</label>
-                                <select id="font-family-en" value={data.settings.fontFamilyEn || 'inter'} onChange={(e) => updateSetting('fontFamilyEn', null, e.target.value)} className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary">
-                                  {fontFamilyOptions.en.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* SELECT BRAND COLOR Theme */}
-                        <div className="md:col-span-2 pt-4 border-t border-gray-100">
-                          <label className="block text-xs font-bold text-gray-800 mb-2 uppercase tracking-wide">
-                            网站主题品牌主色调 / Web Brand Theme Color (Custom CSS Variables)
-                          </label>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                            {Object.keys(colorsMap).map((colorKey) => {
-                              const active = data.settings.themeColor === colorKey;
-                              return (
-                                <button
-                                  key={colorKey}
-                                  onClick={() => updateSetting('themeColor', null, colorKey)}
-                                  className={`p-3.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all text-left ${
-                                    active
-                                      ? 'ring-2 ring-primary border-primary bg-primary/5 font-bold'
-                                      : 'border-gray-200 bg-white hover:border-gray-400'
-                                  }`}
-                                >
-                                  {/* Color Block */}
-                                  <div className="w-8 h-8 rounded-full border border-gray-200/50" style={{
-                                    backgroundColor: `rgb(${colorsMap[colorKey].primary})`
-                                  }} />
-                                  <span className="text-[10px] text-gray-700 text-center">{colorsMap[colorKey].name}</span>
-                                  {active && <CheckCircle size={13} className="text-primary" />}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                              <p className="text-xs font-bold text-gray-800">{lang === 'zh' ? '自由选择自定义颜色' : 'Pick a custom colour'}</p>
-                              <p className="mt-1 text-[10px] text-gray-500">{lang === 'zh' ? '使用颜色选择器调整品牌色，所有 CSS 变量会即时更新。' : 'Use the picker to freely adjust the brand colour. CSS variables update instantly.'}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <input type="color" aria-label="Custom brand color" value={data.settings.customThemeColor || '#10b981'} onChange={(e) => { updateSetting('customThemeColor', null, e.target.value); updateSetting('themeColor', null, 'custom'); }} className="h-10 w-14 cursor-pointer rounded border border-gray-300 bg-white p-1" />
-                              <input type="text" aria-label="Custom brand hex color" value={data.settings.customThemeColor || '#10b981'} onChange={(e) => { const value = e.target.value; if (/^#?[0-9a-f]{6}$/i.test(value)) { const hex = value.startsWith('#') ? value : `#${value}`; updateSetting('customThemeColor', null, hex); updateSetting('themeColor', null, 'custom'); } }} placeholder="#10B981" className="w-24 rounded border border-gray-300 px-2 py-2 text-xs font-mono uppercase" />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* ===== Footer Sections & Text Settings ===== */}
-                        <div className="md:col-span-2 pt-4 border-t border-gray-100">
-                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2"><Info size={14} className="text-primary" /> {lang === 'zh' ? '页脚栏目与内容设置 (Combined Service, 联系与到访等)' : 'Footer Sections & Content Settings'}</h3>
-                          <p className="text-[10px] text-gray-500 mb-3">{lang === 'zh' ? '在此完整编辑页脚各栏目的标题、崇拜时间说明、简介及版权声明' : 'Edit footer column titles, service schedules, intro description, and copyright'}</p>
-                        </div>
-
-                        {/* Footer Description (Col 1) */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '页脚教会简介 (中文)' : 'Footer Church Description (Chinese)'}</label>
-                          <textarea rows={3} value={data.settings.footerDescription?.zh || ''} onChange={(e) => updateSetting('footerDescription', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Footer Church Description (English)</label>
-                          <textarea rows={3} value={data.settings.footerDescription?.en || ''} onChange={(e) => updateSetting('footerDescription', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        {/* Footer Nav Title (Col 2) */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '网站导航栏目标题 (中文)' : 'Navigation Title (Chinese)'}</label>
-                          <input type="text" value={data.settings.footerNavTitle?.zh || ''} onChange={(e) => updateSetting('footerNavTitle', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Navigation Title (English)</label>
-                          <input type="text" value={data.settings.footerNavTitle?.en || ''} onChange={(e) => updateSetting('footerNavTitle', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        {/* Combined Service Title (Col 3) */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '核心崇拜栏目标题 (中文)' : 'Combined Service Title (Chinese)'}</label>
-                          <input type="text" value={data.settings.footerServiceTitle?.zh || ''} onChange={(e) => updateSetting('footerServiceTitle', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Combined Service Title (English)</label>
-                          <input type="text" value={data.settings.footerServiceTitle?.en || ''} onChange={(e) => updateSetting('footerServiceTitle', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        {/* Service Name */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '崇拜名称 (中文)' : 'Service Name (Chinese)'}</label>
-                          <input type="text" value={data.settings.footerServiceName?.zh || ''} onChange={(e) => updateSetting('footerServiceName', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Service Name (English)</label>
-                          <input type="text" value={data.settings.footerServiceName?.en || ''} onChange={(e) => updateSetting('footerServiceName', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        {/* Service Time */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '崇拜时间 (中文)' : 'Service Time (Chinese)'}</label>
-                          <input type="text" value={data.settings.footerServiceTime?.zh || ''} onChange={(e) => updateSetting('footerServiceTime', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Service Time (English)</label>
-                          <input type="text" value={data.settings.footerServiceTime?.en || ''} onChange={(e) => updateSetting('footerServiceTime', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        {/* Service Location */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '崇拜地点/直播说明 (中文)' : 'Service Location (Chinese)'}</label>
-                          <input type="text" value={data.settings.footerServiceLocation?.zh || ''} onChange={(e) => updateSetting('footerServiceLocation', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Service Location (English)</label>
-                          <input type="text" value={data.settings.footerServiceLocation?.en || ''} onChange={(e) => updateSetting('footerServiceLocation', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        {/* Contact Us Title (Col 4) */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '联系栏目标题 (中文)' : 'Contact Title (Chinese)'}</label>
-                          <input type="text" value={data.settings.footerContactTitle?.zh || ''} onChange={(e) => updateSetting('footerContactTitle', 'zh', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Contact Title (English)</label>
-                          <input type="text" value={data.settings.footerContactTitle?.en || ''} onChange={(e) => updateSetting('footerContactTitle', 'en', e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        {/* Copyright & Tagline */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '版权声明 (中文)' : 'Copyright Notice (Chinese)'}</label>
-                          <input
-                            type="text"
-                            value={data.settings.footerCopyright?.zh || ''}
-                            onChange={(e) => updateSetting('footerCopyright', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Copyright Notice (English)</label>
-                          <input
-                            type="text"
-                            value={data.settings.footerCopyright?.en || ''}
-                            onChange={(e) => updateSetting('footerCopyright', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '网站标语 (中文)' : 'Website Tagline (Chinese)'}</label>
-                          <input
-                            type="text"
-                            value={data.settings.footerTagline?.zh || ''}
-                            onChange={(e) => updateSetting('footerTagline', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Website Tagline (English)</label>
-                          <input
-                            type="text"
-                            value={data.settings.footerTagline?.en || ''}
-                            onChange={(e) => updateSetting('footerTagline', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* SECTION 2: CAROUSEL SLIDES */}
-                  {adminActiveSection === 'carousel' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-start gap-4">
-                        <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '横幅大图轮播管理' : 'Carousel Slide Manager'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '在此管理网站主页顶部的巨型幻灯片轮播图片和文字' : 'Add or edit image URLs and captions of homepage banner slides'}</p>
-                        </div>
-                        {editingSlide === null && (
-                          <button
-                            onClick={() => setEditingSlide({
-                              id: 'new',
-                              image: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=1200&q=80',
-                              title: { zh: '新标题名称', en: 'New Slide Title' },
-                              subtitle: { zh: '这里写一些描述性副文本，引人瞩目。', en: 'Add descriptive subtitle here to captivate users.' }
-                            })}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                          >
-                            <Plus size={14} />
-                            <span>{lang === 'zh' ? '添加新幻灯片' : 'Add New Slide'}</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {editingSlide ? (
-                        /* Edit/New form */
-                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
-                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingSlide.id === 'new' ? (lang === 'zh' ? '新建幻灯片' : 'Create New Slide') : (lang === 'zh' ? '编辑幻灯片' : 'Edit Slide')}
-                          </h3>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:col-span-2">
-                              <MediaUrlField value={editingSlide.image} onChange={(image) => setEditingSlide({ ...editingSlide, image })} category="images" label="图片链接 / Image URL" />
-                              <p className="text-[10px] text-gray-400 mt-1">
-                                {lang === 'zh' ? '支持直接黏贴Unsplash或任何公网可访问的图片链接' : 'Paste Unsplash or any direct public image URL'}
-                              </p>
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">幻灯片大标题 (中文)</label>
-                              <input 
-                                type="text"
-                                value={editingSlide.title.zh}
-                                onChange={(e) => setEditingSlide({
-                                  ...editingSlide,
-                                  title: { ...editingSlide.title, zh: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Slide Title (English)</label>
-                              <input 
-                                type="text"
-                                value={editingSlide.title.en}
-                                onChange={(e) => setEditingSlide({
-                                  ...editingSlide,
-                                  title: { ...editingSlide.title, en: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">副标题文本 / 圣经金句 (中文)</label>
-                              <textarea 
-                                rows={3}
-                                value={editingSlide.subtitle.zh}
-                                onChange={(e) => setEditingSlide({
-                                  ...editingSlide,
-                                  subtitle: { ...editingSlide.subtitle, zh: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Slide Subtitle / Scripture (English)</label>
-                              <textarea 
-                                rows={3}
-                                value={editingSlide.subtitle.en}
-                                onChange={(e) => setEditingSlide({
-                                  ...editingSlide,
-                                  subtitle: { ...editingSlide.subtitle, en: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                            <button
-                              onClick={() => setEditingSlide(null)}
-                              className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all"
-                            >
-                              {lang === 'zh' ? '取消' : 'Cancel'}
-                            </button>
-                            <button
-                              onClick={() => handleSaveSlide(editingSlide)}
-                              className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"
-                            >
-                              <Save size={13} />
-                              <span>{lang === 'zh' ? '保存幻灯片' : 'Save Slide'}</span>
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        /* Carousel Slide list */
-                        <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {data.carousel.map((slide, idx) => (
-                            <div key={slide.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-                              <div className="flex flex-col sm:flex-row gap-4 items-center w-full md:w-3/4">
-                                <img src={slide.image} alt="Preview" className="w-24 h-16 object-cover rounded-lg shrink-0 border border-gray-200" />
-                                <div className="space-y-1 text-center sm:text-left">
-                                  <h4 className="font-bold text-sm text-gray-900">{slide.title.zh} / {slide.title.en}</h4>
-                                  <p className="text-xs text-gray-500 font-light line-clamp-1">{slide.subtitle.zh}</p>
-                                </div>
-                              </div>
-                              <div className="flex gap-1.5 justify-end shrink-0 w-full md:w-auto">
-                                <button
-                                  onClick={() => handleMoveSlide(idx, 'up')}
-                                  disabled={idx === 0}
-                                  className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
-                                >
-                                  <ArrowUp size={14} />
-                                </button>
-                                <button
-                                  onClick={() => handleMoveSlide(idx, 'down')}
-                                  disabled={idx === data.carousel.length - 1}
-                                  className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
-                                >
-                                  <ArrowDown size={14} />
-                                </button>
-                                <button
-                                  onClick={() => setEditingSlide(slide)}
-                                  className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
-                                >
-                                  <Edit3 size={14} />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteSlide(slide.id)}
-                                  className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* SECTION 3: TIMETABLE WEEKLY SERVICES */}
-                  {adminActiveSection === 'timetable' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-start gap-4">
-                        <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '聚会时间表日程管理' : 'Schedule Timetable Manager'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理周间的所有定期崇拜、事工聚会与小组聚会日程时间' : 'Add or modify regular service schedules, ministry gatherings, and cell group timetables'}</p>
-                        </div>
-                        {editingTimetable === null && (
-                          <button
-                            onClick={() => {
-                              let defaultName = { zh: '主日崇拜聚会', en: 'Sunday Worship Service' };
-                              if (adminTimetableSubSection === 'ministry') {
-                                defaultName = { zh: '新事工聚会', en: 'New Ministry Gathering' };
-                              } else if (adminTimetableSubSection === 'cellgroup') {
-                                defaultName = { zh: '新细胞小组', en: 'New Cell Group' };
-                              }
-                              setEditingTimetable({
-                                id: 'new',
-                                _type: adminTimetableSubSection,
-                                _originalType: adminTimetableSubSection,
-                                name: defaultName,
-                                day: { zh: '星期日', en: 'Sunday' },
-                                time: '10:00 AM',
-                                location: { zh: '教会主堂', en: 'Main Sanctuary' },
-                                language: { zh: '华语', en: 'Chinese' },
-                                frequency: { zh: '', en: '' },
-                                picContact: { zh: '', en: '' }
-                              });
-                            }}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
-                          >
-                            <Plus size={14} />
-                            <span>
-                              {adminTimetableSubSection === 'ministry'
-                                ? (lang === 'zh' ? '添加事工日程' : 'Add Ministry Schedule')
-                                : adminTimetableSubSection === 'cellgroup'
-                                ? (lang === 'zh' ? '添加小组日程' : 'Add Cellgroup Schedule')
-                                : (lang === 'zh' ? '添加新日程' : 'Add New Schedule')}
-                            </span>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Timetable Page Header Settings */}
-                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
-                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                          <Info size={14} className="text-primary" />
-                          <span>{lang === 'zh' ? '页面顶栏与引言设置' : 'Page Header & Intro Settings'}</span>
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.timetableBadge?.zh || ''} onChange={(e) => updateSetting('timetableBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="与我们一同朝见神与相聚" />
-                              <input type="text" value={data.settings.timetableBadge?.en || ''} onChange={(e) => updateSetting('timetableBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Fellowship & Grow Together" />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.timetableTitle?.zh || ''} onChange={(e) => updateSetting('timetableTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="崇拜时间表" />
-                              <input type="text" value={data.settings.timetableTitle?.en || ''} onChange={(e) => updateSetting('timetableTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Service Timetable" />
-                            </div>
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面引言 Intro Description (中文 / EN)</label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              <textarea rows={2} value={data.settings.timetableIntro?.zh || ''} onChange={(e) => updateSetting('timetableIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                              <textarea rows={2} value={data.settings.timetableIntro?.en || ''} onChange={(e) => updateSetting('timetableIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Subsection Sub-tabs Selector */}
-                      {editingTimetable === null && (
-                        <div className="flex border-b border-gray-250 pb-px">
-                          <button
-                            onClick={() => setAdminTimetableSubSection('weekly')}
-                            className={`px-4 py-2.5 -mb-px text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 ${
-                              adminTimetableSubSection === 'weekly'
-                                ? 'border-primary text-primary'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
-                            }`}
-                          >
-                            <CalendarCheck size={14} />
-                            <span>{lang === 'zh' ? '常规定期崇拜聚会' : 'Regular Weekly Services'}</span>
-                          </button>
-                          <button
-                            onClick={() => setAdminTimetableSubSection('ministry')}
-                            className={`px-4 py-2.5 -mb-px text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 ${
-                              adminTimetableSubSection === 'ministry'
-                                ? 'border-primary text-primary'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
-                            }`}
-                          >
-                            <HandHeart size={14} />
-                            <span>{lang === 'zh' ? '事工日程' : 'Ministry Timetable'}</span>
-                          </button>
-                          <button
-                            onClick={() => setAdminTimetableSubSection('cellgroup')}
-                            className={`px-4 py-2.5 -mb-px text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 ${
-                              adminTimetableSubSection === 'cellgroup'
-                                ? 'border-primary text-primary'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
-                            }`}
-                          >
-                            <Users size={14} />
-                            <span>{lang === 'zh' ? '细胞小组日程' : 'Cellgroup Timetable'}</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {editingTimetable ? (
-                        /* Edit Timetable Form */
-                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
-                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingTimetable.id === 'new' 
-                              ? (lang === 'zh' 
-                                  ? `新增定期聚会 (${adminTimetableSubSection === 'weekly' ? '常规' : adminTimetableSubSection === 'ministry' ? '事工' : '小组'})` 
-                                  : `Add Regular Meeting (${adminTimetableSubSection === 'weekly' ? 'Regular' : adminTimetableSubSection === 'ministry' ? 'Ministry' : 'Cell group'})`) 
-                              : (lang === 'zh' ? '编辑聚会安排' : 'Edit Weekly Meeting')}
-                          </h3>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:col-span-2 bg-white p-3 rounded-lg border border-gray-200">
-                              <label className="block text-xs font-bold text-gray-700 mb-1">
-                                {lang === 'zh' ? '日程分布类别 / Target Category' : 'Schedule Category / Type'}
-                              </label>
-                              <select
-                                value={editingTimetable._type || adminTimetableSubSection}
-                                onChange={(e) => setEditingTimetable({ ...editingTimetable, _type: e.target.value })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs font-semibold focus:ring-1 focus:ring-primary focus:outline-none bg-gray-50"
-                              >
-                                <option value="weekly">{lang === 'zh' ? '常规定期崇拜聚会 (Regular Service Schedule)' : 'Regular Weekly Service Schedule'}</option>
-                                <option value="ministry">{lang === 'zh' ? '事工日程 (Ministry Schedule)' : 'Ministry Timetable Schedule'}</option>
-                                <option value="cellgroup">{lang === 'zh' ? '细胞小组日程 (Cell Group Schedule)' : 'Cell Group Timetable Schedule'}</option>
+                        {/* Fonts - Fixed Chinese fonts */}
+                        <div className="space-y-6">
+                          <h3 className="font-bold text-sm flex items-center gap-2"><Globe size={14}/>{ta('fonts')} <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{lang==='zh'?'已修復中文字體':'Fixed Chinese Fonts'}</span></h3>
+                          <div className="grid md:grid-cols-2 gap-6">
+                            <div className="space-y-3">
+                              <label className="text-xs font-bold text-gray-700 flex items-center gap-1">{ta('zhFont')} <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full">{fontFamilyOptions.zh.length} {lang==='zh'?'種':'fonts'}</span></label>
+                              <select value={data.settings.fontFamilyZh} onChange={e=>updateSetting('fontFamilyZh',null,e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-1 focus:ring-primary outline-none">
+                                {fontFamilyOptions.zh.map(f=><option key={f.value} value={f.value}>{f.label}</option>)}
                               </select>
-                              <p className="text-[10px] text-gray-400 mt-1">
-                                {lang === 'zh'
-                                  ? '可在此选择该日程属于崇拜时间表、事工时间表或小组时间表'
-                                  : 'Select whether this schedule belongs to Service Timetable, Ministry Timetable, or Cellgroup Timetable.'}
-                              </p>
+                              <div className="bg-gray-50 rounded-xl p-3 border">
+                                <p className="text-[11px] text-gray-500 mb-1">{lang==='zh'?'預覽':'Preview'}:</p>
+                                <p style={{fontFamily: getFontFamily('zh', data.settings.fontFamilyZh)}} className="text-sm font-medium">為敏感肌而生的溫和醫研修護 CS12 奇蹟面膜 123 ABC</p>
+                              </div>
                             </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">聚会名称 (中文)</label>
-                              <input
-                                type="text"
-                                value={editingTimetable.name.zh}
-                                onChange={(e) => setEditingTimetable({
-                                  ...editingTimetable,
-                                  name: { ...editingTimetable.name, zh: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Service/Meeting Name (English)</label>
-                              <input
-                                type="text"
-                                value={editingTimetable.name.en}
-                                onChange={(e) => setEditingTimetable({
-                                  ...editingTimetable,
-                                  name: { ...editingTimetable.name, en: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">聚会星期/频次 (中文 - 例如: 星期日, 每周五)</label>
-                              <input
-                                type="text"
-                                value={editingTimetable.day.zh}
-                                onChange={(e) => setEditingTimetable({
-                                  ...editingTimetable,
-                                  day: { ...editingTimetable.day, zh: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Meeting Day / Frequency (English)</label>
-                              <input
-                                type="text"
-                                value={editingTimetable.day.en}
-                                onChange={(e) => setEditingTimetable({
-                                  ...editingTimetable,
-                                  day: { ...editingTimetable.day, en: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">聚会频率 (中文 - 例如: 每两周一次、每月两次)</label>
-                              <input type="text" value={editingTimetable.frequency?.zh || ''} onChange={(e) => setEditingTimetable({ ...editingTimetable, frequency: { ...(editingTimetable.frequency || {}), zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="选填" />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Frequency (English - e.g. Weekly, Once every 2 weeks, Twice a month)</label>
-                              <input type="text" value={editingTimetable.frequency?.en || ''} onChange={(e) => setEditingTimetable({ ...editingTimetable, frequency: { ...(editingTimetable.frequency || {}), en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Optional" />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">具体时间段 / Exact Time Frame (e.g. 10:00 AM - 11:30 AM)</label>
-                              <input
-                                type="text"
-                                value={editingTimetable.time}
-                                onChange={(e) => setEditingTimetable({ ...editingTimetable, time: e.target.value })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">聚会语言 (中文 - 例如: 华语/双语)</label>
-                              <input
-                                type="text"
-                                value={editingTimetable.language.zh}
-                                onChange={(e) => setEditingTimetable({
-                                  ...editingTimetable,
-                                  language: { ...editingTimetable.language, zh: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Language Used (English)</label>
-                              <input
-                                type="text"
-                                value={editingTimetable.language.en}
-                                onChange={(e) => setEditingTimetable({
-                                  ...editingTimetable,
-                                  language: { ...editingTimetable.language, en: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">聚会地点/方式 (中文)</label>
-                              <input
-                                type="text"
-                                value={editingTimetable.location.zh}
-                                onChange={(e) => setEditingTimetable({
-                                  ...editingTimetable,
-                                  location: { ...editingTimetable.location, zh: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Location / Format (English)</label>
-                              <input
-                                type="text"
-                                value={editingTimetable.location.en}
-                                onChange={(e) => setEditingTimetable({
-                                  ...editingTimetable,
-                                  location: { ...editingTimetable.location, en: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">负责人联系方式 (中文 - 例如: 陈同工 012-3456789)</label>
-                              <input
-                                type="text"
-                                value={editingTimetable.picContact?.zh || ''}
-                                onChange={(e) => setEditingTimetable({
-                                  ...editingTimetable,
-                                  picContact: { ...(editingTimetable.picContact || {}), zh: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">PIC Contact (English - e.g. Bro. Chen 012-3456789)</label>
-                              <input
-                                type="text"
-                                value={editingTimetable.picContact?.en || ''}
-                                onChange={(e) => setEditingTimetable({
-                                  ...editingTimetable,
-                                  picContact: { ...(editingTimetable.picContact || {}), en: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
+                            <div className="space-y-3">
+                              <label className="text-xs font-bold text-gray-700 flex items-center gap-1">{ta('enFont')} <span className="text-[10px] bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded-full">{fontFamilyOptions.en.length} fonts</span></label>
+                              <select value={data.settings.fontFamilyEn} onChange={e=>updateSetting('fontFamilyEn',null,e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-1 focus:ring-primary outline-none">
+                                {fontFamilyOptions.en.map(f=><option key={f.value} value={f.value}>{f.label}</option>)}
+                              </select>
+                              <div className="bg-gray-50 rounded-xl p-3 border">
+                                <p className="text-[11px] text-gray-500 mb-1">Preview:</p>
+                                <p style={{fontFamily: getFontFamily('en', data.settings.fontFamilyEn)}} className="text-sm font-medium">Gentle Clinical Repair for Sensitive Skin CS12 Miracle Mask 123</p>
+                              </div>
                             </div>
                           </div>
-
-                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                            <button
-                              onClick={() => setEditingTimetable(null)}
-                              className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all"
-                            >
-                              {lang === 'zh' ? '取消' : 'Cancel'}
-                            </button>
-                            <button
-                              onClick={() => handleSaveTimetable(editingTimetable)}
-                              className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"
-                            >
-                              <Save size={13} />
-                              <span>{lang === 'zh' ? '保存日程' : 'Save Schedule'}</span>
-                            </button>
+                          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800">
+                            <p className="font-bold flex items-center gap-1"><Info size={12}/>{lang==='zh'?'字體修復說明':'Font Fix Notes'}</p>
+                            <ul className="list-disc pl-4 mt-1 space-y-0.5 text-[11px]">
+                              <li>{lang==='zh'?'已新增 11 種中文字體，包括思源黑體繁/簡、思源宋體、手寫、文藝、書法等':'Added 11 Chinese fonts including Noto Sans/Serif TC/SC, handwriting, artistic, calligraphy'}</li>
+                              <li>{lang==='zh'?'中英文可獨立設置，自動根據語言切換顯示':'Chinese and English can be set independently, auto-switch by language'}</li>
+                              <li>{lang==='zh'?'所有字體來自 Google Fonts，支援繁簡中文與英文':'All fonts from Google Fonts, support Traditional/Simplified Chinese & English'}</li>
+                            </ul>
                           </div>
                         </div>
-                      ) : (
-                        /* Timetable Grid list for edit */
-                        <div className="overflow-x-auto pt-4 border-t border-gray-100">
-                          <table className="w-full text-left text-xs border-collapse">
-                            <thead>
-                              <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-bold uppercase">
-                                <th className="p-3">{lang === 'zh' ? '日程项目' : 'Name'}</th>
-                                <th className="p-3">{lang === 'zh' ? '星期 & 时间' : 'Day & Time'}</th>
-                                <th className="p-3">{lang === 'zh' ? '地点' : 'Location'}</th>
-                                <th className="p-3 text-right">{lang === 'zh' ? '操作' : 'Actions'}</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                              {(() => {
-                                let list = data.timetable || [];
-                                let path = 'timetable';
-                                if (adminTimetableSubSection === 'ministry') {
-                                  list = data.ministryTimetable || [];
-                                  path = 'ministryTimetable';
-                                } else if (adminTimetableSubSection === 'cellgroup') {
-                                  list = data.cellGroupTimetable || [];
-                                  path = 'cellGroupTimetable';
-                                }
+                      </div>
+                    )}
 
-                                return list.map((item, idx) => (
-                                  <tr key={item.id} className="hover:bg-gray-50 text-gray-700">
-                                    <td className="p-3 font-bold text-gray-900">{item.name?.zh} / {item.name?.en}</td>
-                                    <td className="p-3">
-                                      <span className="font-bold text-primary mr-1 bg-primary/10 px-1 py-0.5 rounded">{item.day?.zh}</span>
-                                      <span>{item.time}</span>
-                                    </td>
-                                    <td className="p-3 text-gray-500">{item.location?.zh}</td>
-                                    <td className="p-3">
-                                      <div className="flex gap-1.5 justify-end">
-                                        <button
-                                          onClick={() => handleMoveItem(path, idx, 'up')}
-                                          disabled={idx === 0}
-                                          title={lang === 'zh' ? '上移' : 'Move up'}
-                                          className="p-1 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
-                                        >
-                                          <ArrowUp size={13} />
-                                        </button>
-                                        <button
-                                          onClick={() => handleMoveItem(path, idx, 'down')}
-                                          disabled={idx === list.length - 1}
-                                          title={lang === 'zh' ? '下移' : 'Move down'}
-                                          className="p-1 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
-                                        >
-                                          <ArrowDown size={13} />
-                                        </button>
-                                        <button
-                                          onClick={() => setEditingTimetable({ ...item, _type: adminTimetableSubSection, _originalType: adminTimetableSubSection })}
-                                          className="p-1 rounded border border-blue-250 text-blue-600 hover:bg-blue-50"
-                                        >
-                                          <Edit3 size={13} />
-                                        </button>
-                                        <button
-                                          onClick={() => handleDeleteTimetable(item.id, adminTimetableSubSection)}
-                                          className="p-1 rounded border border-red-250 text-red-600 hover:bg-red-50"
-                                        >
-                                          <Trash2 size={13} />
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ));
-                              })()}
-                              {(() => {
-                                let list = data.timetable || [];
-                                if (adminTimetableSubSection === 'ministry') list = data.ministryTimetable || [];
-                                else if (adminTimetableSubSection === 'cellgroup') list = data.cellGroupTimetable || [];
+                    {/* Settings */}
+                    {adminActiveSection==='settings' && (
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-black">{ta('generalSettings')}</h2>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div><label className="text-xs font-bold text-gray-700 mb-1 block">{ta('siteName')} (中文)</label><input value={data.settings.siteName?.zh||''} onChange={e=>updateNestedSetting('siteName.zh', e.target.value)} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                          <div><label className="text-xs font-bold text-gray-700 mb-1 block">{ta('siteName')} (EN)</label><input value={data.settings.siteName?.en||''} onChange={e=>updateNestedSetting('siteName.en', e.target.value)} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                          <div className="md:col-span-2"><label className="text-xs font-bold text-gray-700 mb-1 block">{ta('logo')} URL</label><MediaUrlField value={data.settings.headerLogo} onChange={v=>updateSetting('headerLogo',null,v)} label={ta('imageUrl')}/></div>
+                          <div><label className="text-xs font-bold text-gray-700 mb-1 block">{lang==='zh'?'聯繫電話':'Phone'}</label><input value={data.settings.contactPhone||''} onChange={e=>updateSetting('contactPhone',null,e.target.value)} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                          <div><label className="text-xs font-bold text-gray-700 mb-1 block">Email</label><input value={data.settings.contactEmail||''} onChange={e=>updateSetting('contactEmail',null,e.target.value)} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                          <div><label className="text-xs font-bold text-gray-700 mb-1 block">{ta('freeShippingThreshold')}</label><input type="number" value={data.settings.shipping?.freeThreshold||0} onChange={e=>updateNestedSetting('shipping.freeThreshold', parseInt(e.target.value)||0)} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                          <div><label className="text-xs font-bold text-gray-700 mb-1 block">{ta('flatRate')}</label><input type="number" value={data.settings.shipping?.flatRate||0} onChange={e=>updateNestedSetting('shipping.flatRate', parseInt(e.target.value)||0)} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                          <div><label className="text-xs font-bold text-gray-700 mb-1 block">{lang==='zh'?'貨幣匯率 HKD→USD':'Exchange Rate HKD→USD'}</label><input type="number" step="0.001" value={data.settings.currencies?.exchangeRate||0.128} onChange={e=>updateNestedSetting('currencies.exchangeRate', parseFloat(e.target.value)||0.128)} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:ring-1 focus:ring-primary outline-none"/></div>
+                          <div><label className="text-xs font-bold text-gray-700 mb-1 block">{lang==='zh'?'首單優惠碼':'First Order Code'}</label><input value={data.settings.firstOrder?.code||''} onChange={e=>updateNestedSetting('firstOrder.code', e.target.value)} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm"/></div>
+                          <div><label className="text-xs font-bold text-gray-700 mb-1 block">{lang==='zh'?'首單折扣%':'First Order Discount %'}</label><input type="number" value={data.settings.firstOrder?.discountValue||0} onChange={e=>updateNestedSetting('firstOrder.discountValue', parseInt(e.target.value)||0)} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm"/></div>
+                          <div><label className="text-xs font-bold text-gray-700 mb-1 block">{lang==='zh'?'首單最低消費':'First Order Min Spend'}</label><input type="number" value={data.settings.firstOrder?.minSpend||0} onChange={e=>updateNestedSetting('firstOrder.minSpend', parseInt(e.target.value)||0)} className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm"/></div>
+                        </div>
+                      </div>
+                    )}
 
-                                if (list.length === 0) {
-                                  return (
-                                    <tr>
-                                      <td colSpan={4} className="p-8 text-center text-gray-400">
-                                        <p className="mb-2 text-xs">
-                                          {adminTimetableSubSection === 'ministry'
-                                            ? (lang === 'zh' ? '暂无事工聚会日程，点击下方按钮添加' : 'No ministry schedules added yet')
-                                            : adminTimetableSubSection === 'cellgroup'
-                                            ? (lang === 'zh' ? '暂无小组聚会日程，点击下方按钮添加' : 'No cellgroup schedules added yet')
-                                            : (lang === 'zh' ? '暂无常规定期崇拜日程，点击下方按钮添加' : 'No regular worship schedules added yet')}
-                                        </p>
-                                        <button
-                                          onClick={() => {
-                                            let defaultName = { zh: '主日崇拜聚会', en: 'Sunday Worship Service' };
-                                            if (adminTimetableSubSection === 'ministry') {
-                                              defaultName = { zh: '新事工聚会', en: 'New Ministry Gathering' };
-                                            } else if (adminTimetableSubSection === 'cellgroup') {
-                                              defaultName = { zh: '新小组聚会', en: 'New Cell Group Schedule' };
-                                            }
-                                            setEditingTimetable({
-                                              id: 'new',
-                                              _type: adminTimetableSubSection,
-                                              _originalType: adminTimetableSubSection,
-                                              name: defaultName,
-                                              day: { zh: '星期日', en: 'Sunday' },
-                                              time: '10:00 AM',
-                                              location: { zh: '教会主堂', en: 'Main Sanctuary' },
-                                              language: { zh: '华语', en: 'Chinese' },
-                                              frequency: { zh: '', en: '' },
-                                              picContact: { zh: '', en: '' }
-                                            });
-                                          }}
-                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all mt-1"
-                                        >
-                                          <Plus size={14} />
-                                          <span>
-                                            {adminTimetableSubSection === 'ministry'
-                                              ? (lang === 'zh' ? '添加事工日程' : 'Add Ministry Schedule')
-                                              : adminTimetableSubSection === 'cellgroup'
-                                              ? (lang === 'zh' ? '添加小组日程' : 'Add Cellgroup Schedule')
-                                              : (lang === 'zh' ? '添加新日程' : 'Add New Schedule')}
-                                          </span>
-                                        </button>
-                                      </td>
-                                    </tr>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </tbody>
+                    {/* Banners */}
+                    {adminActiveSection==='banners' && (
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between"><h2 className="text-xl font-black">{ta('banners')}</h2><button onClick={()=>setEditingBanner({id:'new', image:'', title:{zh:'新橫幅',en:'New Banner'}, subtitle:{zh:'副標題',en:'Subtitle'}, ctaText:{zh:'立即選購',en:'Shop Now'}, ctaLink:'shop', active:true})} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Plus size={14}/>{ta('add')}</button></div>
+                        {editingBanner ? (
+                          <div className="bg-gray-50 rounded-2xl p-5 border space-y-4">
+                            <h4 className="font-bold text-xs uppercase">{editingBanner.id==='new'?ta('add'):ta('edit')} Banner</h4>
+                            <MediaUrlField value={editingBanner.image} onChange={v=>setEditingBanner({...editingBanner, image:v})} label={ta('imageUrl')}/>
+                            <div className="grid md:grid-cols-2 gap-3">
+                              <div><label className="text-xs font-bold mb-1 block">{ta('titleZh')}</label><input value={editingBanner.title.zh} onChange={e=>setEditingBanner({...editingBanner, title:{...editingBanner.title, zh:e.target.value}})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('titleEn')}</label><input value={editingBanner.title.en} onChange={e=>setEditingBanner({...editingBanner, title:{...editingBanner.title, en:e.target.value}})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('descZh')}</label><input value={editingBanner.subtitle.zh} onChange={e=>setEditingBanner({...editingBanner, subtitle:{...editingBanner.subtitle, zh:e.target.value}})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('descEn')}</label><input value={editingBanner.subtitle.en} onChange={e=>setEditingBanner({...editingBanner, subtitle:{...editingBanner.subtitle, en:e.target.value}})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">CTA Link (shop / product-1)</label><input value={editingBanner.ctaLink} onChange={e=>setEditingBanner({...editingBanner, ctaLink:e.target.value})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div className="flex items-center gap-2 pt-5"><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={editingBanner.active} onChange={e=>setEditingBanner({...editingBanner, active:e.target.checked})}/>{ta('active')}</label></div>
+                            </div>
+                            <div className="flex justify-end gap-2"><button onClick={()=>setEditingBanner(null)} className="px-4 py-2 rounded-xl border text-xs font-bold">{ta('cancel')}</button><button onClick={()=>handleSaveBanner(editingBanner)} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Save size={12}/>{ta('save')}</button></div>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">{data.carousel.map((b, idx)=><div key={b.id} className="flex items-center gap-3 p-3 border rounded-xl bg-gray-50"><img src={b.image} className="w-20 h-12 object-cover rounded-lg"/><div className="flex-1"><p className="font-bold text-xs">{t(b.title)}</p><p className="text-[11px] text-gray-500">{t(b.subtitle)}</p></div><div className="flex gap-1"><button onClick={()=>handleMoveItem('carousel', idx, 'up')} disabled={idx===0} className="p-1.5 rounded border disabled:opacity-30"><ArrowUp size={12}/></button><button onClick={()=>handleMoveItem('carousel', idx, 'down')} disabled={idx===data.carousel.length-1} className="p-1.5 rounded border disabled:opacity-30"><ArrowDown size={12}/></button><button onClick={()=>setEditingBanner(b)} className="p-1.5 rounded border border-blue-200 text-blue-600"><Edit3 size={12}/></button><button onClick={()=>handleDeleteBanner(b.id)} className="p-1.5 rounded border border-red-200 text-red-600"><Trash2 size={12}/></button></div></div>)}</div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Categories */}
+                    {adminActiveSection==='categories' && (
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between"><h2 className="text-xl font-black">{ta('categories')}</h2><button onClick={()=>setEditingCategory({id:'new', name:{zh:'新分類',en:'New Category'}, slug:'new-cat', type:'series', description:{zh:'描述',en:'Description'}, image:'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?auto=format&fit=crop&w=400&q=80', sortOrder:99, active:true})} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Plus size={14}/>{ta('addCategory')}</button></div>
+                        {editingCategory ? (
+                          <div className="bg-gray-50 rounded-2xl p-5 border space-y-4">
+                            <div className="grid md:grid-cols-2 gap-3">
+                              <div><label className="text-xs font-bold mb-1 block">{ta('nameZh')}</label><input value={editingCategory.name.zh} onChange={e=>setEditingCategory({...editingCategory, name:{...editingCategory.name, zh:e.target.value}})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('nameEn')}</label><input value={editingCategory.name.en} onChange={e=>setEditingCategory({...editingCategory, name:{...editingCategory.name, en:e.target.value}})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">Slug</label><input value={editingCategory.slug} onChange={e=>setEditingCategory({...editingCategory, slug:e.target.value})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">Type (series/faceCare/skinType)</label><select value={editingCategory.type} onChange={e=>setEditingCategory({...editingCategory, type:e.target.value})} className="w-full px-3 py-2 rounded-xl border text-xs"><option value="series">series</option><option value="faceCare">faceCare</option><option value="skinType">skinType</option></select></div>
+                              <div className="md:col-span-2"><MediaUrlField value={editingCategory.image} onChange={v=>setEditingCategory({...editingCategory, image:v})} label={ta('imageUrl')}/></div>
+                              <div className="flex items-center gap-2"><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={editingCategory.active} onChange={e=>setEditingCategory({...editingCategory, active:e.target.checked})}/>{ta('active')}</label></div>
+                            </div>
+                            <div className="flex justify-end gap-2"><button onClick={()=>setEditingCategory(null)} className="px-4 py-2 rounded-xl border text-xs font-bold">{ta('cancel')}</button><button onClick={()=>handleSaveCategory(editingCategory)} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Save size={12}/>{ta('save')}</button></div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">{data.categories.map((c,i)=><div key={c.id} className="flex items-center gap-3 p-3 border rounded-xl bg-gray-50"><img src={c.image} className="w-12 h-12 rounded-lg object-cover"/><div className="flex-1"><p className="font-bold text-xs">{t(c.name)} • <span className="text-[10px] bg-gray-200 px-1.5 py-0.5 rounded-full">{c.type}</span></p><p className="text-[11px] text-gray-500">{c.slug}</p></div><div className="flex gap-1"><button onClick={()=>handleMoveItem('categories', i, 'up')} disabled={i===0} className="p-1.5 rounded border disabled:opacity-30"><ArrowUp size={12}/></button><button onClick={()=>handleMoveItem('categories', i, 'down')} disabled={i===data.categories.length-1} className="p-1.5 rounded border disabled:opacity-30"><ArrowDown size={12}/></button><button onClick={()=>setEditingCategory(c)} className="p-1.5 rounded border border-blue-200 text-blue-600"><Edit3 size={12}/></button><button onClick={()=>handleDeleteCategory(c.id)} className="p-1.5 rounded border border-red-200 text-red-600"><Trash2 size={12}/></button></div></div>)}</div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Products */}
+                    {adminActiveSection==='products' && (
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-black">{ta('products')}</h2><p className="text-xs text-gray-500">{data.products.length} products, {data.products.filter(p=>p.stock<=p.lowStockThreshold).length} low stock</p></div><button onClick={()=>setEditingProduct({id:'new', sku:'NEW-SKU', title:{zh:'新產品',en:'New Product'}, subtitle:{zh:'',en:''}, description:{zh:'描述',en:'Description'}, shortDesc:{zh:'',en:''}, categoryIds:[], tags:[], price:99, compareAtPrice:129, cost:30, stock:100, lowStockThreshold:10, images:['https://images.unsplash.com/photo-1556228578-0d85b1a4d571?auto=format&fit=crop&w=400&q=80'], ingredients:{zh:'',en:''}, howToUse:{zh:'',en:''}, benefits:{zh:[],en:[]}, isBestseller:false, isFeatured:false, rating:5, reviewCount:0, variants:[], active:true, createdAt:new Date().toISOString().slice(0,10)})} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Plus size={14}/>{ta('addProduct')}</button></div>
+
+                        <div className="flex gap-2"><input value={adminSearch} onChange={e=>setAdminSearch(e.target.value)} placeholder={ta('search')+' SKU, title...'} className="flex-1 px-3 py-2 rounded-xl border text-xs"/><select className="px-3 py-2 rounded-xl border text-xs"><option>All</option></select></div>
+
+                        {editingProduct ? (
+                          <div className="bg-gray-50 rounded-2xl p-5 border space-y-4 max-h-[80vh] overflow-y-auto">
+                            <h4 className="font-bold text-xs uppercase">{editingProduct.id==='new'?ta('addProduct'):ta('edit')} - {editingProduct.sku}</h4>
+                            <div className="grid md:grid-cols-2 gap-3">
+                              <div><label className="text-xs font-bold mb-1 block">{ta('titleZh')}</label><input value={editingProduct.title.zh} onChange={e=>setEditingProduct({...editingProduct, title:{...editingProduct.title, zh:e.target.value}})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('titleEn')}</label><input value={editingProduct.title.en} onChange={e=>setEditingProduct({...editingProduct, title:{...editingProduct.title, en:e.target.value}})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">SKU</label><input value={editingProduct.sku} onChange={e=>setEditingProduct({...editingProduct, sku:e.target.value})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('price')} / {ta('comparePrice')}</label><div className="flex gap-2"><input type="number" value={editingProduct.price} onChange={e=>setEditingProduct({...editingProduct, price:parseFloat(e.target.value)||0})} className="w-1/2 px-3 py-2 rounded-xl border text-xs"/><input type="number" value={editingProduct.compareAtPrice} onChange={e=>setEditingProduct({...editingProduct, compareAtPrice:parseFloat(e.target.value)||0})} className="w-1/2 px-3 py-2 rounded-xl border text-xs"/></div></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('stock')} / Low Threshold</label><div className="flex gap-2"><input type="number" value={editingProduct.stock} onChange={e=>setEditingProduct({...editingProduct, stock:parseInt(e.target.value)||0})} className="w-1/2 px-3 py-2 rounded-xl border text-xs"/><input type="number" value={editingProduct.lowStockThreshold} onChange={e=>setEditingProduct({...editingProduct, lowStockThreshold:parseInt(e.target.value)||0})} className="w-1/2 px-3 py-2 rounded-xl border text-xs"/></div></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('category')} (comma separated IDs)</label><input value={(editingProduct.categoryIds||[]).join(',')} onChange={e=>setEditingProduct({...editingProduct, categoryIds:e.target.value.split(',').map(s=>s.trim()).filter(Boolean)})} className="w-full px-3 py-2 rounded-xl border text-xs" placeholder="series-calmmex, face-mask"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('tags')} (comma)</label><input value={(editingProduct.tags||[]).join(',')} onChange={e=>setEditingProduct({...editingProduct, tags:e.target.value.split(',').map(s=>s.trim()).filter(Boolean)})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div className="md:col-span-2"><label className="text-xs font-bold mb-1 block">{ta('images')} (first is main) - paste URLs or upload</label>{(editingProduct.images||[]).map((img, idx)=><div key={idx} className="flex gap-2 mb-2"><MediaUrlField value={img} onChange={v=>{ const arr=[...editingProduct.images]; arr[idx]=v; setEditingProduct({...editingProduct, images:arr}); }} label={`Image ${idx+1}`}/><button onClick={()=>{ const arr=editingProduct.images.filter((_,i)=>i!==idx); setEditingProduct({...editingProduct, images:arr}); }} className="p-2 rounded-xl border border-red-200 text-red-600"><Trash2 size={12}/></button></div>)}<button onClick={()=>setEditingProduct({...editingProduct, images:[...editingProduct.images, '']})} className="px-3 py-1.5 rounded-xl border text-xs">+ Add Image</button></div>
+                              <div className="md:col-span-2"><label className="text-xs font-bold mb-1 block">{ta('descZh')}</label><textarea value={editingProduct.description.zh} onChange={e=>setEditingProduct({...editingProduct, description:{...editingProduct.description, zh:e.target.value}})} rows={3} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div className="md:col-span-2"><label className="text-xs font-bold mb-1 block">{ta('descEn')}</label><textarea value={editingProduct.description.en} onChange={e=>setEditingProduct({...editingProduct, description:{...editingProduct.description, en:e.target.value}})} rows={3} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div className="flex gap-3"><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={editingProduct.isBestseller} onChange={e=>setEditingProduct({...editingProduct, isBestseller:e.target.checked})}/>{ta('bestseller')}</label><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={editingProduct.isFeatured} onChange={e=>setEditingProduct({...editingProduct, isFeatured:e.target.checked})}/>{ta('featured')}</label><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={editingProduct.active} onChange={e=>setEditingProduct({...editingProduct, active:e.target.checked})}/>{ta('active')}</label></div>
+                            </div>
+                            <div className="flex justify-end gap-2"><button onClick={()=>setEditingProduct(null)} className="px-4 py-2 rounded-xl border text-xs font-bold">{ta('cancel')}</button><button onClick={()=>handleSaveProduct(editingProduct)} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Save size={12}/>{ta('save')}</button></div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
+                            {(adminSearch? data.products.filter(p=> (t(p.title).toLowerCase().includes(adminSearch.toLowerCase()) || p.sku.toLowerCase().includes(adminSearch.toLowerCase()))): data.products).map((p,i)=><div key={p.id} className="flex items-center gap-3 p-3 border rounded-xl bg-gray-50 hover:bg-white transition-colors"><img src={p.images[0]} className="w-12 h-12 rounded-lg object-cover border"/><div className="flex-1 min-w-0"><p className="font-bold text-xs truncate">{t(p.title)} <span className="text-[10px] text-gray-400">({p.sku})</span></p><p className="text-[11px] text-gray-500">{formatPrice(p.price)} • Stock {p.stock} {p.stock<=p.lowStockThreshold && <span className="text-red-600 font-bold">Low!</span>} • {p.isBestseller?'Bestseller':''} {p.isFeatured?'Featured':''}</p></div><div className="flex gap-1"><button onClick={()=>handleMoveItem('products', i, 'up')} disabled={i===0} className="p-1.5 rounded border disabled:opacity-30"><ArrowUp size={12}/></button><button onClick={()=>handleMoveItem('products', i, 'down')} disabled={i===data.products.length-1} className="p-1.5 rounded border disabled:opacity-30"><ArrowDown size={12}/></button><button onClick={()=>setEditingProduct(p)} className="p-1.5 rounded border border-blue-200 text-blue-600"><Edit3 size={12}/></button><button onClick={()=>handleDeleteProduct(p.id)} className="p-1.5 rounded border border-red-200 text-red-600"><Trash2 size={12}/></button></div></div>)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Bundles */}
+                    {adminActiveSection==='bundles' && (
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between"><h2 className="text-xl font-black">{ta('bundles')}</h2><button onClick={()=>setEditingBundle({id:'new', title:{zh:'新套裝',en:'New Bundle'}, description:{zh:'描述',en:'Desc'}, productIds:[], discountType:'percentage', discountValue:20, price:999, originalPrice:1299, image:data.products[0]?.images[0]||'', validFrom:new Date().toISOString().slice(0,10), validTo:'2026-12-31', active:true, badge:{zh:'限定',en:'Limited'}})} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Plus size={14}/>{ta('addBundle')}</button></div>
+                        {editingBundle ? (
+                          <div className="bg-gray-50 rounded-2xl p-5 border space-y-4">
+                            <div className="grid md:grid-cols-2 gap-3">
+                              <div><label className="text-xs font-bold mb-1 block">{ta('titleZh')}</label><input value={editingBundle.title.zh} onChange={e=>setEditingBundle({...editingBundle, title:{...editingBundle.title, zh:e.target.value}})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('titleEn')}</label><input value={editingBundle.title.en} onChange={e=>setEditingBundle({...editingBundle, title:{...editingBundle.title, en:e.target.value}})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{lang==='zh'?'套裝價 / 原價':'Bundle / Original Price'}</label><div className="flex gap-2"><input type="number" value={editingBundle.price} onChange={e=>setEditingBundle({...editingBundle, price:parseFloat(e.target.value)||0})} className="w-1/2 px-3 py-2 rounded-xl border text-xs"/><input type="number" value={editingBundle.originalPrice} onChange={e=>setEditingBundle({...editingBundle, originalPrice:parseFloat(e.target.value)||0})} className="w-1/2 px-3 py-2 rounded-xl border text-xs"/></div></div>
+                              <div><label className="text-xs font-bold mb-1 block">Product IDs (comma)</label><input value={(editingBundle.productIds||[]).join(',')} onChange={e=>setEditingBundle({...editingBundle, productIds:e.target.value.split(',').map(v=>parseInt(v.trim())).filter(v=>!isNaN(v))})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div className="md:col-span-2"><MediaUrlField value={editingBundle.image} onChange={v=>setEditingBundle({...editingBundle, image:v})} label={ta('imageUrl')}/></div>
+                            </div>
+                            <div className="flex justify-end gap-2"><button onClick={()=>setEditingBundle(null)} className="px-4 py-2 rounded-xl border text-xs font-bold">{ta('cancel')}</button><button onClick={()=>handleSaveBundle(editingBundle)} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Save size={12}/>{ta('save')}</button></div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">{data.bundles.map((b,i)=><div key={b.id} className="flex items-center gap-3 p-3 border rounded-xl bg-gray-50"><img src={b.image} className="w-12 h-12 rounded-lg object-cover"/><div className="flex-1"><p className="font-bold text-xs">{t(b.title)}</p><p className="text-[11px] text-gray-500">{formatPrice(b.price)} / {formatPrice(b.originalPrice)} • {b.productIds?.length} products</p></div><div className="flex gap-1"><button onClick={()=>setEditingBundle(b)} className="p-1.5 rounded border border-blue-200 text-blue-600"><Edit3 size={12}/></button><button onClick={()=>handleDeleteBundle(b.id)} className="p-1.5 rounded border border-red-200 text-red-600"><Trash2 size={12}/></button></div></div>)}</div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Coupons */}
+                    {adminActiveSection==='coupons' && (
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between"><h2 className="text-xl font-black">{ta('coupons')}</h2><button onClick={()=>setEditingCoupon({id:'new', code:'NEWCODE', title:{zh:'新優惠券',en:'New Coupon'}, description:{zh:'描述',en:'Desc'}, discountType:'percentage', discountValue:10, minSpend:500, maxDiscount:null, usageLimit:100, usedCount:0, validFrom:new Date().toISOString().slice(0,10), validTo:'2026-12-31', firstOrderOnly:false, active:true, applicableProducts:[], applicableCategories:[]})} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Plus size={14}/>{ta('addCoupon')}</button></div>
+                        {editingCoupon ? (
+                          <div className="bg-gray-50 rounded-2xl p-5 border space-y-4">
+                            <div className="grid md:grid-cols-2 gap-3">
+                              <div><label className="text-xs font-bold mb-1 block">{ta('couponCode')}</label><input value={editingCoupon.code} onChange={e=>setEditingCoupon({...editingCoupon, code:e.target.value.toUpperCase()})} className="w-full px-3 py-2 rounded-xl border text-xs font-mono"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('discount')} (%) or fixed</label><div className="flex gap-2"><select value={editingCoupon.discountType} onChange={e=>setEditingCoupon({...editingCoupon, discountType:e.target.value})} className="px-2 py-2 rounded-xl border text-xs"><option value="percentage">% Percentage</option><option value="fixed">Fixed HK$</option></select><input type="number" value={editingCoupon.discountValue} onChange={e=>setEditingCoupon({...editingCoupon, discountValue:parseFloat(e.target.value)||0})} className="flex-1 px-3 py-2 rounded-xl border text-xs"/></div></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('minSpend')}</label><input type="number" value={editingCoupon.minSpend} onChange={e=>setEditingCoupon({...editingCoupon, minSpend:parseInt(e.target.value)||0})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{lang==='zh'?'有效期':'Valid From-To'}</label><div className="flex gap-2"><input type="date" value={editingCoupon.validFrom} onChange={e=>setEditingCoupon({...editingCoupon, validFrom:e.target.value})} className="w-1/2 px-2 py-2 rounded-xl border text-xs"/><input type="date" value={editingCoupon.validTo} onChange={e=>setEditingCoupon({...editingCoupon, validTo:e.target.value})} className="w-1/2 px-2 py-2 rounded-xl border text-xs"/></div></div>
+                              <div className="flex gap-3 items-center"><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={editingCoupon.firstOrderOnly} onChange={e=>setEditingCoupon({...editingCoupon, firstOrderOnly:e.target.checked})}/>{lang==='zh'?'僅限首單':'First Order Only'}</label><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={editingCoupon.active} onChange={e=>setEditingCoupon({...editingCoupon, active:e.target.checked})}/>{ta('active')}</label></div>
+                            </div>
+                            <div className="flex justify-end gap-2"><button onClick={()=>setEditingCoupon(null)} className="px-4 py-2 rounded-xl border text-xs font-bold">{ta('cancel')}</button><button onClick={()=>handleSaveCoupon(editingCoupon)} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Save size={12}/>{ta('save')}</button></div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">{data.coupons.map(c=><div key={c.id} className="flex items-center gap-3 p-3 border rounded-xl bg-gray-50"><div className="w-12 h-12 rounded-lg bg-gray-900 text-white flex flex-col items-center justify-center font-black text-[10px]"><Tag size={14}/>{c.code.slice(0,6)}</div><div className="flex-1"><p className="font-bold text-xs">{c.code} - {t(c.title)} • {c.discountType==='percentage'?`${c.discountValue}%`:`HK$${c.discountValue}`} {c.minSpend?`min ${formatPrice(c.minSpend)}`:''}</p><p className="text-[11px] text-gray-500">{c.usedCount||0}/{c.usageLimit||'∞'} used • {c.validFrom}→{c.validTo} {c.firstOrderOnly?`• ${lang==='zh'?'首單':''}`:''}</p></div><div className="flex gap-1"><button onClick={()=>setEditingCoupon(c)} className="p-1.5 rounded border border-blue-200 text-blue-600"><Edit3 size={12}/></button><button onClick={()=>handleDeleteCoupon(c.id)} className="p-1.5 rounded border border-red-200 text-red-600"><Trash2 size={12}/></button></div></div>)}</div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* GWP */}
+                    {adminActiveSection==='gwp' && (
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between"><h2 className="text-xl font-black">{ta('gwpRules')}</h2><button onClick={()=>setEditingGwp({id:'new', minSpend:2000, title:{zh:'滿 $X 獲贈',en:'Spend $X Get Gift'}, description:{zh:'禮品描述',en:'Gift desc'}, gifts:[{name:{zh:'禮品',en:'Gift'}, qty:1}], image:'', active:true})} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Plus size={14}/>{ta('addGwp')}</button></div>
+                        {editingGwp ? (
+                          <div className="bg-gray-50 rounded-2xl p-5 border space-y-4">
+                            <div className="grid md:grid-cols-2 gap-3">
+                              <div><label className="text-xs font-bold mb-1 block">{ta('minSpend')}</label><input type="number" value={editingGwp.minSpend} onChange={e=>setEditingGwp({...editingGwp, minSpend:parseInt(e.target.value)||0})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('titleZh')}</label><input value={editingGwp.title.zh} onChange={e=>setEditingGwp({...editingGwp, title:{...editingGwp.title, zh:e.target.value}})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('titleEn')}</label><input value={editingGwp.title.en} onChange={e=>setEditingGwp({...editingGwp, title:{...editingGwp.title, en:e.target.value}})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div className="md:col-span-2"><MediaUrlField value={editingGwp.image} onChange={v=>setEditingGwp({...editingGwp, image:v})} label={ta('imageUrl')}/></div>
+                              <div className="flex items-center gap-2"><label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={editingGwp.active} onChange={e=>setEditingGwp({...editingGwp, active:e.target.checked})}/>{ta('active')}</label></div>
+                            </div>
+                            <div className="flex justify-end gap-2"><button onClick={()=>setEditingGwp(null)} className="px-4 py-2 rounded-xl border text-xs font-bold">{ta('cancel')}</button><button onClick={()=>handleSaveGwp(editingGwp)} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Save size={12}/>{ta('save')}</button></div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">{(data.settings.gwp?.rules||[]).map(r=><div key={r.id} className="flex items-center gap-3 p-3 border rounded-xl bg-gray-50"><img src={r.image} className="w-12 h-12 rounded-lg object-contain bg-white border p-1"/><div className="flex-1"><p className="font-bold text-xs">{t(r.title)} • Min {formatPrice(r.minSpend)}</p><p className="text-[11px] text-gray-500">{t(r.description)}</p></div><div className="flex gap-1"><button onClick={()=>setEditingGwp(r)} className="p-1.5 rounded border border-blue-200 text-blue-600"><Edit3 size={12}/></button><button onClick={()=>handleDeleteGwp(r.id)} className="p-1.5 rounded border border-red-200 text-red-600"><Trash2 size={12}/></button></div></div>)}</div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Orders */}
+                    {adminActiveSection==='orders' && (
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-black">{ta('orders')} ({data.orders.length})</h2>
+                        <div className="overflow-x-auto rounded-2xl border">
+                          <table className="w-full text-xs">
+                            <thead><tr className="bg-gray-50 border-b text-[11px] uppercase font-bold text-gray-500"><th className="text-left p-3">{ta('orderId')}</th><th className="text-left p-3">{ta('customer')}</th><th className="text-left p-3">Total</th><th className="text-left p-3">{ta('payment')}</th><th className="text-left p-3">{ta('status')}</th><th className="text-right p-3">{ta('actions')}</th></tr></thead>
+                            <tbody>{data.orders.map(o=><tr key={o.id} className="border-b last:border-0 hover:bg-gray-50"><td className="p-3 font-mono font-bold">{o.id}</td><td className="p-3">{o.email}</td><td className="p-3 font-bold">{formatPrice(o.total)}</td><td className="p-3"><span className={`px-2 py-0.5 rounded-full text-[10px] ${o.paymentStatus==='paid'?'bg-green-50 text-green-700':'bg-amber-50 text-amber-700'}`}>{o.paymentStatus}</span> {o.paymentMethod}</td><td className="p-3"><select value={o.fulfillmentStatus} onChange={e=>handleUpdateOrderStatus(o.id,'fulfillmentStatus', e.target.value)} className="px-2 py-1 rounded-lg border text-xs"><option value="processing">processing</option><option value="fulfilled">fulfilled</option><option value="cancelled">cancelled</option><option value="refunded">refunded</option></select></td><td className="p-3 text-right"><button onClick={()=>setSelectedOrder(o)} className="p-1.5 rounded border"><Eye size={12}/></button></td></tr>)}</tbody>
                           </table>
                         </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* SECTION 4: MINISTRIES */}
-                  {adminActiveSection === 'ministries' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-start gap-4">
-                        <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '社区核心事工文案' : 'Ministries Content Manager'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '编辑大山脚浸信教会的核心事工（如爱邻社区关怀、五饼二鱼、老人中心等）介绍文案和卡片图片' : 'Edit core church service ministries, descriptions, and display graphics'}</p>
-                        </div>
-                        {editingMinistry === null && (
-                          <button
-                            onClick={() => setEditingMinistry({
-                              id: 'new',
-                              name: { zh: '新核心事工', en: 'New Core Ministry' },
-                              image: 'https://images.unsplash.com/photo-1542810634-71277d95dcbb?auto=format&fit=crop&w=800&q=80',
-                              description: { zh: '这儿填写事工的中文具体描述介绍。', en: 'Fill out detail ministry description in English.' }
-                            })}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                          >
-                            <Plus size={14} />
-                            <span>{lang === 'zh' ? '添加新事工' : 'Add New Ministry'}</span>
-                          </button>
+                        {selectedOrder && (
+                          <div className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"><div className="bg-white rounded-2xl border max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4"><div className="flex items-center justify-between"><h3 className="font-black">{selectedOrder.id}</h3><button onClick={()=>setSelectedOrder(null)} className="p-2 rounded-xl bg-gray-100"><X size={16}/></button></div><div className="text-xs space-y-2"><p><span className="font-bold">Email:</span> {selectedOrder.email}</p><p><span className="font-bold">Address:</span> {selectedOrder.shippingAddress?.address}, {selectedOrder.shippingAddress?.city}</p><div className="border-t pt-2">{selectedOrder.items.map((it,i)=><div key={i} className="flex justify-between py-1"><span>{t(it.title)} x{it.qty}</span><span>{formatPrice(it.price*it.qty)}</span></div>)}<div className="flex justify-between font-bold border-t pt-2"><span>Total</span><span>{formatPrice(selectedOrder.total)}</span></div><div className="text-gray-500">Subtotal {formatPrice(selectedOrder.subtotal)} | Discount -{formatPrice(selectedOrder.discount)} | Shipping {formatPrice(selectedOrder.shipping)} | Points +{selectedOrder.pointsEarned}</div></div></div><button onClick={()=>setSelectedOrder(null)} className="w-full py-2.5 rounded-xl bg-gray-900 text-white text-xs font-bold">{ta('cancel')}</button></div></div>
                         )}
                       </div>
+                    )}
 
-                      {/* Ministries Page Header Settings */}
-                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
-                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                          <Info size={14} className="text-primary" />
-                          <span>{lang === 'zh' ? '页面顶栏与引言设置' : 'Page Header & Intro Settings'}</span>
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.ministriesBadge?.zh || ''} onChange={(e) => updateSetting('ministriesBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="走入人群，服侍弱势" />
-                              <input type="text" value={data.settings.ministriesBadge?.en || ''} onChange={(e) => updateSetting('ministriesBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Outreach & Community Service" />
+                    {/* Customers CRM */}
+                    {adminActiveSection==='customers' && (
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-black">{ta('customers')} (CRM) - {data.customers.length}</h2>
+                        <div className="flex gap-2"><input value={adminSearch} onChange={e=>setAdminSearch(e.target.value)} placeholder={ta('search')+' email, name, referral...'} className="flex-1 px-3 py-2 rounded-xl border text-xs"/><button onClick={()=>{ const csv = ['email,name,tier,points,totalSpent,birthday,referralCode,referredBy,joinedAt,ordersCount,status'].concat(data.customers.map(c=>`${c.email},${c.name},${c.tier||''},${c.points||0},${c.totalSpent||0},${c.birthday||''},${c.referralCode||''},${c.referredBy||''},${c.joinedAt||''},${c.ordersCount||0},${c.status}`)).join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='customers.csv'; a.click(); URL.revokeObjectURL(url); }} className="px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-1"><Download size={12}/>CSV</button></div>
+                        {editingCustomer ? (
+                          <div className="bg-gray-50 rounded-2xl p-5 border space-y-4">
+                            <div className="grid md:grid-cols-2 gap-3">
+                              <div><label className="text-xs font-bold mb-1 block">Name</label><input value={editingCustomer.name} onChange={e=>setEditingCustomer({...editingCustomer, name:e.target.value})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">Email</label><input value={editingCustomer.email} onChange={e=>setEditingCustomer({...editingCustomer, email:e.target.value})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('tier')}</label><select value={editingCustomer.tier||''} onChange={e=>setEditingCustomer({...editingCustomer, tier:e.target.value||null})} className="w-full px-3 py-2 rounded-xl border text-xs"><option value="">{lang==='zh'?'未入會':'None'}</option><option value="classic">Classic</option><option value="signature">Signature</option></select></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('points')}</label><input type="number" value={editingCustomer.points} onChange={e=>setEditingCustomer({...editingCustomer, points:parseInt(e.target.value)||0})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('totalSpent')}</label><input type="number" value={editingCustomer.totalSpent} onChange={e=>setEditingCustomer({...editingCustomer, totalSpent:parseInt(e.target.value)||0})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('birthday')}</label><input type="date" value={editingCustomer.birthday||''} onChange={e=>setEditingCustomer({...editingCustomer, birthday:e.target.value})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('referral')}</label><input value={editingCustomer.referralCode} onChange={e=>setEditingCustomer({...editingCustomer, referralCode:e.target.value})} className="w-full px-3 py-2 rounded-xl border text-xs font-mono"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">Status</label><select value={editingCustomer.status} onChange={e=>setEditingCustomer({...editingCustomer, status:e.target.value})} className="w-full px-3 py-2 rounded-xl border text-xs"><option value="active">active</option><option value="inactive">inactive</option></select></div>
                             </div>
+                            <div className="flex justify-end gap-2"><button onClick={()=>setEditingCustomer(null)} className="px-4 py-2 rounded-xl border text-xs font-bold">{ta('cancel')}</button><button onClick={()=>handleSaveCustomer(editingCustomer)} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Save size={12}/>{ta('save')}</button></div>
                           </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.ministriesTitle?.zh || ''} onChange={(e) => updateSetting('ministriesTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="教会事工介绍" />
-                              <input type="text" value={data.settings.ministriesTitle?.en || ''} onChange={(e) => updateSetting('ministriesTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Our Ministries" />
-                            </div>
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面引言 Intro Description (中文 / EN)</label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              <textarea rows={2} value={data.settings.ministriesIntro?.zh || ''} onChange={(e) => updateSetting('ministriesIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                              <textarea rows={2} value={data.settings.ministriesIntro?.en || ''} onChange={(e) => updateSetting('ministriesIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                          </div>
-                        </div>
+                        ) : (
+                          <div className="overflow-x-auto rounded-2xl border"><table className="w-full text-xs"><thead><tr className="bg-gray-50 border-b text-[11px] uppercase font-bold text-gray-500"><th className="text-left p-3">{ta('customer')}</th><th className="text-left p-3">{ta('tier')}</th><th className="text-left p-3">{ta('points')}</th><th className="text-left p-3">{ta('totalSpent')}</th><th className="text-left p-3">{ta('referral')}</th><th className="text-right p-3">{ta('actions')}</th></tr></thead><tbody>{(adminSearch? data.customers.filter(c=> c.email.toLowerCase().includes(adminSearch.toLowerCase()) || c.name.toLowerCase().includes(adminSearch.toLowerCase()) || c.referralCode?.toLowerCase().includes(adminSearch.toLowerCase())): data.customers).map(c=><tr key={c.id} className="border-b last:border-0 hover:bg-gray-50"><td className="p-3"><div className="flex items-center gap-2"><img src={c.avatar} className="w-6 h-6 rounded-full"/><div><p className="font-bold">{c.name}</p><p className="text-[11px] text-gray-500">{c.email}</p></div></div></td><td className="p-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${c.tier==='signature'?'bg-gray-900 text-white':'bg-primary/10 text-primary'}`}>{c.tier||'None'}</span></td><td className="p-3 font-bold">{c.points}</td><td className="p-3">{formatPrice(c.totalSpent||0)}</td><td className="p-3 font-mono text-[11px]">{c.referralCode} {c.referredBy && <span className="text-gray-400">←{c.referredBy}</span>}</td><td className="p-3 text-right flex justify-end gap-1"><button onClick={()=>setEditingCustomer(c)} className="p-1.5 rounded border border-blue-200 text-blue-600"><Edit3 size={12}/></button><button onClick={()=>handleDeleteCustomer(c.id)} className="p-1.5 rounded border border-red-200 text-red-600"><Trash2 size={12}/></button></td></tr>)}</tbody></table></div>
+                        )}
                       </div>
+                    )}
 
-                      {editingMinistry ? (
-                        /* Edit Ministry form */
-                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
-                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingMinistry.id === 'new' ? (lang === 'zh' ? '新增核心事工' : 'Add Core Ministry') : (lang === 'zh' ? '编辑核心事工' : 'Edit Core Ministry')}
-                          </h3>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">图片链接 / Image URL</label>
-                              <MediaUrlField value={editingMinistry.image} onChange={(image) => setEditingMinistry({ ...editingMinistry, image })} category="images" />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">事工名称 (中文)</label>
-                              <input 
-                                type="text"
-                                value={editingMinistry.name.zh}
-                                onChange={(e) => setEditingMinistry({
-                                  ...editingMinistry,
-                                  name: { ...editingMinistry.name, zh: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Ministry Name (English)</label>
-                              <input 
-                                type="text"
-                                value={editingMinistry.name.en}
-                                onChange={(e) => setEditingMinistry({
-                                  ...editingMinistry,
-                                  name: { ...editingMinistry.name, en: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">事工详细介绍 (中文)</label>
-                              <textarea
-                                rows={4}
-                                value={editingMinistry.description.zh}
-                                onChange={(e) => setEditingMinistry({
-                                  ...editingMinistry,
-                                  description: { ...editingMinistry.description, zh: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Ministry Description (English)</label>
-                              <textarea
-                                rows={4}
-                                value={editingMinistry.description.en}
-                                onChange={(e) => setEditingMinistry({
-                                  ...editingMinistry,
-                                  description: { ...editingMinistry.description, en: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                            <button
-                              onClick={() => setEditingMinistry(null)}
-                              className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all"
-                            >
-                              {lang === 'zh' ? '取消' : 'Cancel'}
-                            </button>
-                            <button
-                              onClick={() => handleSaveMinistry(editingMinistry)}
-                              className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"
-                            >
-                              <Save size={13} />
-                              <span>{lang === 'zh' ? '保存事工' : 'Save Ministry'}</span>
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        /* Ministry list */
-                        <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {data.ministries.map((min, idx) => (
-                            <div key={min.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                              <div className="flex gap-4 items-center w-full sm:w-3/4">
-                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
-                                <img src={min.image} alt="Preview" className="w-16 h-16 object-cover rounded-lg shrink-0 border border-gray-200" />
-                                <div className="space-y-1">
-                                  <h4 className="font-bold text-sm text-gray-900">{min.name.zh} / {min.name.en}</h4>
-                                  <p className="text-xs text-gray-500 font-light line-clamp-1">{min.description.zh}</p>
-                                </div>
-                              </div>
-                              <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
-                                <button
-                                  onClick={() => handleMoveItem('ministries', idx, 'up')}
-                                  disabled={idx === 0}
-                                  title={lang === 'zh' ? '上移' : 'Move up'}
-                                  className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
-                                >
-                                  <ArrowUp size={14} />
-                                </button>
-                                <button
-                                  onClick={() => handleMoveItem('ministries', idx, 'down')}
-                                  disabled={idx === data.ministries.length - 1}
-                                  title={lang === 'zh' ? '下移' : 'Move down'}
-                                  className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
-                                >
-                                  <ArrowDown size={14} />
-                                </button>
-                                <button
-                                  onClick={() => setEditingMinistry(min)}
-                                  className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
-                                >
-                                  <Edit3 size={14} />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteMinistry(min.id)}
-                                  className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
+                    {/* Membership */}
+                    {adminActiveSection==='membership' && (
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-black">{ta('membershipTiers')}</h2>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {(data.settings.membership?.tiers||[]).map((tier, idx)=>(
+                            <div key={tier.id} className="rounded-2xl border p-5 space-y-3 bg-gray-50">
+                              <h4 className="font-black text-sm flex items-center gap-2"><Crown size={14}/>{tier.id} - {t(tier.name)}</h4>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div><label className="text-[11px] font-bold">{ta('pointsRate')} ($1=)</label><input type="number" step="0.1" value={tier.pointsRate} onChange={e=>{ const updated={...data}; updated.settings.membership.tiers[idx].pointsRate=parseFloat(e.target.value)||1; saveAllData(updated); }} className="w-full px-2 py-1.5 rounded-lg border text-xs"/></div>
+                                <div><label className="text-[11px] font-bold">{ta('referralBonus')}</label><input type="number" value={tier.referralBonus} onChange={e=>{ const updated={...data}; updated.settings.membership.tiers[idx].referralBonus=parseInt(e.target.value)||0; saveAllData(updated); }} className="w-full px-2 py-1.5 rounded-lg border text-xs"/></div>
+                                <div><label className="text-[11px] font-bold">{ta('birthdayReward')} Coupon HK$</label><input type="number" value={tier.birthdayCoupon} onChange={e=>{ const updated={...data}; updated.settings.membership.tiers[idx].birthdayCoupon=parseInt(e.target.value)||0; saveAllData(updated); }} className="w-full px-2 py-1.5 rounded-lg border text-xs"/></div>
+                                <div><label className="text-[11px] font-bold">Birthday Multiplier x</label><input type="number" step="0.1" value={tier.birthdayMultiplier} onChange={e=>{ const updated={...data}; updated.settings.membership.tiers[idx].birthdayMultiplier=parseFloat(e.target.value)||1; saveAllData(updated); }} className="w-full px-2 py-1.5 rounded-lg border text-xs"/></div>
+                                <div><label className="text-[11px] font-bold">Min Enroll $</label><input type="number" value={tier.minSpendToEnroll} onChange={e=>{ const updated={...data}; updated.settings.membership.tiers[idx].minSpendToEnroll=parseInt(e.target.value)||0; saveAllData(updated); }} className="w-full px-2 py-1.5 rounded-lg border text-xs"/></div>
+                                <div><label className="text-[11px] font-bold">Upgrade to Next $</label><input type="number" value={tier.minSpendToUpgrade} onChange={e=>{ const updated={...data}; updated.settings.membership.tiers[idx].minSpendToUpgrade=parseInt(e.target.value)||0; saveAllData(updated); }} className="w-full px-2 py-1.5 rounded-lg border text-xs"/></div>
+                                <div className="col-span-2"><label className="text-[11px] font-bold">Benefits (ZH comma)</label><input value={(tier.benefits?.zh||[]).join(', ')} onChange={e=>{ const updated={...data}; updated.settings.membership.tiers[idx].benefits={...(updated.settings.membership.tiers[idx].benefits||{}), zh: e.target.value.split(',').map(s=>s.trim()).filter(Boolean)}; saveAllData(updated); }} className="w-full px-2 py-1.5 rounded-lg border text-xs"/></div>
+                                <div className="col-span-2"><label className="text-[11px] font-bold">Benefits (EN comma)</label><input value={(tier.benefits?.en||[]).join(', ')} onChange={e=>{ const updated={...data}; updated.settings.membership.tiers[idx].benefits={...(updated.settings.membership.tiers[idx].benefits||{}), en: e.target.value.split(',').map(s=>s.trim()).filter(Boolean)}; saveAllData(updated); }} className="w-full px-2 py-1.5 rounded-lg border text-xs"/></div>
                               </div>
                             </div>
                           ))}
                         </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* SECTION 5: EVENTS */}
-                  {adminActiveSection === 'events' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-start gap-4">
-                        <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '特别/近期活动内容管理' : 'Events Post Manager'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '在这里发布新活动通告、修改庆典、营会、健康检查等活动讯息' : 'Publish or update special holiday activities, camps, charity events, medical checks'}</p>
-                          <label className="mt-3 inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-gray-700">
-                            <input type="checkbox" checked={data.settings.eventPopupEnabled === true} onChange={(e) => updateSetting('eventPopupEnabled', null, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
-                            <span>{lang === 'zh' ? '访客每次打开网站时显示活动弹窗' : 'Show event pop-up whenever visitors open the website'}</span>
-                          </label>
+                        <div className="rounded-2xl border p-5 bg-amber-50 space-y-2">
+                          <h4 className="font-bold text-sm">{lang==='zh'?'積分規則':'Points Rules'}</h4>
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div><label className="font-bold">Expiration Months</label><input type="number" value={data.settings.membership?.points?.expirationMonths||12} onChange={e=>updateNestedSetting('membership.points.expirationMonths', parseInt(e.target.value)||12)} className="w-full px-2 py-1.5 rounded-lg border"/></div>
+                            <div><label className="font-bold">Birthday Limit $</label><input type="number" value={data.settings.membership?.points?.birthdayMonthLimit||10000} onChange={e=>updateNestedSetting('membership.points.birthdayMonthLimit', parseInt(e.target.value)||10000)} className="w-full px-2 py-1.5 rounded-lg border"/></div>
+                          </div>
                         </div>
-                        {editingEvent === null && (
-                          <button
-                            onClick={() => setEditingEvent({
-                              id: 'new',
-                              title: { zh: '新活动发布标题', en: 'New Special Event' },
-                              date: new Date().toISOString().slice(0, 10),
-                              time: '9:00 AM - 12:00 PM',
-                              location: { zh: '教会礼堂', en: 'Church Hall' },
-                              image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=800&q=80',
-                              popupEnabled: false,
-                              registrationUrl: '',
-                              description: { zh: '在此处填写新活动详情和报名信息。', en: 'Write detail registration or information here.' }
-                            })}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                          >
-                            <Plus size={14} />
-                            <span>{lang === 'zh' ? '发布新活动' : 'Publish Event'}</span>
-                          </button>
+                      </div>
+                    )}
+
+                    {/* Reviews */}
+                    {adminActiveSection==='reviews' && (
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between"><h2 className="text-xl font-black">{ta('reviews')}</h2><button onClick={()=>setEditingReview({id:'new', customerName:'新用家', avatar:'https://i.pravatar.cc/150?img=1', rating:5, comment:{zh:'很滿意！',en:'Great!'}, productId:data.products[0]?.id||1, productTitle:data.products[0]?.title||{zh:'產品',en:'Product'}, image:data.products[0]?.images[0]||'', date:new Date().toISOString().slice(0,10), verified:true})} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Plus size={14}/>{ta('add')}</button></div>
+                        {editingReview ? (
+                          <div className="bg-gray-50 rounded-2xl p-5 border space-y-3">
+                            <div className="grid md:grid-cols-2 gap-3">
+                              <div><label className="text-xs font-bold mb-1 block">Customer Name</label><input value={editingReview.customerName} onChange={e=>setEditingReview({...editingReview, customerName:e.target.value})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div><label className="text-xs font-bold mb-1 block">Rating</label><input type="number" min={1} max={5} value={editingReview.rating} onChange={e=>setEditingReview({...editingReview, rating:parseInt(e.target.value)||5})} className="w-full px-3 py-2 rounded-xl border text-xs"/></div>
+                              <div className="md:col-span-2"><MediaUrlField value={editingReview.image} onChange={v=>setEditingReview({...editingReview, image:v})} label={ta('imageUrl')}/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('descZh')}</label><textarea value={editingReview.comment.zh} onChange={e=>setEditingReview({...editingReview, comment:{...editingReview.comment, zh:e.target.value}})} className="w-full px-3 py-2 rounded-xl border text-xs" rows={2}/></div>
+                              <div><label className="text-xs font-bold mb-1 block">{ta('descEn')}</label><textarea value={editingReview.comment.en} onChange={e=>setEditingReview({...editingReview, comment:{...editingReview.comment, en:e.target.value}})} className="w-full px-3 py-2 rounded-xl border text-xs" rows={2}/></div>
+                            </div>
+                            <div className="flex justify-end gap-2"><button onClick={()=>setEditingReview(null)} className="px-4 py-2 rounded-xl border text-xs font-bold">{ta('cancel')}</button><button onClick={()=>handleSaveReview(editingReview)} className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-1"><Save size={12}/>{ta('save')}</button></div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">{data.reviews.map(r=><div key={r.id} className="flex items-center gap-3 p-3 border rounded-xl bg-gray-50"><img src={r.image} className="w-12 h-12 rounded-lg object-cover"/><div className="flex-1"><p className="font-bold text-xs">{r.customerName} • {r.rating}★</p><p className="text-[11px] text-gray-500 line-clamp-1">{t(r.comment)}</p></div><div className="flex gap-1"><button onClick={()=>setEditingReview(r)} className="p-1.5 rounded border border-blue-200 text-blue-600"><Edit3 size={12}/></button><button onClick={()=>handleDeleteReview(r.id)} className="p-1.5 rounded border border-red-200 text-red-600"><Trash2 size={12}/></button></div></div>)}</div>
                         )}
                       </div>
+                    )}
 
-                      {/* Events Page Header Settings */}
-                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
-                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                          <Info size={14} className="text-primary" />
-                          <span>{lang === 'zh' ? '页面顶栏与引言设置' : 'Page Header & Intro Settings'}</span>
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.eventsBadge?.zh || ''} onChange={(e) => updateSetting('eventsBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="教会精彩纪实与未来计划" />
-                              <input type="text" value={data.settings.eventsBadge?.en || ''} onChange={(e) => updateSetting('eventsBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Highlights & Upcoming Outlines" />
-                            </div>
+                    {adminActiveSection==='media' && (
+                      <MediaStorageManager siteData={data} lang={lang} uploadsEnabled={data.settings?.mediaUploadsEnabled===true} onUploadsEnabledChange={enabled=>saveAllData({...data, settings:{...data.settings, mediaUploadsEnabled: enabled}})} />
+                    )}
+
+                    {adminActiveSection==='backup' && backupAccessGranted && (
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-black">{lang==='zh'?'數據備份、本地恢復與重置':'Backup, Import & Factory Reset'}</h2>
+                        <div className="grid md:grid-cols-2 gap-6">
+                          <div className="bg-gray-50 rounded-xl p-5 border space-y-3">
+                            <h3 className="font-bold text-xs uppercase flex items-center gap-2"><Download size={14} className="text-primary"/>{lang==='zh'?'自動保存到 GitHub':'Auto-Save to GitHub'}</h3>
+                            <div className="flex items-center justify-between"><div><label className="text-xs font-bold">{lang==='zh'?'啟用自動同步':'Enable Auto-Sync'}</label><p className="text-[10px] text-gray-400">{lang==='zh'?'保存後自動推送':'Auto-push after save'}</p></div><button onClick={()=>{ const next=!autoSaveToGithub; setAutoSaveToGithub(next); localStorage.setItem('bmbcc_autosave_github', String(next)); setData(prev=>{ const u={...prev, settings:{...prev.settings, autoSaveToGithub: next}}; localStorage.setItem('bmbcc_site_data', JSON.stringify(stripSensitiveData(u))); return u; }); saveGithubSettingsToCloud({autoSave:next}); }} className={`relative w-11 h-6 rounded-full transition-colors ${autoSaveToGithub?'bg-primary':'bg-gray-300'}`}><span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${autoSaveToGithub?'translate-x-5':''}`}/></button></div>
+                            <div className={autoSaveToGithub?'':'opacity-60'}><label className="block text-xs font-bold mb-1">GitHub PAT</label><input type="password" value={githubPat} onChange={e=>{ setGithubPat(e.target.value); localStorage.setItem('bmbcc_github_pat', e.target.value); saveGithubSettingsToCloud({pat:e.target.value}); }} placeholder="ghp_xxx" className="w-full px-3 py-2 rounded border text-xs font-mono"/><label className="block text-xs font-bold mb-1 mt-3">GitHub Repo</label><input type="text" value={githubRepo} onChange={e=>{ setGithubRepo(e.target.value); localStorage.setItem('bmbcc_github_repo', e.target.value); setData(prev=>{ const u={...prev, settings:{...prev.settings, githubRepo:e.target.value}}; localStorage.setItem('bmbcc_site_data', JSON.stringify(stripSensitiveData(u))); return u; }); saveGithubSettingsToCloud({repo:e.target.value}); }} placeholder="user/repo" className="w-full px-3 py-2 rounded border text-xs font-mono"/></div>
+                            {autoSaveStatus && <div className={`text-xs p-2.5 rounded-lg ${autoSaveStatus==='saving'?'bg-blue-50 text-blue-700 border border-blue-200':autoSaveStatus==='success'?'bg-green-50 text-green-700 border border-green-200':'bg-red-50 text-red-700 border border-red-200'}`}>{autoSaveMessage}</div>}
                           </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.eventsTitle?.zh || ''} onChange={(e) => updateSetting('eventsTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="特别活动预告" />
-                              <input type="text" value={data.settings.eventsTitle?.en || ''} onChange={(e) => updateSetting('eventsTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Special Events" />
-                            </div>
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面引言 Intro Description (中文 / EN)</label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              <textarea rows={2} value={data.settings.eventsIntro?.zh || ''} onChange={(e) => updateSetting('eventsIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                              <textarea rows={2} value={data.settings.eventsIntro?.en || ''} onChange={(e) => updateSetting('eventsIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                          </div>
+                          <div className="bg-gray-50 rounded-xl p-5 border space-y-3"><h3 className="font-bold text-xs uppercase flex items-center gap-2"><Download size={14}/>{lang==='zh'?'備份：導出數據文件':'Export JSON'}</h3><p className="text-xs text-gray-500">{lang==='zh'?'下載所有網站數據為JSON備份文件':'Download all site data as JSON backup'}</p><button onClick={handleExportData} className="px-4 py-2.5 rounded-lg bg-primary text-white font-bold text-xs flex items-center gap-1.5"><Download size={14}/>{lang==='zh'?'導出並下載 JSON':'Download JSON'}</button></div>
+                          <div className="bg-red-50/50 rounded-xl p-5 border border-red-200 space-y-3"><h3 className="font-bold text-xs uppercase flex items-center gap-2 text-red-600"><AlertTriangle size={14}/>{lang==='zh'?'重置：清空並恢復出廠默認':'Factory Reset'}</h3><p className="text-xs text-gray-500">{lang==='zh'?'重置後所有本地修改將被清空':'All local modifications will be cleared'}</p><button onClick={handleResetToDefault} className="px-4 py-2.5 rounded-lg bg-red-600 text-white font-bold text-xs flex items-center gap-1.5"><Trash2 size={14}/>{lang==='zh'?'強力重置回默認':'Force Factory Reset'}</button></div>
+                          <div className="md:col-span-2 bg-gray-50 rounded-xl p-5 border space-y-3"><h3 className="font-bold text-xs uppercase flex items-center gap-2 text-blue-600"><Upload size={14}/>{lang==='zh'?'恢復：導入備份數據':'Restore / Import JSON'}</h3><form onSubmit={handleImportData} className="space-y-3"><textarea rows={6} value={importJsonText} onChange={e=>setImportJsonText(e.target.value)} placeholder='{"settings":{...},"products":[...]}' required className="w-full p-3 font-mono text-[11px] bg-white border rounded focus:outline-none focus:ring-1 focus:ring-primary"/><button type="submit" className="px-4 py-2.5 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center gap-1.5"><Upload size={14}/>{lang==='zh'?'驗證並導入':'Verify & Import'}</button></form>{importError && <div className="text-xs text-red-600 bg-red-50 p-2.5 rounded border border-red-100">{importError}</div>}</div>
                         </div>
                       </div>
-
-                      {editingEvent ? (
-                        /* Edit Event Form */
-                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
-                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingEvent.id === 'new' ? (lang === 'zh' ? '发布全新特别活动' : 'Publish New Activity') : (lang === 'zh' ? '编辑特别活动文案' : 'Edit Event Content')}
-                          </h3>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">配图链接 / Cover Image URL</label>
-                              <MediaUrlField value={editingEvent.image} onChange={(image) => setEditingEvent({ ...editingEvent, image })} category="galleries" />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">活动标题 (中文)</label>
-                              <input 
-                                type="text"
-                                value={editingEvent.title.zh}
-                                onChange={(e) => setEditingEvent({
-                                  ...editingEvent,
-                                  title: { ...editingEvent.title, zh: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Event Title (English)</label>
-                              <input 
-                                type="text"
-                                value={editingEvent.title.en}
-                                onChange={(e) => setEditingEvent({
-                                  ...editingEvent,
-                                  title: { ...editingEvent.title, en: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">活动日期 / Event Date (例如: 2026-08-15)</label>
-                              <input
-                                type="date"
-                                value={editingEvent.date}
-                                onChange={(e) => setEditingEvent({ ...editingEvent, date: e.target.value })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">具体时间段 / Specific Time Frame</label>
-                              <input
-                                type="text"
-                                value={editingEvent.time}
-                                onChange={(e) => setEditingEvent({ ...editingEvent, time: e.target.value })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">举办具体地点 (中文)</label>
-                              <input
-                                type="text"
-                                value={editingEvent.location.zh}
-                                onChange={(e) => setEditingEvent({
-                                  ...editingEvent,
-                                  location: { ...editingEvent.location, zh: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Event Location (English)</label>
-                              <input
-                                type="text"
-                                value={editingEvent.location.en}
-                                onChange={(e) => setEditingEvent({
-                                  ...editingEvent,
-                                  location: { ...editingEvent.location, en: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">活动详细文案 (中文)</label>
-                              <textarea 
-                                rows={4}
-                                value={editingEvent.description.zh}
-                                onChange={(e) => setEditingEvent({
-                                  ...editingEvent,
-                                  description: { ...editingEvent.description, zh: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">Event Detail Description (English)</label>
-                              <textarea 
-                                rows={4}
-                                value={editingEvent.description.en}
-                                onChange={(e) => setEditingEvent({
-                                  ...editingEvent,
-                                  description: { ...editingEvent.description, en: e.target.value }
-                                })}
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                              />
-                            </div>
-
-                            <div className="md:col-span-2">
-                              <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-gray-600">
-                                <input
-                                  type="checkbox"
-                                  checked={editingEvent.popupEnabled === true}
-                                  onChange={(e) => setEditingEvent({ ...editingEvent, popupEnabled: e.target.checked })}
-                                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                />
-                                <span>{lang === 'zh' ? '在首页弹窗中显示此活动' : 'Show this event in the homepage popup'}</span>
-                              </label>
-                              <p className="text-[10px] text-gray-400 mt-1 ml-6">{lang === 'zh' ? '仅勾选的活动才会在访客打开网站时以弹窗形式展示' : 'Only events with this checked will appear in the popup when visitors open the website'}</p>
-                            </div>
-
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">
-                                {lang === 'zh' ? '报名链接 (Google Form 等)' : 'Registration URL (Google Form etc.)'}
-                              </label>
-                              <input 
-                                type="text" 
-                                value={editingEvent.registrationUrl || ''} 
-                                onChange={(e) => setEditingEvent({ ...editingEvent, registrationUrl: e.target.value })} 
-                                placeholder="https://docs.google.com/forms/d/..." 
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" 
-                              />
-                              <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '💡 填写后可让访客直接从活动页面点击“立即报名”跳转到报名表单。留空则不显示报名按钮。' : '💡 When filled, visitors can click "Register Now" on the event to go directly to the form. Leave empty to hide the button.'}</p>
-                            </div>
-                          </div>
-
-                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                            <button
-                              onClick={() => setEditingEvent(null)}
-                              className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all"
-                            >
-                              {lang === 'zh' ? '取消' : 'Cancel'}
-                            </button>
-                            <button
-                              onClick={() => handleSaveEvent(editingEvent)}
-                              className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"
-                            >
-                              <Save size={13} />
-                              <span>{lang === 'zh' ? '发布活动' : 'Publish Event'}</span>
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        /* Event list for edit */
-                        <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {data.events.map((evt, idx) => (
-                            <div key={evt.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                              <div className="flex gap-4 items-center w-full sm:w-3/4">
-                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
-                                <img src={evt.image} alt="Preview" className="w-16 h-16 object-cover rounded-lg shrink-0 border border-gray-200" />
-                                <div className="space-y-1">
-                                  <h4 className="font-bold text-sm text-gray-900">{evt.title.zh} / {evt.title.en}</h4>
-                                  <div className="flex items-center gap-1 text-[11px] text-primary font-bold">
-                                    <Calendar size={11} />
-                                    <span>{evt.date}</span>
-                                    <span className="text-gray-400 font-light">({evt.time})</span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${evt.popupEnabled ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400'}`}>
-                                      {evt.popupEnabled ? (lang === 'zh' ? '🔔 弹窗' : '🔔 Popup') : (lang === 'zh' ? '静默' : 'Silent')}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
-                                <button
-                                  onClick={() => handleMoveItem('events', idx, 'up')}
-                                  disabled={idx === 0}
-                                  title={lang === 'zh' ? '上移' : 'Move up'}
-                                  className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
-                                >
-                                  <ArrowUp size={14} />
-                                </button>
-                                <button
-                                  onClick={() => handleMoveItem('events', idx, 'down')}
-                                  disabled={idx === data.events.length - 1}
-                                  title={lang === 'zh' ? '下移' : 'Move down'}
-                                  className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
-                                >
-                                  <ArrowDown size={14} />
-                                </button>
-                                <button
-                                  onClick={() => setEditingEvent(evt)}
-                                  className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"
-                                >
-                                  <Edit3 size={14} />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteEvent(evt.id)}
-                                  className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-
-                  {/* SECTION: FELLOWSHIP HIGHLIGHTS MANAGER */}
-                  {adminActiveSection === 'fellowshipHighlights' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-start gap-4">
-                        <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '聚会点滴管理' : 'Fellowship Highlights Manager'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理团契活动的精彩瞬间照片集' : 'Manage photo highlights from gatherings, services, and events'}</p>
-                        </div>
-                        <button
-                          onClick={() => setEditingFellowshipHighlight({
-                            id: Math.max(...(data.fellowshipHighlights || []).map(h => h.id), 0) + 1,
-                            isNew: true,
-                            title: { zh: '新聚会点滴', en: 'New Fellowship Highlight' },
-                            date: new Date().toISOString().slice(0, 10),
-                            description: { zh: '描述...', en: 'Description...' },
-                            images: []
-                          })}
-                          className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                        >
-                          <Plus size={14} />
-                          <span>{lang === 'zh' ? '添加精彩集' : 'Add Highlight'}</span>
-                        </button>
-                      </div>
-
-                      {editingFellowshipHighlight ? (
-                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
-                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingFellowshipHighlight.isNew ? (lang === 'zh' ? '新增聚会点滴集' : 'Add New Highlight') : (lang === 'zh' ? '编辑聚会点滴集' : 'Edit Highlight')}
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '标题 (中文)' : 'Title (Chinese)'}</label>
-                              <input type="text" value={editingFellowshipHighlight.title.zh} onChange={(e) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, title: { ...editingFellowshipHighlight.title, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Title (English)' : 'Title (English)'}</label>
-                              <input type="text" value={editingFellowshipHighlight.title.en} onChange={(e) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, title: { ...editingFellowshipHighlight.title, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '日期' : 'Date'}</label>
-                              <input type="date" value={editingFellowshipHighlight.date} onChange={(e) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, date: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '描述 (中文)' : 'Description (Chinese)'}</label>
-                              <textarea rows={2} value={editingFellowshipHighlight.description.zh} onChange={(e) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, description: { ...editingFellowshipHighlight.description, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Description (English)' : 'Description (English)'}</label>
-                              <textarea rows={2} value={editingFellowshipHighlight.description.en} onChange={(e) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, description: { ...editingFellowshipHighlight.description, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '照片（云端媒体或外部链接）' : 'Photos (Cloud Media or External URLs)'}</label>
-                              <p className="text-[10px] text-gray-400 mb-2">{lang === 'zh' ? '添加照片 URL，每行一个。支持云端媒体上传和外部链接。' : 'Add photo URLs, one per line. Supports media uploads and external links.'}</p>
-                              <MediaUrlField
-                                value=""
-                                onChange={(url) => setEditingFellowshipHighlight({ ...editingFellowshipHighlight, images: [...(editingFellowshipHighlight.images || []), url] })}
-                                category="galleries"
-                                highlightId={editingFellowshipHighlight.id}
-                                label={lang === 'zh' ? '上传照片到此精彩集' : 'Upload a photo to this highlight'}
-                              />
-                              <textarea 
-                                rows={5} 
-                                value={(editingFellowshipHighlight.images || []).join('\n')} 
-                                onChange={(e) => setEditingFellowshipHighlight({ 
-                                  ...editingFellowshipHighlight, 
-                                  images: e.target.value.split('\n').filter(url => url.trim()) 
-                                })} 
-                                placeholder="https://...\nhttps://..." 
-                                className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono" 
-                              />
-                            </div>
-                          </div>
-                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                            <button onClick={() => setEditingFellowshipHighlight(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
-                            <button onClick={() => handleSaveFellowshipHighlight(editingFellowshipHighlight)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {(data.fellowshipHighlights || []).map((highlight, idx) => (
-                            <div key={highlight.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                              <div className="flex gap-3 items-center w-full sm:w-3/4">
-                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
-                                <div className="w-16 h-12 bg-gray-200 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-                                  {highlight.images && highlight.images.length > 0 ? (
-                                    <img src={highlight.images[0]} alt="Preview" className="w-full h-full object-cover" />
-                                  ) : (
-                                    <Camera className="text-gray-400" size={20} />
-                                  )}
-                                </div>
-                                <div className="space-y-1">
-                                  <h4 className="font-bold text-sm text-gray-900">{highlight.title.zh} / {highlight.title.en}</h4>
-                                  <p className="text-xs text-gray-500">{highlight.date} • {highlight.images?.length || 0} {lang === 'zh' ? '张照片' : 'photos'}</p>
-                                </div>
-                              </div>
-                              <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
-                                <button onClick={() => handleMoveItem('fellowshipHighlights', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
-                                <button onClick={() => handleMoveItem('fellowshipHighlights', idx, 'down')} disabled={idx === (data.fellowshipHighlights || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
-                                <button onClick={() => setEditingFellowshipHighlight(highlight)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
-                                <button onClick={() => handleDeleteFellowshipHighlight(highlight.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
-                              </div>
-                            </div>
-                          ))}
-                          {(data.fellowshipHighlights || []).length === 0 && (
-                            <div className="text-center py-8 text-gray-400 text-xs border border-dashed border-gray-300 rounded-xl bg-white">
-                              {lang === 'zh' ? '暂无聚会点滴集，点击上方按钮添加' : 'No fellowship highlights yet. Click the button above to add one.'}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-
-
-                  {/* SECTION: ABOUT US SETTINGS */}
-                  {adminActiveSection === 'about' && (
-                    <div className="space-y-6">
-                      <div>
-                        <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '关于我们设置' : 'About Us Settings'}</h2>
-                        <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '集中管理关于我们页面、首页异象与牧者同工资料' : 'Manage About Us content, Home Vision, Yearly Vision, and leaders in one place'}</p>
-                      </div>
-                      <div className="flex flex-wrap gap-2 border-b border-gray-200">
-                        {[
-                          { id: 'about', zh: '关于我们', en: 'About Us' },
-                          { id: 'homeVision', zh: '首页异象', en: 'Home Vision' },
-                          { id: 'yearlyVision', zh: '年度异象', en: 'Yearly Vision' },
-                          { id: 'leaders', zh: '牧者与同工', en: 'Pastors & Leaders' }
-                        ].map((tab) => (
-                          <button key={tab.id} type="button" onClick={() => { setAboutSettingsTab(tab.id); setEditingLeader(null); }} className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors ${aboutSettingsTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'}`}>
-                            {lang === 'zh' ? tab.zh : tab.en}
-                          </button>
-                        ))}
-                      </div>
-                      {aboutSettingsTab !== 'leaders' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {aboutSettingsTab === 'about' && (<>
-                        {/* ===== About Page Content ===== */}
-                        <div className="md:col-span-2 pt-4 mt-2 border-t border-gray-100">
-                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2"><Info size={14} className="text-primary" /> {lang === 'zh' ? '关于我们页面内容设置' : 'About Us Page Content Settings'}</h3>
-                          <p className="text-[10px] text-gray-500 mb-3">{lang === 'zh' ? '以下内容显示在“关于我们”页面的顶栏小标题、标题、顶部介绍文案、愿景与使命（牧者团队标题请在“牧者与领袖”标签中设置）' : 'Configure About Us top header badges, title, introduction text, and vision & mission cards (leadership team headers are managed in the Pastors & Leaders tab)'}</p>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文)</label>
-                          <input
-                            type="text"
-                            value={data.settings.aboutBadge?.zh || ''}
-                            onChange={(e) => updateSetting('aboutBadge', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                            placeholder="了解我们大山脚浸信教会"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Header Badge (English)</label>
-                          <input
-                            type="text"
-                            value={data.settings.aboutBadge?.en || ''}
-                            onChange={(e) => updateSetting('aboutBadge', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                            placeholder="Get to Know BMBCC"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">页面大标题 Title (中文)</label>
-                          <input
-                            type="text"
-                            value={data.settings.aboutTitle?.zh || ''}
-                            onChange={(e) => updateSetting('aboutTitle', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                            placeholder="关于我们"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Page Title (English)</label>
-                          <input
-                            type="text"
-                            value={data.settings.aboutTitle?.en || ''}
-                            onChange={(e) => updateSetting('aboutTitle', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                            placeholder="About Us"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">关于我们顶部引言 / Top Intro (中文)</label>
-                          <textarea
-                            rows={3}
-                            value={data.settings.aboutIntro?.zh || ''}
-                            onChange={(e) => updateSetting('aboutIntro', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">About Top Intro (English)</label>
-                          <textarea
-                            rows={3}
-                            value={data.settings.aboutIntro?.en || ''}
-                            onChange={(e) => updateSetting('aboutIntro', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">教会愿景 Vision (中文)</label>
-                          <textarea
-                            rows={2}
-                            value={data.settings.aboutVision?.zh || ''}
-                            onChange={(e) => updateSetting('aboutVision', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Church Vision (English)</label>
-                          <textarea
-                            rows={2}
-                            value={data.settings.aboutVision?.en || ''}
-                            onChange={(e) => updateSetting('aboutVision', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">教会使命 Mission (中文)</label>
-                          <textarea
-                            rows={3}
-                            value={data.settings.aboutMission?.zh || ''}
-                            onChange={(e) => updateSetting('aboutMission', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Church Mission (English)</label>
-                          <textarea
-                            rows={3}
-                            value={data.settings.aboutMission?.en || ''}
-                            onChange={(e) => updateSetting('aboutMission', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                          </>)}
-                          {aboutSettingsTab === 'homeVision' && (<>
-                        <div className="md:col-span-2 pt-4 mt-2 border-t border-gray-100">
-                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2"><Sparkles size={14} className="text-primary" /> {lang === 'zh' ? '首页愿景详细段落' : 'Home Vision Paragraphs'}</h3>
-                          <p className="text-[10px] text-gray-500 mb-3">{lang === 'zh' ? '显示在首页年度主题与异象卡片下方的两段介绍文字' : 'Two paragraphs shown under Yearly Vision card on Home page'}</p>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">首页愿景段落1 (中文)</label>
-                          <textarea
-                            rows={3}
-                            value={data.settings.homeVisionPara1?.zh || ''}
-                            onChange={(e) => updateSetting('homeVisionPara1', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Home Vision Para 1 (English)</label>
-                          <textarea
-                            rows={3}
-                            value={data.settings.homeVisionPara1?.en || ''}
-                            onChange={(e) => updateSetting('homeVisionPara1', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">首页愿景段落2 (中文)</label>
-                          <textarea
-                            rows={3}
-                            value={data.settings.homeVisionPara2?.zh || ''}
-                            onChange={(e) => updateSetting('homeVisionPara2', 'zh', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Home Vision Para 2 (English)</label>
-                          <textarea
-                            rows={3}
-                            value={data.settings.homeVisionPara2?.en || ''}
-                            onChange={(e) => updateSetting('homeVisionPara2', 'en', e.target.value)}
-                            className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                          />
-                        </div>
-
-                          </>)}
-                          {aboutSettingsTab === 'yearlyVision' && (<>
-                        {/* ===== Yearly Vision Image & Scripture Card ===== */}
-                        <div className="md:col-span-2 pt-4 mt-2 border-t border-gray-100">
-                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2"><Sparkles size={14} className="text-primary" /> {lang === 'zh' ? '首页 - 年度异象卡片（图片与经文）' : 'Home - Yearly Vision Card (Image & Scripture)'}</h3>
-                          <p className="text-[10px] text-gray-500 mb-3">{lang === 'zh' ? '编辑首页年度异象卡片的图片、标签、标题和经文' : 'Edit image, labels, title and scripture of yearly vision card on Home'}</p>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">年度异象标签 (中文) - 小药丸标签</label>
-                          <input type="text" value={data.settings.yearlyVisionLabel?.zh || ''} onChange={(e) => updateSetting('yearlyVisionLabel','zh',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Yearly Vision Label (English)</label>
-                          <input type="text" value={data.settings.yearlyVisionLabel?.en || ''} onChange={(e) => updateSetting('yearlyVisionLabel','en',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">年度异象标题 (中文) - 大标题</label>
-                          <input type="text" value={data.settings.yearlyVisionTitle?.zh || ''} onChange={(e) => updateSetting('yearlyVisionTitle','zh',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Yearly Vision Title (English)</label>
-                          <input type="text" value={data.settings.yearlyVisionTitle?.en || ''} onChange={(e) => updateSetting('yearlyVisionTitle','en',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-bold text-gray-700 mb-1">年度异象图片链接 / Vision Card Image URL</label>
-                          <input type="text" value={data.settings.yearlyVisionImage || ''} onChange={(e) => updateSetting('yearlyVisionImage', null, e.target.value)} placeholder="https://..." className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                          <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '建议使用 Unsplash 或公网图片链接，例如老鹰展翅图' : 'Use Unsplash or public image URL, e.g. soaring eagle'}</p>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">图片上小标签 (中文) - 如: 展翅高飞 • 广传福音</label>
-                          <input type="text" value={data.settings.yearlyVisionBadge?.zh || ''} onChange={(e) => updateSetting('yearlyVisionBadge','zh',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Image Badge (English)</label>
-                          <input type="text" value={data.settings.yearlyVisionBadge?.en || ''} onChange={(e) => updateSetting('yearlyVisionBadge','en',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">经文内容 (中文) - 图片上的金句</label>
-                          <textarea rows={3} value={data.settings.yearlyVisionScripture?.zh || ''} onChange={(e) => updateSetting('yearlyVisionScripture','zh',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Scripture Text (English)</label>
-                          <textarea rows={3} value={data.settings.yearlyVisionScripture?.en || ''} onChange={(e) => updateSetting('yearlyVisionScripture','en',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">经文出处 (中文) - 如: 约翰福音 3:16</label>
-                          <input type="text" value={data.settings.yearlyVisionRef?.zh || ''} onChange={(e) => updateSetting('yearlyVisionRef','zh',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">Scripture Reference (English) - e.g. John 3:16</label>
-                          <input type="text" value={data.settings.yearlyVisionRef?.en || ''} onChange={(e) => updateSetting('yearlyVisionRef','en',e.target.value)} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                          </>)}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                                    {/* SECTION: LEADERSHIP / PASTOR EDITOR - WITH TABS FOR PASTOR / COWORKER / CELL LEADER */}
-                  {adminActiveSection === 'about' && aboutSettingsTab === 'leaders' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-start gap-4">
-                        <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '牧者同工编辑' : 'Pastor / Leader Editor'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理牧者、传道、长老及事工负责人的资料与简介 - 支持3个分类标签页' : 'Manage pastors, co-workers, cell leaders - 3 tabs supported, same photo URL method for all'}</p>
-                        </div>
-                        {editingLeader === null && (
-                          <button
-                            onClick={() => setEditingLeader({
-                              id: 'new',
-                              category: adminLeadershipTab === 'all' ? 'pastor' : adminLeadershipTab,
-                              name: { zh: '新成员', en: 'New Member' },
-                              role: { zh: '职务', en: 'Role' },
-                              image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=400&q=80',
-                              bio: { zh: '在此填写简介。', en: 'Write biography here.' }
-                            })}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                          >
-                            <Plus size={14} />
-                            <span>{lang === 'zh' ? `添加${LEADERSHIP_CATEGORIES.find(c=>c.id===(adminLeadershipTab==='all'?'pastor':adminLeadershipTab))?.zh || '成员'}` : `Add ${LEADERSHIP_CATEGORIES.find(c=>c.id===(adminLeadershipTab==='all'?'pastor':adminLeadershipTab))?.en || 'Member'}`}</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Leadership Section Header Settings */}
-                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
-                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                          <Info size={14} className="text-primary" />
-                          <span>{lang === 'zh' ? '牧者板块顶栏与引言设置' : 'Section Header & Intro Settings'}</span>
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.leadershipBadge?.zh || ''} onChange={(e) => updateSetting('leadershipBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="属灵领袖与关怀同工" />
-                              <input type="text" value={data.settings.leadershipBadge?.en || ''} onChange={(e) => updateSetting('leadershipBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Spiritual Guides & Shepherds" />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">板块大标题 Title (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.leadershipTitle?.zh || ''} onChange={(e) => updateSetting('leadershipTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="牧者与事工团队" />
-                              <input type="text" value={data.settings.leadershipTitle?.en || ''} onChange={(e) => updateSetting('leadershipTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Leadership Team" />
-                            </div>
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">板块引言 Intro Description (中文 / EN)</label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              <textarea rows={2} value={data.settings.leadershipIntro?.zh || ''} onChange={(e) => updateSetting('leadershipIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                              <textarea rows={2} value={data.settings.leadershipIntro?.en || ''} onChange={(e) => updateSetting('leadershipIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Admin Tabs for Leadership Categories */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <div className="inline-flex p-1 rounded-xl bg-gray-100 border border-gray-200/80 gap-1">
-                          {[{ id: 'all', zh: '全部', en: 'All' }, ...LEADERSHIP_CATEGORIES].map(cat => {
-                            const isActive = adminLeadershipTab === cat.id;
-                            const count = cat.id === 'all' ? (data.leadership || []).length : (data.leadership || []).filter(l => getLeaderCategory(l) === cat.id).length;
-                            return (
-                              <button
-                                key={cat.id}
-                                onClick={() => setAdminLeadershipTab(cat.id)}
-                                className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${isActive ? 'bg-white text-primary shadow-sm border border-primary/10' : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'}`}
-                              >
-                                <span>{lang === 'zh' ? cat.zh : cat.en}</span>
-                                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${isActive ? 'bg-primary/10 text-primary' : 'bg-gray-200 text-gray-600'}`}>{count}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <p className="text-[10px] text-gray-500">
-                          {lang === 'zh' ? '筛选查看不同团队，后台添加时会自动归入当前选中分类（如选“全部”则默认为牧者）' : 'Filter view by team. New members will be added to currently selected tab (defaults to Pastor if All).'}
-                        </p>
-                      </div>
-
-                      {editingLeader ? (
-                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
-                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingLeader.id === 'new' ? (lang === 'zh' ? '新增成员' : 'Add New Member') : (lang === 'zh' ? '编辑成员' : 'Edit Member')}
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Category Selector */}
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '所属团队 / 分类 *' : 'Team / Category *'}</label>
-                              <div className="grid grid-cols-3 gap-2">
-                                {LEADERSHIP_CATEGORIES.map(cat => (
-                                  <button
-                                    key={cat.id}
-                                    type="button"
-                                    onClick={() => setEditingLeader({ ...editingLeader, category: cat.id })}
-                                    className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 ${editingLeader.category === cat.id ? 'bg-primary text-white border-primary shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:border-primary/50 hover:bg-primary/5'}`}
-                                  >
-                                    <span>{lang === 'zh' ? cat.zh : cat.en}</span>
-                                    <span className={`text-[10px] font-normal ${editingLeader.category === cat.id ? 'text-white/80' : 'text-gray-500'}`}>{lang === 'zh' ? cat.zhLong : cat.enLong}</span>
-                                  </button>
-                                ))}
-                              </div>
-                              <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '选择成员属于哪个标签页，与前台显示一致。牧者、同工、小组长都使用相同的照片链接方式。' : 'Choose which tab this member appears in. Same photo URL method works for Pastor, Co-Worker, Cell Leader.'}</p>
-                            </div>
-
-                            {/* Photo URL */}
-                            <div className="md:col-span-2 bg-white p-4 rounded-xl border border-gray-200 space-y-3">
-                              <label className="block text-xs font-bold text-gray-700">{lang === 'zh' ? '照片链接（牧者/同工/小组长通用）' : 'Photo URL (Pastor / Co-Worker / Cell Leader - same method)'}</label>
-                              <div className="flex flex-col sm:flex-row gap-4 items-start">
-                                <div className="w-24 h-32 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0 relative">
-                                  {editingLeader.image ? (
-                                    <img src={editingLeader.image} alt="Preview" className="w-full h-full object-cover" />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-gray-400"><Users size={24} /></div>
-                                  )}
-                                </div>
-                                <div className="flex-1 space-y-2 w-full">
-                                  <div>
-                                    <label className="block text-[11px] font-bold text-gray-600 mb-1">{lang === 'zh' ? '粘贴图片链接 URL' : 'Paste image URL'}</label>
-                                    <MediaUrlField value={editingLeader.image} onChange={(image) => setEditingLeader({ ...editingLeader, image })} category="images" />
-                                  </div>
-                                  <p className="text-[10px] text-gray-500">{lang === 'zh' ? '建议使用图床或教会网站上的图片直链；链接会即时在左侧预览。' : 'Use a direct image link from an image host or the church website; the preview updates instantly on the left.'}</p>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '姓名 (中文)' : 'Name (Chinese)'}</label>
-                              <input type="text" value={editingLeader.name.zh} onChange={(e) => setEditingLeader({ ...editingLeader, name: { ...editingLeader.name, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Name (English)' : 'Name (English)'}</label>
-                              <input type="text" value={editingLeader.name.en} onChange={(e) => setEditingLeader({ ...editingLeader, name: { ...editingLeader.name, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '职位/角色 (中文)' : 'Role (Chinese)'}</label>
-                              <input type="text" value={editingLeader.role.zh} onChange={(e) => setEditingLeader({ ...editingLeader, role: { ...editingLeader.role, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder={lang === 'zh' ? '如：主任牧师 / 同工 / 小组长' : ''} />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Role (English)' : 'Role (English)'}</label>
-                              <input type="text" value={editingLeader.role.en} onChange={(e) => setEditingLeader({ ...editingLeader, role: { ...editingLeader.role, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="e.g. Lead Pastor / Co-Worker / Cell Leader" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '简介 (中文)' : 'Bio (Chinese)'}</label>
-                              <textarea rows={4} value={editingLeader.bio.zh} onChange={(e) => setEditingLeader({ ...editingLeader, bio: { ...editingLeader.bio, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Bio (English)' : 'Bio (English)'}</label>
-                              <textarea rows={4} value={editingLeader.bio.en} onChange={(e) => setEditingLeader({ ...editingLeader, bio: { ...editingLeader.bio, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                          </div>
-                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                            <button onClick={() => setEditingLeader(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
-                            <button onClick={() => handleSaveLeader(editingLeader)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {(() => {
-                            const filtered = adminLeadershipTab === 'all' ? (data.leadership || []) : (data.leadership || []).filter(l => getLeaderCategory(l) === adminLeadershipTab);
-                            if (filtered.length === 0) {
-                              return (
-                                <div className="bg-white rounded-xl border border-dashed border-gray-300 p-8 text-center space-y-2">
-                                  <p className="text-sm text-gray-500">{lang === 'zh' ? `暂无${adminLeadershipTab === 'all' ? '' : LEADERSHIP_CATEGORIES.find(c=>c.id===adminLeadershipTab)?.zh}成员，点击上方添加` : `No ${adminLeadershipTab === 'all' ? '' : LEADERSHIP_CATEGORIES.find(c=>c.id===adminLeadershipTab)?.en} members, click Add above`}</p>
-                                </div>
-                              );
-                            }
-                            return filtered.map((leader, idx) => {
-                              const trueIdx = (data.leadership || []).findIndex(l => l.id === leader.id);
-                              return (
-                              <div key={leader.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                                <div className="flex gap-4 items-center w-full sm:w-3/4">
-                                  <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{trueIdx + 1}</span>
-                                  <img src={leader.image} alt="Preview" className="w-14 h-20 object-cover rounded-lg shrink-0 border border-gray-200 bg-white" />
-                                  <div className="space-y-1">
-                                    <div className="flex items-center gap-2">
-                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getLeaderCategory(leader)==='pastor' ? 'bg-purple-100 text-purple-700' : getLeaderCategory(leader)==='coworker' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                        {getLeaderCategoryLabel(getLeaderCategory(leader), lang)}
-                                      </span>
-                                      <h4 className="font-bold text-sm text-gray-900">{leader.name.zh} / {leader.name.en}</h4>
-                                    </div>
-                                    <p className="text-xs text-primary font-semibold">{leader.role.zh} / {leader.role.en}</p>
-                                    <p className="text-xs text-gray-500 font-light line-clamp-1">{leader.bio.zh}</p>
-                                  </div>
-                                </div>
-                                <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
-                                  <button onClick={() => handleMoveItem('leadership', trueIdx, 'up')} disabled={trueIdx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
-                                  <button onClick={() => handleMoveItem('leadership', trueIdx, 'down')} disabled={trueIdx === (data.leadership || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
-                                  <button onClick={() => setEditingLeader(leader)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
-                                  <button onClick={() => handleDeleteLeader(leader.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
-                                </div>
-                              </div>
-                              );
-                            });
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-
-                  {/* SECTION: OFFERINGS SETTINGS */}
-                  {adminActiveSection === 'offerings' && (
-                    <div className="space-y-6">
-                      <div>
-                        <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '奉献页面设置' : 'Offerings Settings'}</h2>
-                        <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '编辑奉献页面的引言、经文、奉献方式和联系信息' : 'Edit offerings page intro, scripture, giving methods, and contact info'}</p>
-                      </div>
-
-                      <div className="space-y-4 pt-4 border-t border-gray-100">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '奉献引言 (中文)' : 'Intro (Chinese)'}</label>
-                          <textarea rows={3} value={data.offerings?.intro?.zh || ''} onChange={(e) => updateOfferings('intro', { ...(data.offerings?.intro || {}), zh: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Intro (English)' : 'Intro (English)'}</label>
-                          <textarea rows={3} value={data.offerings?.intro?.en || ''} onChange={(e) => updateOfferings('intro', { ...(data.offerings?.intro || {}), en: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '经文引用 (中文)' : 'Scripture Quote (Chinese)'}</label>
-                          <textarea rows={3} value={data.offerings?.scripture?.zh || ''} onChange={(e) => updateOfferings('scripture', { ...(data.offerings?.scripture || {}), zh: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Scripture Quote (English)' : 'Scripture Quote (English)'}</label>
-                          <textarea rows={3} value={data.offerings?.scripture?.en || ''} onChange={(e) => updateOfferings('scripture', { ...(data.offerings?.scripture || {}), en: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '联系备注 (中文)' : 'Contact Note (Chinese)'}</label>
-                          <input type="text" value={data.offerings?.contactNote?.zh || ''} onChange={(e) => updateOfferings('contactNote', { ...(data.offerings?.contactNote || {}), zh: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Contact Note (English)' : 'Contact Note (English)'}</label>
-                          <input type="text" value={data.offerings?.contactNote?.en || ''} onChange={(e) => updateOfferings('contactNote', { ...(data.offerings?.contactNote || {}), en: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        {/* Offering Methods Management */}
-                        <div className="pt-4 border-t border-gray-200">
-                          <div className="flex justify-between items-center mb-3">
-                            <h3 className="text-sm font-bold text-gray-800">{lang === 'zh' ? '奉献方式管理' : 'Giving Methods'}</h3>
-                            {editingOfferingMethod === null && (
-                              <button
-                                onClick={() => setEditingOfferingMethod({
-                                  title: { zh: '', en: '' },
-                                  description: { zh: '', en: '' },
-                                  details: { zh: '', en: '' },
-                                  icon: 'heart',
-                                  qrCodeUrl: ''
-                                })}
-                                className="px-3 py-1.5 rounded bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1 transition-all"
-                              >
-                                <Plus size={12} />
-                                <span>{lang === 'zh' ? '添加奉献方式' : 'Add Method'}</span>
-                              </button>
-                            )}
-                          </div>
-
-                          {editingOfferingMethod !== null ? (
-                            <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in mb-4">
-                              <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                                {editingOfferingMethod.index !== undefined ? (lang === 'zh' ? '编辑奉献方式' : 'Edit Giving Method') : (lang === 'zh' ? '添加奉献方式' : 'Add Giving Method')}
-                              </h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '名称 (中文)' : 'Name (Chinese)'}</label>
-                                  <input type="text" value={editingOfferingMethod.title?.zh || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, title: { ...(editingOfferingMethod.title || {}), zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Name (English)' : 'Name (English)'}</label>
-                                  <input type="text" value={editingOfferingMethod.title?.en || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, title: { ...(editingOfferingMethod.title || {}), en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div className="md:col-span-2">
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '简短描述 (中文)' : 'Short Description (Chinese)'}</label>
-                                  <textarea rows={2} value={editingOfferingMethod.description?.zh || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, description: { ...(editingOfferingMethod.description || {}), zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div className="md:col-span-2">
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Short Description (English)' : 'Short Description (English)'}</label>
-                                  <textarea rows={2} value={editingOfferingMethod.description?.en || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, description: { ...(editingOfferingMethod.description || {}), en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div className="md:col-span-2">
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '详细信息 / 账号信息 (中文)' : 'Details / Account Info (Chinese)'}</label>
-                                  <textarea rows={3} value={editingOfferingMethod.details?.zh || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, details: { ...(editingOfferingMethod.details || {}), zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div className="md:col-span-2">
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Details / Account Info (English)' : 'Details / Account Info (English)'}</label>
-                                  <textarea rows={3} value={editingOfferingMethod.details?.en || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, details: { ...(editingOfferingMethod.details || {}), en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '图标类型' : 'Icon Type'}</label>
-                                  <select value={editingOfferingMethod.icon || 'heart'} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, icon: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none">
-                                    <option value="heart">{lang === 'zh' ? '爱心 (崇拜现场)' : 'Heart (In-Person)'}</option>
-                                    <option value="building">{lang === 'zh' ? '建筑 (银行转账)' : 'Building (Bank Transfer)'}</option>
-                                    <option value="smartphone">{lang === 'zh' ? '手机 (二维码扫码)' : 'Smartphone (E-Giving)'}</option>
-                                    <option value="gift">{lang === 'zh' ? '礼包 (其他方式)' : 'Gift (Other)'}</option>
-                                  </select>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '二维码图片链接' : 'QR Code Image URL'}</label>
-                                  <input type="text" value={editingOfferingMethod.qrCodeUrl || ''} onChange={(e) => setEditingOfferingMethod({ ...editingOfferingMethod, qrCodeUrl: e.target.value })} placeholder="https://example.com/qrcode.png" className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                  <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '留空则不显示二维码。可直接粘贴公网图片链接。' : 'Leave empty if no QR code. Paste a direct image URL.'}</p>
-                                </div>
-                              </div>
-                              <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                                <button onClick={() => setEditingOfferingMethod(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
-                                <button onClick={() => handleSaveOfferingMethod(editingOfferingMethod, editingOfferingMethod.index)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {(data.offerings?.methods || []).map((method, idx) => (
-                                <div key={method.id || idx} className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex flex-col sm:flex-row gap-3 items-center justify-between">
-                                  <div className="flex gap-3 items-center w-full sm:w-3/4">
-                                    <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
-                                    <div className="p-2 rounded bg-primary/10 text-primary shrink-0">
-                                      {method.icon === 'heart' && <HandHeart size={16} />}
-                                      {method.icon === 'building' && <Building size={16} />}
-                                      {method.icon === 'smartphone' && <Smartphone size={16} />}
-                                      {!['heart','building','smartphone'].includes(method.icon) && <Gift size={16} />}
-                                    </div>
-                                    <div className="space-y-0.5">
-                                      <span className="font-bold text-sm text-gray-900">{method.title.zh} / {method.title.en}</span>
-                                      <p className="text-xs text-gray-500 line-clamp-1">{method.description.zh}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
-                                    <button onClick={() => handleMoveItem('offerings.methods', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
-                                    <button onClick={() => handleMoveItem('offerings.methods', idx, 'down')} disabled={idx === (data.offerings?.methods || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
-                                    <button onClick={() => setEditingOfferingMethod({ ...method, index: idx })} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
-                                    <button onClick={() => handleDeleteOfferingMethod(idx)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* SECTION: BULLETINS & SERMONS MANAGER (Combined) */}
-                  {adminActiveSection === 'bulletins' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-start gap-4">
-                        <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '家事与讲道库管理' : 'Bulletins & Sermon Library Manager'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理教会家事、月刊与讲道视频' : 'Manage church bulletins, newsletters, and sermon videos'}</p>
-                        </div>
-                        {bulletinsTab === 'bulletins' && editingBulletin === null && (
-                          <button
-                            onClick={() => setEditingBulletin({
-                              id: 'new',
-                              title: { zh: '新家事', en: 'New Bulletin' },
-                              date: new Date().toISOString().slice(0, 10),
-                              category: { zh: '家事', en: 'Bulletin' },
-                              fileUrl: '#',
-                              summary: { zh: '家事摘要...', en: 'Bulletin summary...' },
-                              highlights: { zh: '• 要点1\n• 要点2', en: '• Point 1\n• Point 2' }
-                            })}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                          >
-                            <Plus size={14} />
-                            <span>{lang === 'zh' ? '发布家事' : 'Publish Bulletin'}</span>
-                          </button>
-                        )}
-                        {bulletinsTab === 'sermons' && editingSermon === null && (
-                          <button
-                            onClick={() => setEditingSermon({
-                              id: 'new',
-                              title: { zh: '新讲道', en: 'New Sermon' },
-                              preacher: { zh: '讲员姓名', en: 'Preacher Name' },
-                              date: new Date().toISOString().slice(0, 10),
-                              videoUrl: 'https://www.youtube.com/watch?v=',
-                              series: { zh: '讲道系列', en: 'Sermon Series' },
-                              scripture: '',
-                              description: { zh: '讲道描述...', en: 'Sermon description...' },
-                              thumbnail: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80'
-                            })}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                          >
-                            <Plus size={14} />
-                            <span>{lang === 'zh' ? '添加讲道' : 'Add Sermon'}</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Tab Switcher */}
-                      <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200/60">
-                        <button
-                          onClick={() => setBulletinsTab('bulletins')}
-                          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                            bulletinsTab === 'bulletins'
-                              ? 'bg-white text-primary shadow-sm'
-                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                          }`}
-                        >
-                          <FileText size={14} />
-                          <span>{lang === 'zh' ? '家事/月刊' : 'Bulletins'}</span>
-                        </button>
-                        <button
-                          onClick={() => setBulletinsTab('sermons')}
-                          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                            bulletinsTab === 'sermons'
-                              ? 'bg-white text-primary shadow-sm'
-                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
-                          }`}
-                        >
-                          <BookOpen size={14} />
-                          <span>{lang === 'zh' ? '讲道库' : 'Sermons'}</span>
-                        </button>
-                      </div>
-
-                      {/* Bulletins Page Header Settings */}
-                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
-                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                          <Info size={14} className="text-primary" />
-                          <span>{lang === 'zh' ? '页面顶栏与引言设置' : 'Page Header & Intro Settings'}</span>
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.bulletinsBadge?.zh || ''} onChange={(e) => updateSetting('bulletinsBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="教会资源中心" />
-                              <input type="text" value={data.settings.bulletinsBadge?.en || ''} onChange={(e) => updateSetting('bulletinsBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Church Resource Centre" />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.bulletinsTitle?.zh || ''} onChange={(e) => updateSetting('bulletinsTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="家事与讲道库" />
-                              <input type="text" value={data.settings.bulletinsTitle?.en || ''} onChange={(e) => updateSetting('bulletinsTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Bulletins & Sermon Library" />
-                            </div>
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面引言 Intro Description (中文 / EN)</label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              <textarea rows={2} value={data.settings.bulletinsIntro?.zh || ''} onChange={(e) => updateSetting('bulletinsIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                              <textarea rows={2} value={data.settings.bulletinsIntro?.en || ''} onChange={(e) => updateSetting('bulletinsIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {bulletinsTab === 'bulletins' && editingBulletin ? (
-                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
-                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingBulletin.id === 'new' ? (lang === 'zh' ? '发布新家事' : 'New Bulletin') : (lang === 'zh' ? '编辑家事' : 'Edit Bulletin')}
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '标题 (中文)' : 'Title (Chinese)'}</label>
-                              <input type="text" value={editingBulletin.title.zh} onChange={(e) => setEditingBulletin({ ...editingBulletin, title: { ...editingBulletin.title, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Title (English)' : 'Title (English)'}</label>
-                              <input type="text" value={editingBulletin.title.en} onChange={(e) => setEditingBulletin({ ...editingBulletin, title: { ...editingBulletin.title, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '日期' : 'Date'}</label>
-                              <input type="date" value={editingBulletin.date} onChange={(e) => setEditingBulletin({ ...editingBulletin, date: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '分类 (中文)' : 'Category (Chinese)'}</label>
-                              <input type="text" value={editingBulletin.category.zh} onChange={(e) => setEditingBulletin({ ...editingBulletin, category: { ...editingBulletin.category, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '分类 (英文)' : 'Category (English)'}</label>
-                              <input type="text" value={editingBulletin.category.en} onChange={(e) => setEditingBulletin({ ...editingBulletin, category: { ...editingBulletin.category, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <MediaUrlField value={editingBulletin.fileUrl} onChange={(fileUrl) => setEditingBulletin({ ...editingBulletin, fileUrl })} category="bulletins" accept="application/pdf" label={lang === 'zh' ? '家事下载链接 (PDF/文件)' : 'Weekly Bulletin Download Link (PDF/File URL)'} />
-                              <p className="text-[10px] text-gray-400 mt-1">
-                                {lang === 'zh' ? '💡 请粘帖家事的公网下载链接（如 Google Drive, Dropbox 共享链接等）。若填 # 或留空，家事页面将不会显示“下载家事”按钮。' : '💡 Please paste the public download link of your bulletin (e.g. Google Drive, Dropbox link). If set to # or left empty, the "Download PDF" button will be hidden.'}
-                              </p>
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '摘要 (中文)' : 'Summary (Chinese)'}</label>
-                              <textarea rows={2} value={editingBulletin.summary.zh} onChange={(e) => setEditingBulletin({ ...editingBulletin, summary: { ...editingBulletin.summary, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Summary (English)' : 'Summary (English)'}</label>
-                              <textarea rows={2} value={editingBulletin.summary.en} onChange={(e) => setEditingBulletin({ ...editingBulletin, summary: { ...editingBulletin.summary, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '要点 (中文)' : 'Highlights (Chinese)'}</label>
-                              <textarea rows={3} value={editingBulletin.highlights.zh} onChange={(e) => setEditingBulletin({ ...editingBulletin, highlights: { ...editingBulletin.highlights, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Highlights (English)' : 'Highlights (English)'}</label>
-                              <textarea rows={3} value={editingBulletin.highlights.en} onChange={(e) => setEditingBulletin({ ...editingBulletin, highlights: { ...editingBulletin.highlights, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                          </div>
-                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                            <button onClick={() => setEditingBulletin(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
-                            <button onClick={() => handleSaveBulletin(editingBulletin)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {bulletinsTab === 'bulletins' && (
-                            <>
-                              {(data.bulletins || []).map((bulletin, idx) => (
-                            <div key={bulletin.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                              <div className="flex gap-3 items-center w-full sm:w-3/4">
-                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
-                                <FileText className="text-primary shrink-0" size={20} />
-                                <div className="space-y-1">
-                                  <h4 className="font-bold text-sm text-gray-900">{bulletin.title.zh} / {bulletin.title.en}</h4>
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <p className="text-xs text-gray-500">{bulletin.date} • {bulletin.category.zh}</p>
-                                    {bulletin.fileUrl && bulletin.fileUrl !== '#' ? (
-                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-50 text-green-700 border border-green-100">
-                                        {lang === 'zh' ? '已关联下载链接' : 'Download Link Attached'}
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
-                                        {lang === 'zh' ? '无下载链接' : 'No Download Link'}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
-                                <button onClick={() => handleMoveItem('bulletins', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
-                                <button onClick={() => handleMoveItem('bulletins', idx, 'down')} disabled={idx === (data.bulletins || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
-                                {bulletin.fileUrl && bulletin.fileUrl !== '#' && (
-                                  <a href={bulletin.fileUrl} target="_blank" rel="noopener noreferrer" title={lang === 'zh' ? '打开/下载家事' : 'Open/Download Bulletin'} className="p-1.5 rounded border border-green-200 text-green-600 hover:bg-green-50">
-                                    <Download size={14} />
-                                  </a>
-                                )}
-                                <button onClick={() => setEditingBulletin(bulletin)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
-                                <button onClick={() => handleDeleteBulletin(bulletin.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
-                              </div>
-                            </div>
-                          ))}
-                            </>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Sermons Tab Content */}
-                      {bulletinsTab === 'sermons' && (
-                        <>
-                          {editingSermon ? (
-                            <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
-                              <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                                {editingSermon.id === 'new' ? (lang === 'zh' ? '新增讲道' : 'Add New Sermon') : (lang === 'zh' ? '编辑讲道' : 'Edit Sermon')}
-                              </h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '标题 (中文)' : 'Title (Chinese)'}</label>
-                                  <input type="text" value={editingSermon.title.zh} onChange={(e) => setEditingSermon({ ...editingSermon, title: { ...editingSermon.title, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Title (English)' : 'Title (English)'}</label>
-                                  <input type="text" value={editingSermon.title.en} onChange={(e) => setEditingSermon({ ...editingSermon, title: { ...editingSermon.title, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '讲员 (中文)' : 'Preacher (Chinese)'}</label>
-                                  <input type="text" value={editingSermon.preacher.zh} onChange={(e) => setEditingSermon({ ...editingSermon, preacher: { ...editingSermon.preacher, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Preacher (English)' : 'Preacher (English)'}</label>
-                                  <input type="text" value={editingSermon.preacher.en} onChange={(e) => setEditingSermon({ ...editingSermon, preacher: { ...editingSermon.preacher, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '日期' : 'Date'}</label>
-                                  <input type="date" value={editingSermon.date} onChange={(e) => setEditingSermon({ ...editingSermon, date: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '经文引用' : 'Scripture Reference'}</label>
-                                  <input type="text" value={editingSermon.scripture || ''} onChange={(e) => setEditingSermon({ ...editingSermon, scripture: e.target.value })} placeholder="例: 约翰福音 3:16" className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '系列 (中文)' : 'Series (Chinese)'}</label>
-                                  <input type="text" value={editingSermon.series.zh} onChange={(e) => setEditingSermon({ ...editingSermon, series: { ...editingSermon.series, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Series (English)' : 'Series (English)'}</label>
-                                  <input type="text" value={editingSermon.series.en} onChange={(e) => setEditingSermon({ ...editingSermon, series: { ...editingSermon.series, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div className="md:col-span-2">
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'YouTube 视频链接' : 'YouTube Video URL'}</label>
-                                  <input type="text" value={editingSermon.videoUrl} onChange={(e) => setEditingSermon({ ...editingSermon, videoUrl: e.target.value })} placeholder="https://www.youtube.com/watch?v=..." className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                  <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '支持 YouTube 视频链接' : 'Supports YouTube video URLs'}</p>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '描述 (中文)' : 'Description (Chinese)'}</label>
-                                  <textarea rows={3} value={editingSermon.description.zh} onChange={(e) => setEditingSermon({ ...editingSermon, description: { ...editingSermon.description, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Description (English)' : 'Description (English)'}</label>
-                                  <textarea rows={3} value={editingSermon.description.en} onChange={(e) => setEditingSermon({ ...editingSermon, description: { ...editingSermon.description, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                              </div>
-                              <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                                <button onClick={() => setEditingSermon(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
-                                <button onClick={() => handleSaveSermon(editingSermon)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-4 pt-4 border-t border-gray-100">
-                              {(data.sermons || []).map((sermon, idx) => (
-                                <div key={sermon.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                                  <div className="flex gap-3 items-center w-full sm:w-3/4">
-                                    <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
-                                    <div className="w-16 h-12 bg-gray-200 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-                                      {sermon.videoUrl ? (
-                                        <BookOpen className="text-gray-400" size={20} />
-                                      ) : (
-                                        <BookOpen className="text-gray-400" size={20} />
-                                      )}
-                                    </div>
-                                    <div className="space-y-1">
-                                      <h4 className="font-bold text-sm text-gray-900">{t(sermon.title)}</h4>
-                                      <p className="text-xs text-gray-500">{sermon.date} • {t(sermon.preacher)} • {t(sermon.series)}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
-                                    <button onClick={() => handleMoveItem('sermons', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
-                                    <button onClick={() => handleMoveItem('sermons', idx, 'down')} disabled={idx === (data.sermons || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
-                                    <button onClick={() => setEditingSermon(sermon)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
-                                    <button onClick={() => handleDeleteSermon(sermon.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-                  {adminActiveSection === 'sermons' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-start gap-4">
-                        <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '讲道库管理' : 'Sermon Library Manager'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理讲道视频、讲员、系列和日期' : 'Manage sermon videos, preachers, series, and dates'}</p>
-                        </div>
-                        {editingSermon === null && (
-                          <button
-                            onClick={() => setEditingSermon({
-                              id: 'new',
-                              title: { zh: '新讲道', en: 'New Sermon' },
-                              preacher: { zh: '讲员姓名', en: 'Preacher Name' },
-                              date: new Date().toISOString().slice(0, 10),
-                              videoUrl: 'https://www.youtube.com/watch?v=',
-                              series: { zh: '讲道系列', en: 'Sermon Series' },
-                              scripture: '',
-                              description: { zh: '讲道描述...', en: 'Sermon description...' },
-                              thumbnail: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80'
-                            })}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                          >
-                            <Plus size={14} />
-                            <span>{lang === 'zh' ? '添加讲道' : 'Add Sermon'}</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {editingSermon ? (
-                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
-                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingSermon.id === 'new' ? (lang === 'zh' ? '新增讲道' : 'Add New Sermon') : (lang === 'zh' ? '编辑讲道' : 'Edit Sermon')}
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '标题 (中文)' : 'Title (Chinese)'}</label>
-                              <input type="text" value={editingSermon.title.zh} onChange={(e) => setEditingSermon({ ...editingSermon, title: { ...editingSermon.title, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Title (English)' : 'Title (English)'}</label>
-                              <input type="text" value={editingSermon.title.en} onChange={(e) => setEditingSermon({ ...editingSermon, title: { ...editingSermon.title, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '讲员 (中文)' : 'Preacher (Chinese)'}</label>
-                              <input type="text" value={editingSermon.preacher.zh} onChange={(e) => setEditingSermon({ ...editingSermon, preacher: { ...editingSermon.preacher, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Preacher (English)' : 'Preacher (English)'}</label>
-                              <input type="text" value={editingSermon.preacher.en} onChange={(e) => setEditingSermon({ ...editingSermon, preacher: { ...editingSermon.preacher, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '日期' : 'Date'}</label>
-                              <input type="date" value={editingSermon.date} onChange={(e) => setEditingSermon({ ...editingSermon, date: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '经文引用' : 'Scripture Reference'}</label>
-                              <input type="text" value={editingSermon.scripture || ''} onChange={(e) => setEditingSermon({ ...editingSermon, scripture: e.target.value })} placeholder="例: 约翰福音 3:16" className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '系列 (中文)' : 'Series (Chinese)'}</label>
-                              <input type="text" value={editingSermon.series.zh} onChange={(e) => setEditingSermon({ ...editingSermon, series: { ...editingSermon.series, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Series (English)' : 'Series (English)'}</label>
-                              <input type="text" value={editingSermon.series.en} onChange={(e) => setEditingSermon({ ...editingSermon, series: { ...editingSermon.series, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'YouTube 视频链接' : 'YouTube Video URL'}</label>
-                              <input type="text" value={editingSermon.videoUrl} onChange={(e) => setEditingSermon({ ...editingSermon, videoUrl: e.target.value })} placeholder="https://www.youtube.com/watch?v=..." className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                              <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '支持 YouTube 视频链接' : 'Supports YouTube video URLs'}</p>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '描述 (中文)' : 'Description (Chinese)'}</label>
-                              <textarea rows={3} value={editingSermon.description.zh} onChange={(e) => setEditingSermon({ ...editingSermon, description: { ...editingSermon.description, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Description (English)' : 'Description (English)'}</label>
-                              <textarea rows={3} value={editingSermon.description.en} onChange={(e) => setEditingSermon({ ...editingSermon, description: { ...editingSermon.description, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                          </div>
-                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                            <button onClick={() => setEditingSermon(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
-                            <button onClick={() => handleSaveSermon(editingSermon)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {(data.sermons || []).map((sermon, idx) => (
-                            <div key={sermon.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                              <div className="flex gap-3 items-center w-full sm:w-3/4">
-                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
-                                <div className="w-16 h-12 bg-gray-200 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-                                  {sermon.videoUrl ? (
-                                    <BookOpen className="text-gray-400" size={20} />
-                                  ) : (
-                                    <BookOpen className="text-gray-400" size={20} />
-                                  )}
-                                </div>
-                                <div className="space-y-1">
-                                  <h4 className="font-bold text-sm text-gray-900">{t(sermon.title)}</h4>
-                                  <p className="text-xs text-gray-500">{sermon.date} • {t(sermon.preacher)} • {t(sermon.series)}</p>
-                                </div>
-                              </div>
-                              <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
-                                <button onClick={() => handleMoveItem('sermons', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
-                                <button onClick={() => handleMoveItem('sermons', idx, 'down')} disabled={idx === (data.sermons || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
-                                <button onClick={() => setEditingSermon(sermon)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
-                                <button onClick={() => handleDeleteSermon(sermon.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* SECTION: SERVICE LIBRARY MANAGER - Now Services & Worships */}
-                  {adminActiveSection === 'services' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-start gap-4">
-                        <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '崇拜与敬拜管理' : 'Services & Worships Manager'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理完整崇拜与敬拜录影、类型、系列和日期' : 'Manage full service & worship recordings, type, series, and dates'}</p>
-                        </div>
-                        {editingService === null && (
-                          <button
-                            onClick={() => setEditingService({
-                              id: 'new',
-                              title: { zh: '新崇拜/敬拜录影', en: 'New Service/Worship Recording' },
-                              date: new Date().toISOString().slice(0, 10),
-                              videoUrl: 'https://www.youtube.com/watch?v=',
-                              series: { zh: '崇拜系列', en: 'Service Series' },
-                              description: { zh: '崇拜/敬拜录影描述...', en: 'Service/Worship recording description...' },
-                              thumbnail: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=800&q=80',
-                              type: adminServiceTab
-                            })}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                          >
-                            <Plus size={14} />
-                            <span>{adminServiceTab === 'worship' ? (lang === 'zh' ? '添加敬拜录影' : 'Add Worship') : (lang === 'zh' ? '添加崇拜录影' : 'Add Service')}</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Tab Switcher */}
-                      <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200/60" role="tablist" aria-label="Service recording type">
-                        {[
-                          { id: 'service', zh: '崇拜录影', en: 'Services', icon: Video },
-                          { id: 'worship', zh: '敬拜录影', en: 'Worships', icon: PlayCircle }
-                        ].map((tab) => (
-                          <button key={tab.id} type="button" role="tab" aria-selected={adminServiceTab === tab.id} onClick={() => { setAdminServiceTab(tab.id); setEditingService(null); }} className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${adminServiceTab === tab.id ? 'bg-white text-primary shadow-sm' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'}`}>
-                            <tab.icon size={14} />
-                            <span>{lang === 'zh' ? tab.zh : tab.en}</span>
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Services Page Header Settings */}
-                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
-                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                          <Info size={14} className="text-primary" />
-                          <span>{lang === 'zh' ? '页面顶栏与引言设置' : 'Page Header & Intro Settings'}</span>
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.servicesBadge?.zh || ''} onChange={(e) => updateSetting('servicesBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="崇拜与敬拜 · 完整回顾" />
-                              <input type="text" value={data.settings.servicesBadge?.en || ''} onChange={(e) => updateSetting('servicesBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Services & Worships · Full Replay" />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.servicesTitle?.zh || ''} onChange={(e) => updateSetting('servicesTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="崇拜与敬拜" />
-                              <input type="text" value={data.settings.servicesTitle?.en || ''} onChange={(e) => updateSetting('servicesTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Services & Worships" />
-                            </div>
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面引言 Intro Description (中文 / EN)</label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              <textarea rows={2} value={data.settings.servicesIntro?.zh || ''} onChange={(e) => updateSetting('servicesIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                              <textarea rows={2} value={data.settings.servicesIntro?.en || ''} onChange={(e) => updateSetting('servicesIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {editingService ? (
-                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
-                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingService.id === 'new' ? (lang === 'zh' ? '新增崇拜/敬拜录影' : 'Add New Service/Worship') : (lang === 'zh' ? '编辑崇拜/敬拜录影' : 'Edit Service/Worship')}
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '标题 (中文)' : 'Title (Chinese)'}</label>
-                              <input type="text" value={editingService.title.zh} onChange={(e) => setEditingService({ ...editingService, title: { ...editingService.title, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Title (English)' : 'Title (English)'}</label>
-                              <input type="text" value={editingService.title.en} onChange={(e) => setEditingService({ ...editingService, title: { ...editingService.title, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '类型' : 'Type'}</label>
-                              <select value={editingService.type || 'service'} onChange={(e) => setEditingService({ ...editingService, type: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none">
-                                <option value="service">{lang === 'zh' ? '崇拜录影 (Service)' : 'Service Recording'}</option>
-                                <option value="worship">{lang === 'zh' ? '敬拜录影 (Worship)' : 'Worship Video'}</option>
-                              </select>
-                              <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '选择此录影属于崇拜还是敬拜，决定在哪个标签显示' : 'Choose whether this is a Service or Worship video for tab filtering.'}</p>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '日期' : 'Date'}</label>
-                              <input type="date" value={editingService.date} onChange={(e) => setEditingService({ ...editingService, date: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '系列 (中文)' : 'Series (Chinese)'}</label>
-                              <input type="text" value={editingService.series.zh} onChange={(e) => setEditingService({ ...editingService, series: { ...editingService.series, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Series (English)' : 'Series (English)'}</label>
-                              <input type="text" value={editingService.series.en} onChange={(e) => setEditingService({ ...editingService, series: { ...editingService.series, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'YouTube 视频链接' : 'YouTube Video URL'}</label>
-                              <input type="text" value={editingService.videoUrl} onChange={(e) => setEditingService({ ...editingService, videoUrl: e.target.value })} placeholder="https://www.youtube.com/watch?v=..." className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                              <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '支持 YouTube 视频链接，崇拜与敬拜通用' : 'Supports YouTube video URLs for both Service and Worship'}</p>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '描述 (中文)' : 'Description (Chinese)'}</label>
-                              <textarea rows={3} value={editingService.description.zh} onChange={(e) => setEditingService({ ...editingService, description: { ...editingService.description, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Description (English)' : 'Description (English)'}</label>
-                              <textarea rows={3} value={editingService.description.en} onChange={(e) => setEditingService({ ...editingService, description: { ...editingService.description, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                          </div>
-                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                            <button onClick={() => setEditingService(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
-                            <button onClick={() => handleSaveService(editingService)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {(data.services || []).map((service, idx) => (
-                            (service.type || 'service') === adminServiceTab && <div key={service.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                              <div className="flex gap-3 items-center w-full sm:w-3/4">
-                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
-                                <div className="w-16 h-12 bg-gray-200 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-                                  {service.type === 'worship' ? <PlayCircle className="text-violet-500" size={20} /> : <Video className="text-gray-400" size={20} />}
-                                </div>
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${service.type === 'worship' ? 'bg-violet-100 text-violet-700' : 'bg-primary/10 text-primary'}`}>
-                                      {service.type === 'worship' ? (lang === 'zh' ? '敬拜' : 'Worship') : (lang === 'zh' ? '崇拜' : 'Service')}
-                                    </span>
-                                    <h4 className="font-bold text-sm text-gray-900">{t(service.title)}</h4>
-                                  </div>
-                                  <p className="text-xs text-gray-500">{service.date} • {t(service.series)}</p>
-                                </div>
-                              </div>
-                              <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
-                                <button onClick={() => handleMoveItem('services', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
-                                <button onClick={() => handleMoveItem('services', idx, 'down')} disabled={idx === (data.services || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
-                                <button onClick={() => setEditingService(service)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
-                                <button onClick={() => handleDeleteService(service.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
-                              </div>
-                            </div>
-                          ))}
-                          {(data.services || []).filter((service) => (service.type || 'service') === adminServiceTab).length === 0 && (
-                            <div className="text-center py-8 text-gray-400 text-xs">
-                              {adminServiceTab === 'worship' ? (lang === 'zh' ? '暂无敬拜录影，点击上方按钮添加' : 'No worship recordings yet. Click the button above to add one.') : (lang === 'zh' ? '暂无崇拜录影，点击上方按钮添加' : 'No service recordings yet. Click the button above to add one.')}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* SECTION: CELL GROUPS MANAGER */}
-                  {adminActiveSection === 'cellgroups' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-start gap-4">
-                        <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '细胞小组管理' : 'Cell Groups Manager'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理教会各细胞小组的信息、负责人和聚会时间' : 'Manage cell group details, leaders, and meeting schedules'}</p>
-                        </div>
-                        {editingCellGroup === null && (
-                          <button
-                            onClick={() => setEditingCellGroup({
-                              id: 'new',
-                              name: { zh: '新小组', en: 'New Cell Group' },
-                              leader: { zh: '负责人', en: 'Leader' },
-                              schedule: { zh: '聚会时间', en: 'Schedule' },
-                              location: { zh: '聚会地点', en: 'Location' },
-                              target: { zh: '适合人群', en: 'Target Group' },
-                              description: { zh: '小组简介...', en: 'Group description...' },
-                              image: 'https://images.unsplash.com/photo-1529156069898-49953e39b8f2?auto=format&fit=crop&w=600&q=80'
-                            })}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                          >
-                            <Plus size={14} />
-                            <span>{lang === 'zh' ? '添加小组' : 'Add Cell Group'}</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Cell Groups Page Header Settings */}
-                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
-                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                          <Info size={14} className="text-primary" />
-                          <span>{lang === 'zh' ? '页面顶栏与引言设置' : 'Page Header & Intro Settings'}</span>
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.cellGroupsBadge?.zh || ''} onChange={(e) => updateSetting('cellGroupsBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="小组生活 · 彼此相顾" />
-                              <input type="text" value={data.settings.cellGroupsBadge?.en || ''} onChange={(e) => updateSetting('cellGroupsBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Community Life · Caring for One Another" />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.cellGroupsTitle?.zh || ''} onChange={(e) => updateSetting('cellGroupsTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="细胞小组" />
-                              <input type="text" value={data.settings.cellGroupsTitle?.en || ''} onChange={(e) => updateSetting('cellGroupsTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Cell Groups" />
-                            </div>
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面引言 Intro Description (中文 / EN)</label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              <textarea rows={2} value={data.settings.cellGroupsIntro?.zh || ''} onChange={(e) => updateSetting('cellGroupsIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                              <textarea rows={2} value={data.settings.cellGroupsIntro?.en || ''} onChange={(e) => updateSetting('cellGroupsIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {editingCellGroup ? (
-                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
-                          <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                            {editingCellGroup.id === 'new' ? (lang === 'zh' ? '新增小组' : 'Add Cell Group') : (lang === 'zh' ? '编辑小组' : 'Edit Cell Group')}
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '图片链接' : 'Image URL'}</label>
-                              <MediaUrlField value={editingCellGroup.image} onChange={(image) => setEditingCellGroup({ ...editingCellGroup, image })} category="images" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '小组名称 (中文)' : 'Name (Chinese)'}</label>
-                              <input type="text" value={editingCellGroup.name.zh} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, name: { ...editingCellGroup.name, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Name (English)' : 'Name (English)'}</label>
-                              <input type="text" value={editingCellGroup.name.en} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, name: { ...editingCellGroup.name, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '负责人 (中文)' : 'Leader (Chinese)'}</label>
-                              <input type="text" value={editingCellGroup.leader.zh} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, leader: { ...editingCellGroup.leader, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Leader (English)' : 'Leader (English)'}</label>
-                              <input type="text" value={editingCellGroup.leader.en} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, leader: { ...editingCellGroup.leader, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '聚会时间 (中文)' : 'Schedule (Chinese)'}</label>
-                              <input type="text" value={editingCellGroup.schedule.zh} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, schedule: { ...editingCellGroup.schedule, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Schedule (English)' : 'Schedule (English)'}</label>
-                              <input type="text" value={editingCellGroup.schedule.en} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, schedule: { ...editingCellGroup.schedule, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '地点 (中文)' : 'Location (Chinese)'}</label>
-                              <input type="text" value={editingCellGroup.location.zh} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, location: { ...editingCellGroup.location, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Location (English)' : 'Location (English)'}</label>
-                              <input type="text" value={editingCellGroup.location.en} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, location: { ...editingCellGroup.location, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '适合人群 (中文)' : 'Target (Chinese)'}</label>
-                              <input type="text" value={editingCellGroup.target.zh} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, target: { ...editingCellGroup.target, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Target (English)' : 'Target (English)'}</label>
-                              <input type="text" value={editingCellGroup.target.en} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, target: { ...editingCellGroup.target, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '简介 (中文)' : 'Description (Chinese)'}</label>
-                              <textarea rows={3} value={editingCellGroup.description.zh} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, description: { ...editingCellGroup.description, zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                            <div className="md:col-span-2">
-                              <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Description (English)' : 'Description (English)'}</label>
-                              <textarea rows={3} value={editingCellGroup.description.en} onChange={(e) => setEditingCellGroup({ ...editingCellGroup, description: { ...editingCellGroup.description, en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                          </div>
-                          <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                            <button onClick={() => setEditingCellGroup(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
-                            <button onClick={() => handleSaveCellGroup(editingCellGroup)} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存' : 'Save'}</span></button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4 pt-4 border-t border-gray-100">
-                          {(data.cellGroups || []).map((group, idx) => (
-                            <div key={group.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-                              <div className="flex gap-3 items-center w-full sm:w-3/4">
-                                <span className="text-[10px] font-bold text-gray-400 w-5 shrink-0 text-center">{idx + 1}</span>
-                                <img src={group.image} alt="Preview" className="w-12 h-12 object-cover rounded-lg shrink-0 border border-gray-200" />
-                                <div className="space-y-1">
-                                  <h4 className="font-bold text-sm text-gray-900">{group.name.zh} / {group.name.en}</h4>
-                                  <p className="text-xs text-gray-500">{group.schedule.zh} • {group.location.zh}</p>
-                                </div>
-                              </div>
-                              <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
-                                <button onClick={() => handleMoveItem('cellGroups', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
-                                <button onClick={() => handleMoveItem('cellGroups', idx, 'down')} disabled={idx === (data.cellGroups || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
-                                <button onClick={() => setEditingCellGroup(group)} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
-                                <button onClick={() => handleDeleteCellGroup(group.id)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* SECTION: NEW FRIEND GUIDE EDITOR */}
-                  {adminActiveSection === 'newfriend' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-start gap-4">
-                        <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '新朋友指南编辑' : 'New Friend Guide Editor'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '编辑新朋友指南的欢迎词和各章节内容 - 现在支持完整编辑每个章节' : 'Edit welcome message and section content – now with full edit support for each chapter'}</p>
-                        </div>
-                        {editingGuideSection === null && (
-                          <button
-                            onClick={() => setEditingGuideSection({ id: 'new', title: { zh: '新章节标题', en: 'New Section Title' }, content: { zh: '章节内容...\n支持多行文本', en: 'Section content...\nSupports multi-line' } })}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                          >
-                            <Plus size={14} />
-                            <span>{lang === 'zh' ? '添加章节' : 'Add Section'}</span>
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="space-y-4 pt-4 border-t border-gray-100">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '欢迎词 (中文)' : 'Welcome Message (Chinese)'}</label>
-                          <textarea rows={3} value={data.newFriendGuide?.welcome?.zh || ''} onChange={(e) => updateNewFriendGuide('welcome', { ...(data.newFriendGuide?.welcome || {}), zh: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Welcome Message (English)' : 'Welcome Message (English)'}</label>
-                          <textarea rows={3} value={data.newFriendGuide?.welcome?.en || ''} onChange={(e) => updateNewFriendGuide('welcome', { ...(data.newFriendGuide?.welcome || {}), en: e.target.value })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                        </div>
-
-                        {/* Guide Sections - Full CRUD */}
-                        <div className="pt-4 border-t border-gray-200">
-                          {editingGuideSection ? (
-                            <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4 animate-fade-in">
-                              <h3 className="font-extrabold text-xs text-gray-700 uppercase tracking-wider pb-2 border-b border-gray-200">
-                                {editingGuideSection.id === 'new' ? (lang === 'zh' ? '新增指南章节' : 'Add Guide Section') : (lang === 'zh' ? '编辑指南章节' : 'Edit Guide Section')}
-                              </h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '章节标题 (中文)' : 'Section Title (Chinese)'}</label>
-                                  <input type="text" value={editingGuideSection.title?.zh || ''} onChange={(e) => setEditingGuideSection({ ...editingGuideSection, title: { ...(editingGuideSection.title || {}), zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Title (English)' : 'Title (English)'}</label>
-                                  <input type="text" value={editingGuideSection.title?.en || ''} onChange={(e) => setEditingGuideSection({ ...editingGuideSection, title: { ...(editingGuideSection.title || {}), en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div className="md:col-span-2">
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? '章节内容 (中文) - 支持多行' : 'Content (Chinese) – multi-line supported'}</label>
-                                  <textarea rows={5} value={editingGuideSection.content?.zh || ''} onChange={(e) => setEditingGuideSection({ ...editingGuideSection, content: { ...(editingGuideSection.content || {}), zh: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                                <div className="md:col-span-2">
-                                  <label className="block text-xs font-bold text-gray-600 mb-1">{lang === 'zh' ? 'Content (English)' : 'Content (English)'}</label>
-                                  <textarea rows={5} value={editingGuideSection.content?.en || ''} onChange={(e) => setEditingGuideSection({ ...editingGuideSection, content: { ...(editingGuideSection.content || {}), en: e.target.value } })} className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                                </div>
-                              </div>
-                              <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                                <button onClick={() => setEditingGuideSection(null)} className="px-4 py-2 rounded border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-100 transition-all">{lang === 'zh' ? '取消' : 'Cancel'}</button>
-                                <button onClick={() => { handleSaveGuideSection(editingGuideSection, editingGuideSection.index); setEditingGuideSection(null); }} className="px-4 py-2 rounded bg-primary text-white text-xs font-semibold hover:bg-primary-dark transition-all flex items-center gap-1"><Save size={13} /><span>{lang === 'zh' ? '保存章节' : 'Save Section'}</span></button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center justify-between">
-                                <span>{lang === 'zh' ? '指南章节列表' : 'Guide Sections List'}</span>
-                                <span className="text-[10px] font-normal text-gray-500">{(data.newFriendGuide?.sections || []).length} {lang === 'zh' ? '个章节' : 'sections'}</span>
-                              </h3>
-                              <div className="space-y-3">
-                                {(data.newFriendGuide?.sections || []).map((section, idx) => (
-                                  <div key={section.id || idx} className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex flex-col sm:flex-row gap-3 items-start justify-between">
-                                    <div className="flex gap-3 items-start w-full sm:w-3/4">
-                                      <div className="shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs mt-0.5">{idx+1}</div>
-                                      <div className="flex-grow min-w-0">
-                                        <span className="font-bold text-sm text-gray-900 block truncate">{section.title.zh} / {section.title.en}</span>
-                                        <p className="text-xs text-gray-500 mt-1 line-clamp-2 whitespace-pre-line">{section.content.zh?.substring(0, 120)}...</p>
-                                      </div>
-                                    </div>
-                                    <div className="flex gap-1.5 justify-end shrink-0 w-full sm:w-auto">
-                                      <button onClick={() => handleMoveItem('newFriendGuide.sections', idx, 'up')} disabled={idx === 0} title={lang === 'zh' ? '上移' : 'Move up'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowUp size={14} /></button>
-                                      <button onClick={() => handleMoveItem('newFriendGuide.sections', idx, 'down')} disabled={idx === (data.newFriendGuide?.sections || []).length - 1} title={lang === 'zh' ? '下移' : 'Move down'} className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"><ArrowDown size={14} /></button>
-                                      <button onClick={() => setEditingGuideSection({ ...section, index: idx })} className="p-1.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50"><Edit3 size={14} /></button>
-                                      <button onClick={() => handleDeleteGuideSection(idx)} className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50 shrink-0"><Trash2 size={14} /></button>
-                                    </div>
-                                  </div>
-                                ))}
-                                {(data.newFriendGuide?.sections || []).length === 0 && (
-                                  <div className="text-center py-8 text-gray-400 text-xs border border-dashed border-gray-300 rounded-xl bg-white">
-                                    {lang === 'zh' ? '暂无章节，点击上方“添加章节”创建' : 'No sections yet, click Add Section to create'}
-                                  </div>
-                                )}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {/* SECTION: MAPS SETTINGS */}
-                  {adminActiveSection === 'maps' && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-start gap-4">
-                        <div>
-                          <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '地图设置' : 'Maps Settings'}</h2>
-                          <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '管理多个教会地点的地图、地址和交通指南' : 'Manage maps, addresses, and directions for multiple church locations'}</p>
-                        </div>
-                        <button
-                          onClick={() => {
-                            const newLocation = {
-                              id: 'new',
-                              name: { zh: '新聚会点', en: 'New Fellowship Point' },
-                              googleMapsEmbedUrl: '',
-                              address: { zh: '地址', en: 'Address' },
-                              directions: { zh: '交通指南', en: 'Directions' },
-                              landmarks: { zh: '附近地标', en: 'Nearby Landmarks' }
-                            };
-                            const updated = { ...data };
-                            if (!updated.maps) updated.maps = [];
-                            const newId = Math.max(...updated.maps.map(m => m.id), 0) + 1;
-                            updated.maps.push({ ...newLocation, id: newId });
-                            saveAllData(updated);
-                          }}
-                          className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                        >
-                          <Plus size={14} />
-                          <span>{lang === 'zh' ? '添加聚会点' : 'Add Location'}</span>
-                        </button>
-                      </div>
-
-                      {/* Maps Page Header Settings */}
-                      <div className="bg-primary/5 p-4 rounded-xl border border-primary/20 space-y-3">
-                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                          <Info size={14} className="text-primary" />
-                          <span>{lang === 'zh' ? '页面顶栏与引言设置' : 'Page Header & Intro Settings'}</span>
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">顶栏小标题 Badge (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.mapsBadge?.zh || ''} onChange={(e) => updateSetting('mapsBadge', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="找到我们" />
-                              <input type="text" value={data.settings.mapsBadge?.en || ''} onChange={(e) => updateSetting('mapsBadge', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Find Us" />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面大标题 Title (中文 / EN)</label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <input type="text" value={data.settings.mapsTitle?.zh || ''} onChange={(e) => updateSetting('mapsTitle', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="教会地图与交通指南" />
-                              <input type="text" value={data.settings.mapsTitle?.en || ''} onChange={(e) => updateSetting('mapsTitle', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Church Map & Directions" />
-                            </div>
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">页面引言 Intro Description (中文 / EN)</label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              <textarea rows={2} value={data.settings.mapsIntro?.zh || ''} onChange={(e) => updateSetting('mapsIntro', 'zh', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                              <textarea rows={2} value={data.settings.mapsIntro?.en || ''} onChange={(e) => updateSetting('mapsIntro', 'en', e.target.value)} className="px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4 pt-4 border-t border-gray-100">
-                        {(data.maps || []).map((church, idx) => (
-                          <div key={church.id} className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4">
-                            <div className="flex justify-between items-center">
-                              <h3 className="font-extrabold text-sm text-gray-900">
-                                {lang === 'zh' ? `地点 ${idx + 1}: ` : `Location ${idx + 1}: `} {t(church.name)}
-                              </h3>
-                              <div className="flex gap-1.5">
-                                <button
-                                  onClick={() => handleMoveItem('maps', idx, 'up')}
-                                  disabled={idx === 0}
-                                  title={lang === 'zh' ? '上移' : 'Move up'}
-                                  className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
-                                >
-                                  <ArrowUp size={14} />
-                                </button>
-                                <button
-                                  onClick={() => handleMoveItem('maps', idx, 'down')}
-                                  disabled={idx === (data.maps || []).length - 1}
-                                  title={lang === 'zh' ? '下移' : 'Move down'}
-                                  className="p-1.5 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
-                                >
-                                  <ArrowDown size={14} />
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    if (window.confirm(lang === 'zh' ? '确定要删除此聚会点吗？' : 'Are you sure you want to delete this location?')) {
-                                      const updated = { ...data };
-                                      updated.maps = updated.maps.filter((_, i) => i !== idx);
-                                      saveAllData(updated);
-                                    }
-                                  }}
-                                  className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="space-y-4">
-                              <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '地点名称 (中文)' : 'Location Name (Chinese)'}</label>
-                                <input
-                                  type="text"
-                                  value={church.name.zh}
-                                  onChange={(e) => {
-                                    const updated = { ...data };
-                                    updated.maps[idx].name.zh = e.target.value;
-                                    saveAllData(updated);
-                                  }}
-                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Location Name (English)' : 'Location Name (English)'}</label>
-                                <input
-                                  type="text"
-                                  value={church.name.en}
-                                  onChange={(e) => {
-                                    const updated = { ...data };
-                                    updated.maps[idx].name.en = e.target.value;
-                                    saveAllData(updated);
-                                  }}
-                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Google Maps 嵌入链接' : 'Google Maps Embed URL'}</label>
-                                <input
-                                  type="text"
-                                  value={church.googleMapsEmbedUrl}
-                                  onChange={(e) => {
-                                    const updated = { ...data };
-                                    updated.maps[idx].googleMapsEmbedUrl = e.target.value;
-                                    saveAllData(updated);
-                                  }}
-                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                                />
-                                <p className="text-[10px] text-gray-400 mt-1">{lang === 'zh' ? '从 Google Maps > 分享 > 嵌入地图 获取链接' : 'Get from Google Maps > Share > Embed a map'}</p>
-                              </div>
-                              <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '地址 (中文)' : 'Address (Chinese)'}</label>
-                                <textarea
-                                  rows={2}
-                                  value={church.address.zh}
-                                  onChange={(e) => {
-                                    const updated = { ...data };
-                                    updated.maps[idx].address.zh = e.target.value;
-                                    saveAllData(updated);
-                                  }}
-                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Address (English)' : 'Address (English)'}</label>
-                                <textarea
-                                  rows={2}
-                                  value={church.address.en}
-                                  onChange={(e) => {
-                                    const updated = { ...data };
-                                    updated.maps[idx].address.en = e.target.value;
-                                    saveAllData(updated);
-                                  }}
-                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '交通指南 (中文)' : 'Directions (Chinese)'}</label>
-                                <textarea
-                                  rows={4}
-                                  value={church.directions.zh}
-                                  onChange={(e) => {
-                                    const updated = { ...data };
-                                    updated.maps[idx].directions.zh = e.target.value;
-                                    saveAllData(updated);
-                                  }}
-                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Directions (English)' : 'Directions (English)'}</label>
-                                <textarea
-                                  rows={4}
-                                  value={church.directions.en}
-                                  onChange={(e) => {
-                                    const updated = { ...data };
-                                    updated.maps[idx].directions.en = e.target.value;
-                                    saveAllData(updated);
-                                  }}
-                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? '附近地标 (中文)' : 'Nearby Landmarks (Chinese)'}</label>
-                                <textarea
-                                  rows={3}
-                                  value={church.landmarks.zh}
-                                  onChange={(e) => {
-                                    const updated = { ...data };
-                                    updated.maps[idx].landmarks.zh = e.target.value;
-                                    saveAllData(updated);
-                                  }}
-                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'zh' ? 'Nearby Landmarks (English)' : 'Nearby Landmarks (English)'}</label>
-                                <textarea
-                                  rows={3}
-                                  value={church.landmarks.en}
-                                  onChange={(e) => {
-                                    const updated = { ...data };
-                                    updated.maps[idx].landmarks.en = e.target.value;
-                                    saveAllData(updated);
-                                  }}
-                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* SECTION: MEDIA STORAGE (Phase 2 R2 media manager) */}
-                  {adminActiveSection === 'media' && (
-                    <MediaStorageManager
-                      siteData={data}
-                      lang={lang}
-                      uploadsEnabled={data.settings?.mediaUploadsEnabled === true}
-                      onUploadsEnabledChange={(enabled) => saveAllData({
-                        ...data,
-                        settings: { ...data.settings, mediaUploadsEnabled: enabled },
-                      })}
-                    />
-                  )}
-
-                  {/* SECTION 6: BACKUP & DATA TRANSFERS */}
-                  {adminActiveSection === 'backup' && backupAccessGranted && (
-                    <div className="space-y-6">
-                      <div>
-                        <h2 className="text-xl font-extrabold text-gray-900">{lang === 'zh' ? '数据备份、本地恢复与重置' : 'Backup, Import & Factory Reset'}</h2>
-                        <p className="text-xs text-gray-500 font-light mt-1">{lang === 'zh' ? '为了实现“100%零托管订阅费”，本站直接使用浏览器本地存储(LocalStorage)保存您的所有编辑。您在此可以导出配置备份或导入历史配置' : 'This website utilizes high-speed LocalStorage to keep your adjustments for free. Use this page to download configurations and backup your site.'}</p>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-gray-100">
-                        
-                        {/* ===== Auto-Save to GitHub ===== */}
-                        <div className="md:col-span-2 pt-6 mt-4 border-t-2 border-primary/20">
-                          <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <Download size={14} className="text-primary" />
-                            {lang === 'zh' ? '自动保存到 GitHub' : 'Auto-Save to GitHub'}
-                          </h3>
-                          <p className="text-[10px] text-gray-500 mb-4">
-                            {lang === 'zh'
-                              ? '开启后，每次在后台保存修改时，浏览器会直接通过 GitHub API 将数据提交到仓库的 initialData.js 文件。需要 GitHub Personal Access Token。'
-                              : 'When enabled, every admin save commits directly to initialData.js on GitHub via the GitHub API. A GitHub Personal Access Token is required.'}
-                          </p>
-
-                          <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <label className="text-xs font-bold text-gray-700">
-                                  {lang === 'zh' ? '启用自动同步' : 'Enable Auto-Sync'}
-                                </label>
-                                <p className="text-[10px] text-gray-400 mt-0.5">
-                                  {lang === 'zh' ? '修改保存后自动推送到 GitHub' : 'Auto-push to GitHub after each save'}
-                                </p>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  const next = !autoSaveToGithub;
-                                  setAutoSaveToGithub(next);
-                                  localStorage.setItem('bmbcc_autosave_github', String(next));
-                                  // Also persist in data.settings so it survives across deployments and browser changes
-                                  setData(prev => {
-                                    const updated = { ...prev, settings: { ...prev.settings, autoSaveToGithub: next } };
-                                    localStorage.setItem('bmbcc_site_data', JSON.stringify(stripSensitiveData(updated)));
-                                    return updated;
-                                  });
-                                  // Save to Cloudflare KV for server-side persistence
-                                  saveGithubSettingsToCloud({ autoSave: next });
-                                }}
-                                className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${autoSaveToGithub ? 'bg-primary' : 'bg-gray-300'}`}
-                              >
-                                <span
-                                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${autoSaveToGithub ? 'translate-x-5' : 'translate-x-0'}`}
-                                />
-                              </button>
-                            </div>
-
-                            {/* PAT and repo fields are always visible so the token is never "lost"
-                                when auto-save is toggled off. They are editable regardless of toggle state,
-                                but visually dimmed when auto-save is off. */}
-                            <div className={autoSaveToGithub ? '' : 'opacity-60'}>
-                              <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">
-                                  {lang === 'zh' ? 'GitHub Personal Access Token' : 'GitHub Personal Access Token'}
-                                </label>
-                                <input
-                                  type="password"
-                                  value={githubPat}
-                                  onChange={(e) => {
-                                    setGithubPat(e.target.value);
-                                    localStorage.setItem('bmbcc_github_pat', e.target.value);
-                                    // Save to Cloudflare KV for server-side persistence
-                                    saveGithubSettingsToCloud({ pat: e.target.value });
-                                  }}
-                                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
-                                />
-                                <p className="text-[10px] text-gray-400 mt-1">
-                                  {lang === 'zh'
-                                    ? 'Token 安全保存在 Cloudflare KV（服务器端）及浏览器 localStorage 中，仅通过 HTTPS 发送到 api.github.com。'
-                                    : 'Token is securely stored in Cloudflare KV (server-side) and browser localStorage, sent only to api.github.com over HTTPS.'}
-                                </p>
-                              </div>
-
-                              <div className="mt-4">
-                                <label className="block text-xs font-bold text-gray-700 mb-1">
-                                  {lang === 'zh' ? 'GitHub 仓库' : 'GitHub Repository'}
-                                </label>
-                                <input
-                                  type="text"
-                                  value={githubRepo}
-                                  onChange={(e) => {
-                                    setGithubRepo(e.target.value);
-                                    localStorage.setItem('bmbcc_github_repo', e.target.value);
-                                    // Also persist in data.settings for cross-session persistence
-                                    setData(prev => {
-                                      const updated = { ...prev, settings: { ...prev.settings, githubRepo: e.target.value } };
-                                      localStorage.setItem('bmbcc_site_data', JSON.stringify(stripSensitiveData(updated)));
-                                      return updated;
-                                    });
-                                    // Save to Cloudflare KV for server-side persistence
-                                    saveGithubSettingsToCloud({ repo: e.target.value });
-                                  }}
-                                  placeholder="fongway94/BMBCCWebpage"
-                                  className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none font-mono"
-                                />
-                              </div>
-                            </div>
-
-                            {!autoSaveToGithub && (
-                              <p className="text-[10px] text-amber-600 mt-2 flex items-center gap-1">
-                                <AlertTriangle size={12} className="shrink-0" />
-                                {lang === 'zh'
-                                  ? '自动同步已关闭。Token 和仓库设置已保留，开启开关后即可继续使用。'
-                                  : 'Auto-sync is off. Your token and repo settings are preserved — flip the switch to resume.'}
-                              </p>
-                            )}
-
-                            {autoSaveToGithub && autoSaveStatus && (
-                              <div
-                                className={`text-xs p-2.5 rounded-lg flex items-center gap-2 ${autoSaveStatus === 'saving'
-                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                    : autoSaveStatus === 'success'
-                                    ? 'bg-green-50 text-green-700 border border-green-200'
-                                    : 'bg-red-50 text-red-700 border border-red-200'
-                                  }`}
-                              >
-                                {autoSaveStatus === 'saving' && (
-                                  <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                  </svg>
-                                )}
-                                <span>{autoSaveMessage}</span>
-                              </div>
-                            )}
-
-                            <details className="text-[10px] text-gray-500 mt-2">
-                              <summary className="cursor-pointer font-semibold text-gray-600 hover:text-gray-800">
-                                {lang === 'zh' ? '📖 如何设置？只需3步！' : '📖 How to set up? Only 3 steps!'}
-                              </summary>
-                              <div className="mt-2 space-y-2 pl-1 leading-relaxed">
-                                <p className="font-bold text-gray-700">
-                                  {lang === 'zh' ? '步骤：' : 'Steps:'}
-                                </p>
-                                <ol className="list-decimal pl-4 space-y-1.5">
-                                  <li>
-                                    {lang === 'zh'
-                                      ? '在 GitHub 创建 Personal Access Token：Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token'
-                                      : 'Create a PAT on GitHub: Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token'}
-                                    <ul className="pl-3 mt-1 space-y-0.5 text-[9px]">
-                                      <li>{lang === 'zh' ? '• Repository access: Only select repositories → BMBCCWebpage' : '• Repository access: Only select repositories → BMBCCWebpage'}</li>
-                                      <li>{lang === 'zh' ? '• Permissions: Contents → Read and write' : '• Permissions: Contents → Read and write'}</li>
-                                    </ul>
-                                  </li>
-                                  <li>
-                                    {lang === 'zh'
-                                      ? '将生成的 Token（以 ghp_ 开头）粘贴到上面的输入框中'
-                                      : 'Paste the generated token (starts with ghp_) into the input field above'}
-                                  </li>
-                                  <li>
-                                    {lang === 'zh'
-                                      ? '确认仓库名为 fongway94/BMBCCWebpage，然后开启开关 — 以后每次保存就会自动提交到 GitHub！不需要任何服务器。'
-                                      : 'Confirm the repo name is fongway94/BMBCCWebpage, then flip the switch — every save will auto-commit to GitHub! No server needed at all.'}
-                                  </li>
-                                </ol>
-                                <p className="text-[9px] text-amber-600 mt-2">
-                                  {lang === 'zh'
-                                    ? '⚠️ Token 安全保存在 Cloudflare KV 和浏览器 localStorage 中，仅通过 HTTPS 发送到 api.github.com。建议使用 Fine-grained token 并设置过期时间。'
-                                    : '⚠️ Token is securely stored in Cloudflare KV and browser localStorage, sent only to api.github.com over HTTPS. Use a fine-grained token with expiry for best security.'}
-                                </p>
-                              </div>
-                            </details>
-                          </div>
-                        </div>
-
-                        {/* Export block */}
-                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4">
-                          <div className="flex items-center gap-2 text-primary">
-                            <Download size={20} />
-                            <h3 className="font-bold text-sm text-gray-900">{lang === 'zh' ? '备份：导出数据文件' : 'Export JSON Config'}</h3>
-                          </div>
-                          <p className="text-xs text-gray-500 font-light leading-relaxed">
-                            {lang === 'zh'
-                              ? '点击下方按钮将您当前修改过的所有网站数据（包括时间表、标语、配色、活动及幻灯片图片）下载为一个JSON备份文件。您可以妥善保管该文件，或者用它在其他浏览器、甚至发给开发人员替换GitHub上的默认配置文件（bmbcc-data.json）。'
-                              : 'Download all your customized content (including timetables, events, images, colors) as a single portable JSON file. Keep it safe or share it to overwrite repository settings.'}
-                          </p>
-                          <button
-                            onClick={handleExportData}
-                            className="px-4 py-2.5 rounded-lg bg-primary hover:bg-primary-dark text-white font-semibold text-xs transition-all shadow-md flex items-center gap-1.5"
-                          >
-                            <Download size={14} />
-                            <span>{lang === 'zh' ? '导出并下载 church-data.json' : 'Download church-data.json'}</span>
-                          </button>
-                        </div>
-
-                        {/* Reset Factory settings */}
-                        <div className="bg-red-50/50 rounded-xl p-5 border border-red-200 space-y-4">
-                          <div className="flex items-center gap-2 text-red-600">
-                            <AlertTriangle size={20} />
-                            <h3 className="font-bold text-sm text-gray-900">{lang === 'zh' ? '重置：清空并恢复出厂默认' : 'Factory Reset Website'}</h3>
-                          </div>
-                          <p className="text-xs text-gray-500 font-light leading-relaxed">
-                            {lang === 'zh'
-                              ? '警告：重置后，您在后台编辑的所有本地修改和发布的信息都将被永久抹去，网站将重新显示我们最初设计的精美默认内容。在进行此操作前，强烈建议您先导出一份JSON文件作为备份！'
-                              : 'Warning: This will permanently purge all your local modifications from this browser. The website will load our premium default content again. Download a backup first.'}
-                          </p>
-                          <button
-                            onClick={handleResetToDefault}
-                            className="px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-xs transition-all flex items-center gap-1.5"
-                          >
-                            <Trash2 size={14} />
-                            <span>{lang === 'zh' ? '强力重置回默认数据' : 'Force Factory Reset'}</span>
-                          </button>
-                        </div>
-
-                        {/* Import Text block */}
-                        <div className="md:col-span-2 bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4">
-                          <div className="flex items-center gap-2 text-blue-600">
-                            <Upload size={20} />
-                            <h3 className="font-bold text-sm text-gray-900">{lang === 'zh' ? '恢复：导入备份数据' : 'Restore / Import JSON Config'}</h3>
-                          </div>
-                          
-                          <form onSubmit={handleImportData} className="space-y-4">
-                            <div>
-                              <label className="block text-xs font-bold text-gray-600 mb-1.5">
-                                {lang === 'zh' ? '请将备份的 .json 文件的所有文本内容黏贴在下方文本框中：' : 'Paste the entire contents of your backup .json file in the box below:'}
-                              </label>
-                              <textarea
-                                rows={6}
-                                value={importJsonText}
-                                onChange={(e) => setImportJsonText(e.target.value)}
-                                placeholder='{ "settings": { ... }, "carousel": [ ... ] }'
-                                required
-                                className="w-full p-3 font-mono text-[11px] bg-white border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
-                              />
-                            </div>
-
-                            {importError && (
-                              <div className="text-xs text-red-600 bg-red-50 p-2.5 rounded border border-red-100">
-                                {importError}
-                              </div>
-                            )}
-
-                            <button
-                              type="submit"
-                              className="px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-all flex items-center gap-1.5"
-                            >
-                              <Upload size={14} />
-                              <span>{lang === 'zh' ? '验证并导入网站数据' : 'Verify & Import Site Data'}</span>
-                            </button>
-                          </form>
-                        </div>
-
-                      </div>
-                    </div>
-                  )}
-
+                    )}
+                    {adminActiveSection==='backup' && !backupAccessGranted && (
+                      <div className="text-center py-12 space-y-3"><Shield size={32} className="mx-auto text-gray-300"/><p className="text-sm font-bold">{lang==='zh'?'需要重新驗證才能訪問備份區':'Re-auth required for backup'}</p><button onClick={requestBackupAccess} className="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold">{lang==='zh'?'前往驗證':'Verify'}</button></div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+
+        {/* Footer */}
+        <footer className="bg-[#1a1a1a] text-white/60 py-12 px-4">
+          <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-8 text-xs">
+            <div className="space-y-3"><div className="flex items-center gap-2 text-white"><img src={data.settings.headerLogo} className="w-8 h-8 rounded-lg bg-white p-0.5 object-contain"/><span className="font-black text-base">{t(data.settings.siteName)}</span></div><p className="leading-relaxed">{t(data.settings.description)}</p><div className="flex items-center gap-2 pt-2"><Phone size={14} className="text-primary-light"/><span>{data.settings.contactPhone}</span></div><div className="flex items-center gap-2"><Mail size={14} className="text-primary-light"/><span className="break-all">{data.settings.contactEmail}</span></div></div>
+            <div className="space-y-3"><h4 className="text-white font-bold uppercase tracking-wider">{lang==='zh'?'選購':'Shop'}</h4><div className="space-y-1.5"><button onClick={()=>switchTab('shop')} className="block hover:text-white hover:underline">{lang==='zh'?'全部產品':'All Products'}</button>{navCategories.series.map(c=><button key={c.id} onClick={()=>{setShopSeriesFilter(c.id); switchTab('shop');}} className="block hover:text-white hover:underline">{t(c.name)}</button>)}{navCategories.faceCare.map(c=><button key={c.id} onClick={()=>{setShopCategoryFilter(c.id); switchTab('shop');}} className="block hover:text-white hover:underline">{t(c.name)}</button>)}</div></div>
+            <div className="space-y-3"><h4 className="text-white font-bold uppercase tracking-wider">{lang==='zh'?'肌膚類別':'Skin Concerns'}</h4><div className="space-y-1.5">{navCategories.skinType.map(c=><button key={c.id} onClick={()=>{setShopSkinFilter(c.id); switchTab('shop');}} className="block hover:text-white hover:underline">{t(c.name)}</button>)}<button onClick={()=>switchTab('membership')} className="block hover:text-white hover:underline">{lang==='zh'?'會員制度':'Prestige Membership'}</button><button onClick={()=>switchTab('reviews')} className="block hover:text-white hover:underline">{lang==='zh'?'用家分享':'Reviews'}</button></div></div>
+            <div className="space-y-3"><h4 className="text-white font-bold uppercase tracking-wider">{lang==='zh'?'關注我們':'Follow Us'}</h4><p className="text-white/40">{t(data.settings.footerTagline)}</p><div className="flex gap-2"><button className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center"><Globe size={14}/></button><button className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center"><Heart size={14}/></button><button className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center"><Camera size={14}/></button></div><div className="pt-3"><p className="text-[11px] text-white/30">© {new Date().getFullYear()} {t(data.settings.siteName)}. {t(data.settings.footerCopyright)}</p></div></div>
+          </div>
+        </footer>
+
+        {/* Product Detail Modal */}
+        {selectedProduct && (
+          <div className="fixed inset-0 z-[75] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onMouseDown={e=>{ if(e.target===e.currentTarget) setSelectedProduct(null); }}>
+            <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[92vh] overflow-hidden flex flex-col md:flex-row shadow-2xl animate-scale-in">
+              <button onClick={()=>setSelectedProduct(null)} className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/60 text-white hover:bg-black/80"><X size={18}/></button>
+              <div className="md:w-1/2 bg-gray-50 relative aspect-square md:aspect-auto">
+                <img src={selectedProduct.images[0]} alt={t(selectedProduct.title)} className="absolute inset-0 w-full h-full object-cover"/>
+                {selectedProduct.compareAtPrice>selectedProduct.price && <span className="absolute top-4 left-4 px-3 py-1 rounded-full bg-red-500 text-white text-xs font-bold">-{Math.round((1-selectedProduct.price/selectedProduct.compareAtPrice)*100)}% OFF</span>}
+                <div className="absolute bottom-4 left-4 right-4 flex gap-2 overflow-x-auto">{selectedProduct.images.map((img,i)=><img key={i} src={img} className="w-14 h-14 rounded-xl object-cover border-2 border-white shadow-sm cursor-pointer hover:border-primary" onClick={()=>{ const sp={...selectedProduct}; const arr=[img, ...sp.images.filter((_,idx)=>idx!==i)]; sp.images=arr; setSelectedProduct(sp); }}/>)}</div>
+              </div>
+              <div className="md:w-1/2 p-6 sm:p-8 overflow-y-auto space-y-4">
+                <div><span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-bold uppercase">{selectedProduct.tags?.[0]||'CS12'}</span><h2 className="text-2xl font-black mt-2 leading-tight">{t(selectedProduct.title)}</h2><p className="text-sm text-gray-500 mt-1">{t(selectedProduct.subtitle)||t(selectedProduct.shortDesc)}</p><div className="mt-2 flex items-center gap-2"><Stars rating={selectedProduct.rating||5}/><span className="text-xs text-gray-500">({selectedProduct.reviewCount} {lang==='zh'?'評價':'reviews'})</span><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${selectedProduct.stock>20?'bg-green-50 text-green-700':'bg-amber-50 text-amber-700'}`}>{selectedProduct.stock>0?(lang==='zh'?`庫存 ${selectedProduct.stock}`:`Stock ${selectedProduct.stock}`):(lang==='zh'?'缺貨':'Out of Stock')}</span></div></div>
+
+                <div className="flex items-baseline gap-3"><span className="text-2xl font-black">{formatPrice(selectedProduct.price)}</span>{selectedProduct.compareAtPrice>selectedProduct.price && <span className="text-sm text-gray-400 line-through">{formatPrice(selectedProduct.compareAtPrice)}</span>}</div>
+
+                {selectedProduct.variants && selectedProduct.variants.length>0 && (
+                  <div><p className="text-xs font-bold mb-2">{lang==='zh'?'規格':'Variants'}</p><div className="flex flex-wrap gap-2">{selectedProduct.variants.map(v=><button key={v.id} onClick={()=>{ /* variant selection logic */ }} className="px-3 py-2 rounded-xl border border-gray-200 text-xs font-bold hover:border-primary hover:text-primary flex flex-col items-start"><span>{t(v.name)}</span><span className="text-[11px] text-gray-500">{formatPrice(v.price)} • {v.stock} left</span></button>)}</div></div>
+                )}
+
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center rounded-xl border border-gray-200"><button onClick={()=>{}} className="p-2.5 hover:bg-gray-50"><Minus size={14}/></button><span className="px-3 text-sm font-bold">1</span><button className="p-2.5 hover:bg-gray-50"><Plus size={14}/></button></div>
+                  <button onClick={()=>{addToCart(selectedProduct.id, selectedProduct.variants?.[0]?.id||null,1); setSelectedProduct(null);}} className="flex-1 py-3 rounded-xl bg-gray-900 text-white font-bold text-sm hover:bg-black flex items-center justify-center gap-2"><ShoppingBag size={16}/>{lang==='zh'?'加入購物車':'Add to Cart'}</button>
+                  <button onClick={()=>toggleWishlist(selectedProduct.id)} className={`w-11 h-11 rounded-xl border flex items-center justify-center ${wishlist.includes(selectedProduct.id)?'bg-primary text-white border-primary':'bg-white text-gray-400 border-gray-200 hover:text-primary'}`}><Heart size={18} className={wishlist.includes(selectedProduct.id)?'fill-white':''}/></button>
                 </div>
 
-              </div>
-            )}
+                <div className="grid grid-cols-3 gap-2 text-[11px]"><div className="bg-gray-50 rounded-xl p-2.5 text-center"><Truck size={14} className="mx-auto mb-1 text-primary"/><p className="font-bold">{lang==='zh'?'滿 $800 免運':'Free over $800'}</p></div><div className="bg-gray-50 rounded-xl p-2.5 text-center"><Award size={14} className="mx-auto mb-1 text-primary"/><p className="font-bold">{lang==='zh'?'會員積分':'Points'}</p><p className="text-gray-500">$1={customerTier?.pointsRate||1}</p></div><div className="bg-gray-50 rounded-xl p-2.5 text-center"><Gift size={14} className="mx-auto mb-1 text-primary"/><p className="font-bold">{lang==='zh'?'滿贈禮遇':'GWP'}</p><p className="text-gray-500">{formatPrice(data.settings.gwp?.rules?.[0]?.minSpend||2000)}+</p></div></div>
 
+                <div className="space-y-4 pt-4 border-t">
+                  <div><h4 className="font-bold text-sm">{lang==='zh'?'產品詳情':'Description'}</h4><p className="text-sm text-gray-600 leading-relaxed mt-2 whitespace-pre-line">{t(selectedProduct.description)}</p></div>
+                  <div><h4 className="font-bold text-sm">{lang==='zh'?'主要成份':'Ingredients'}</h4><p className="text-xs text-gray-600 mt-1">{t(selectedProduct.ingredients)}</p></div>
+                  <div><h4 className="font-bold text-sm">{lang==='zh'?'使用方法':'How to Use'}</h4><p className="text-xs text-gray-600 mt-1">{t(selectedProduct.howToUse)}</p></div>
+                  <div><h4 className="font-bold text-sm">{lang==='zh'?'功效':'Benefits'}</h4><div className="flex flex-wrap gap-1.5 mt-2">{(t(selectedProduct.benefits)?.length? t(selectedProduct.benefits): (selectedProduct.benefits?.[lang]||[])).map?.((b,i)=><span key={i} className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">{b}</span>) || (selectedProduct.benefits?.zh||[]).map((b,i)=><span key={i} className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs">{b}</span>)}</div></div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
-      </main>
-
-      {/* 4. FOOTER */}
-      {eventDetailsOpen && selectedEvent && (
-        <div className="fixed inset-0 z-[75] bg-gray-950/75 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={lang === 'zh' ? '活动详情' : 'Event details'} onMouseDown={(e) => { if (e.target === e.currentTarget) setEventDetailsOpen(false); }}>
-          <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
-            <button onClick={() => setEventDetailsOpen(false)} aria-label={lang === 'zh' ? '关闭' : 'Close'} className="absolute right-4 top-4 z-10 rounded-full bg-black/55 p-2 text-white hover:bg-black/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><X size={20} /></button>
-            <img src={selectedEvent.image} alt={t(selectedEvent.title)} className="max-h-[62vh] w-full object-contain bg-gray-950" />
-            <div className="p-6 sm:p-8">
-              <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary"><Calendar size={15} /> {lang === 'zh' ? '特别活动' : 'Special event'}</div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">{t(selectedEvent.title)}</h2>
-              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-600"><span className="flex items-center gap-1.5"><Calendar size={15} />{selectedEvent.date}</span><span className="flex items-center gap-1.5"><Clock size={15} />{selectedEvent.time}</span><span className="flex items-center gap-1.5"><MapPin size={15} />{t(selectedEvent.location)}</span></div>
-              <p className="mt-5 whitespace-pre-line text-sm leading-7 text-gray-600">{t(selectedEvent.description)}</p>
-              <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                {selectedEvent.registrationUrl && (
-                  <a
-                    href={selectedEvent.registrationUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary hover:bg-primary-dark text-white text-sm font-bold transition-all shadow-lg shadow-primary/20"
-                  >
-                    <ExternalLink size={18} />
-                    <span>{lang === 'zh' ? '📝 立即报名参加' : '📝 Register Now'}</span>
-                  </a>
-                )}
-                <button
-                  onClick={() => setEventDetailsOpen(false)}
-                  className={`${selectedEvent.registrationUrl ? 'flex-1' : 'w-full'} px-5 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all`}
-                >
-                  {lang === 'zh' ? '关闭' : 'Close'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Selected Ministry Details Modal */}
-      {selectedMinistry && (
-        <div 
-          className="fixed inset-0 z-[75] bg-gray-950/75 backdrop-blur-sm flex items-center justify-center p-4" 
-          role="dialog" 
-          aria-modal="true" 
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedMinistry(null); }}
-        >
-          <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl">
-            <button onClick={() => setSelectedMinistry(null)} className="absolute right-4 top-4 z-10 rounded-full bg-black/55 p-2 text-white hover:bg-black/75 transition-all"><X size={20} /></button>
-            <div className="flex flex-col lg:flex-row">
-              <div className="lg:w-1/2 h-64 sm:h-80 lg:h-auto relative bg-gray-100 shrink-0">
-                <img src={selectedMinistry.image} alt={t(selectedMinistry.name)} className="absolute inset-0 w-full h-full object-cover" />
-              </div>
-              <div className="lg:w-1/2 p-6 sm:p-8 space-y-6">
-                <div className="inline-flex px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
-                  {lang === 'zh' ? '事工详情' : 'Ministry Details'}
-                </div>
-                <h2 className="text-2xl sm:text-3xl font-black text-gray-900 leading-tight">{t(selectedMinistry.name)}</h2>
-                <div className="w-16 h-1.5 bg-primary rounded-full" />
-                <p className="text-gray-700 text-sm sm:text-base font-light leading-relaxed whitespace-pre-line">
-                  {t(selectedMinistry.description)}
-                </p>
-                <div className="pt-6 border-t border-gray-100 flex flex-wrap gap-3">
-                  <button 
-                    onClick={() => { setSelectedMinistry(null); openTimetableSection('ministry'); }}
-                    className="flex-1 px-5 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
-                  >
-                    <Clock size={18} />
-                    <span>{lang === 'zh' ? '查看聚会时间' : 'View Timetable'}</span>
-                  </button>
-                  <button 
-                    onClick={() => { setSelectedMinistry(null); setActiveTab('about'); window.scrollTo(0, 0); }}
-                    className="px-5 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all"
-                  >
-                    {lang === 'zh' ? '联系教会' : 'Contact Us'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Selected Cell Group Details Modal */}
-      {selectedCellGroup && (
-        <div 
-          className="fixed inset-0 z-[75] bg-gray-950/75 backdrop-blur-sm flex items-center justify-center p-4" 
-          role="dialog" 
-          aria-modal="true" 
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedCellGroup(null); }}
-        >
-          <div className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl animate-fade-in-down">
-            <button onClick={() => setSelectedCellGroup(null)} className="absolute right-4 top-4 z-10 rounded-full bg-black/55 p-2 text-white hover:bg-black/75 transition-all"><X size={20} /></button>
-            <div className="h-56 sm:h-72 relative bg-gray-100">
-              <img src={selectedCellGroup.image} alt={t(selectedCellGroup.name)} className="absolute inset-0 w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-              <div className="absolute bottom-6 left-6 text-white">
-                <span className="bg-primary px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider mb-2 inline-block shadow-sm">
-                  {t(selectedCellGroup.target)}
-                </span>
-                <h2 className="text-2xl sm:text-3xl font-black">{t(selectedCellGroup.name)}</h2>
-              </div>
-            </div>
-            <div className="p-6 sm:p-8 space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-1">
-                  <div className="flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-wider">
-                    <Users size={14} />
-                    <span>{lang === 'zh' ? '负责人' : 'Leader'}</span>
-                  </div>
-                  <p className="text-gray-900 font-bold">{t(selectedCellGroup.leader)}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-1">
-                  <div className="flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-wider">
-                    <Clock size={14} />
-                    <span>{lang === 'zh' ? '聚会时间' : 'Schedule'}</span>
-                  </div>
-                  <p className="text-gray-900 font-bold">{t(selectedCellGroup.schedule)}</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-1 sm:col-span-2">
-                  <div className="flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-wider">
-                    <MapPin size={14} />
-                    <span>{lang === 'zh' ? '聚会地点' : 'Location'}</span>
-                  </div>
-                  <p className="text-gray-900 font-bold">{t(selectedCellGroup.location)}</p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'zh' ? '小组简介' : 'About this group'}</h4>
-                <p className="text-gray-700 text-sm sm:text-base font-light leading-relaxed whitespace-pre-line">
-                  {t(selectedCellGroup.description)}
-                </p>
-              </div>
-              <div className="pt-4 flex flex-col sm:flex-row gap-3">
-                <button onClick={() => { setSelectedCellGroup(null); openTimetableSection('cellgroup'); }} className="flex-1 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"><Clock size={18} />{lang === 'zh' ? '查看聚会时间' : 'View Timetable'}</button>
-                <button 
-                  onClick={() => { setSelectedCellGroup(null); setActiveTab('about'); window.scrollTo(0, 0); }}
-                  className="flex-1 py-3 rounded-xl bg-gray-900 text-white text-sm font-bold hover:bg-black transition-all"
-                >
-                  {lang === 'zh' ? '联系加入小组' : 'Contact to Join'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Enlarged Image Lightbox — supports multi-photo navigation when an
-          image list was passed in via setSelectedImage({ images, index }). */}
-      {selectedImage && (() => {
-        // Normalize: if the caller didn't pass a list, treat the single url as a one-item gallery.
-        const gallery = Array.isArray(selectedImage.images) && selectedImage.images.length > 0
-          ? selectedImage.images
-          : [selectedImage.url];
-        const total = gallery.length;
-        const currentIndex = Math.min(Math.max(selectedImage.index || 0, 0), total - 1);
-        const currentUrl = gallery[currentIndex];
-
-        const goPrev = () => {
-          const next = (currentIndex - 1 + total) % total;
-          setSelectedImage({ ...selectedImage, url: gallery[next], index: next });
-        };
-        const goNext = () => {
-          const next = (currentIndex + 1) % total;
-          setSelectedImage({ ...selectedImage, url: gallery[next], index: next });
-        };
-
-        return (
-          <div
-            className="fixed inset-0 z-[80] bg-gray-950/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-6"
-            role="dialog"
-            aria-modal="true"
-            onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedImage(null); }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') setSelectedImage(null);
-              else if (e.key === 'ArrowLeft' && total > 1) goPrev();
-              else if (e.key === 'ArrowRight' && total > 1) goNext();
-            }}
-            tabIndex={-1}
-            ref={(el) => { if (el) el.focus(); }}
-          >
-            {/* Top bar: close + photo counter */}
-            <div className="absolute top-3 right-3 sm:top-5 sm:right-5 z-20 flex items-center gap-2">
-              {total > 1 && (
-                <span className="px-3 py-1.5 rounded-full bg-black/60 text-white text-xs font-bold tracking-wider border border-white/15 backdrop-blur-sm">
-                  {currentIndex + 1} / {total}
-                </span>
-              )}
-              <button
-                onClick={() => setSelectedImage(null)}
-                aria-label={lang === 'zh' ? '关闭' : 'Close'}
-                className="p-2 rounded-full bg-black/60 hover:bg-black/85 text-white border border-white/15 backdrop-blur-sm transition-all"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Previous button — only when there is more than one photo */}
-            {total > 1 && (
-              <button
-                onClick={goPrev}
-                aria-label={lang === 'zh' ? '上一张' : 'Previous photo'}
-                className="absolute left-2 sm:left-5 top-1/2 -translate-y-1/2 z-20 p-3 sm:p-3.5 rounded-full bg-black/55 hover:bg-black/85 text-white border border-white/15 backdrop-blur-sm transition-all shadow-xl"
-              >
-                <ChevronLeft size={26} />
-              </button>
-            )}
-
-            {/* Next button */}
-            {total > 1 && (
-              <button
-                onClick={goNext}
-                aria-label={lang === 'zh' ? '下一张' : 'Next photo'}
-                className="absolute right-2 sm:right-5 top-1/2 -translate-y-1/2 z-20 p-3 sm:p-3.5 rounded-full bg-black/55 hover:bg-black/85 text-white border border-white/15 backdrop-blur-sm transition-all shadow-xl"
-              >
-                <ChevronRight size={26} />
-              </button>
-            )}
-
-            {/* Main image — sized to fill the viewport while preserving the photo's aspect ratio */}
-            <div className="relative w-full h-full flex flex-col items-center justify-center pointer-events-none">
-              <img
-                src={currentUrl}
-                alt={selectedImage.title || 'Enlarged'}
-                className="pointer-events-auto max-w-[95vw] max-h-[82vh] sm:max-h-[85vh] w-auto h-auto object-contain rounded-xl shadow-2xl bg-black/40"
-              />
-              {selectedImage.title && (
-                <h3 className="pointer-events-auto mt-3 sm:mt-4 text-white text-sm sm:text-base font-bold tracking-wide text-center px-4 max-w-3xl line-clamp-2">
-                  {selectedImage.title}
-                </h3>
-              )}
-              {total > 1 ? (
-                <p className="mt-1 text-white/60 text-[11px] uppercase font-bold tracking-[0.18em] text-center">
-                  {lang === 'zh' ? '← → 切换照片 · ESC 退出' : '← → navigate · ESC to close'}
-                </p>
-              ) : (
-                <p className="mt-1 text-white/60 text-[11px] uppercase font-bold tracking-[0.18em] text-center">
-                  {lang === 'zh' ? '点击背景或 ESC 退出' : 'Click background or press ESC to close'}
-                </p>
-              )}
-            </div>
-          </div>
-        );
-      })()}
-
-      {eventPopupOpen && (() => {
-        const popupEvents = (data.events || []).filter(e => e.popupEnabled);
-        if (popupEvents.length === 0 || activeTab === 'admin') return null;
-        const popupEvent = popupEvents[eventPopupSlide % popupEvents.length];
-        return (
-          <div className="fixed inset-0 z-[70] bg-gray-950/70 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={lang === 'zh' ? '活动通知' : 'Event alert'}>
-            <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-              <button onClick={() => setEventPopupOpen(false)} aria-label="Close" className="absolute right-3 top-3 z-10 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"><X size={18} /></button>
-              <img src={popupEvent.image} alt={t(popupEvent.title)} className="w-full max-h-[70vh] object-contain bg-gray-100" />
-              <div className="p-6 sm:p-8">
-                <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary"><Calendar size={15} /> {lang === 'zh' ? '活动通知' : 'Event alert'}</div>
-                <h2 className="text-2xl font-extrabold text-gray-900">{t(popupEvent.title)}</h2>
-                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600"><span className="flex items-center gap-1.5"><Calendar size={15} />{popupEvent.date}</span><span className="flex items-center gap-1.5"><Clock size={15} />{popupEvent.time}</span><span className="flex items-center gap-1.5"><MapPin size={15} />{t(popupEvent.location)}</span></div>
-                <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-gray-600">{t(popupEvent.description)}</p>
-                {popupEvent.registrationUrl && (
-                  <div className="mt-5">
-                    <a
-                      href={popupEvent.registrationUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setEventPopupOpen(false)}
-                      className="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl bg-primary hover:bg-primary-dark text-white text-sm font-bold transition-all shadow-lg shadow-primary/20"
-                    >
-                      <ExternalLink size={18} />
-                      <span>{lang === 'zh' ? '📝 立即报名' : '📝 Register Now'}</span>
-                    </a>
-                  </div>
-                )}
-                {popupEvents.length > 1 && <div className="mt-6 flex items-center justify-between gap-3"><button onClick={() => setEventPopupSlide((eventPopupSlide - 1 + popupEvents.length) % popupEvents.length)} className="rounded-lg border border-gray-200 p-2 hover:bg-gray-50" aria-label="Previous event"><ChevronLeft size={18} /></button><div className="flex gap-1.5">{popupEvents.map((_, i) => <button key={i} onClick={() => setEventPopupSlide(i)} aria-label={`Event ${i + 1}`} className={`h-2 w-2 rounded-full ${i === eventPopupSlide ? 'bg-primary' : 'bg-gray-300'}`} />)}</div><button onClick={() => setEventPopupSlide((eventPopupSlide + 1) % popupEvents.length)} className="rounded-lg border border-gray-200 p-2 hover:bg-gray-50" aria-label="Next event"><ChevronRight size={18} /></button></div>}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      <footer className="bg-gray-900 text-gray-400 py-12 px-4 sm:px-6 md:px-8 border-t border-gray-800 transition-all font-light">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
-          
-          {/* Col 1: Church identity */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-white">
-              <div className="bg-primary text-white p-2 rounded-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m-6-8h12" />
-                </svg>
-              </div>
-              <span className="font-extrabold text-base tracking-wide">{t(data.settings.churchName)}</span>
-            </div>
-            <p className="text-xs text-gray-400 leading-relaxed max-w-sm">
-              {t(data.settings.footerDescription) || (lang === 'zh' 
-                ? '我们是走入社区的教会。爱邻舍、送温情，大山脚百利镇社区的一个充满主爱、温暖人心的恩典家园。' 
-                : 'A community-centered church in Taman Bukit Minyak, shepherding souls and serving vulnerable neighbors with Christ’s love.')}
-            </p>
-          </div>
-
-          {/* Col 2: Navigation Links */}
-          <div className="space-y-3">
-            <h4 className="text-white text-xs font-bold uppercase tracking-wider">{t(data.settings.footerNavTitle) || (lang === 'zh' ? '网站导航' : 'Navigation')}</h4>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {(() => {
-                const vis = data.pageVisibility || {};
-                return [
-                  { id: 'home', label: lang === 'zh' ? '主页' : 'Home' },
-                  { id: 'about', label: lang === 'zh' ? '关于我们' : 'About Us' },
-                  vis.ministries !== false && { id: 'ministries', label: lang === 'zh' ? '主要事工' : 'Ministries' },
-                  vis.timetable !== false && { id: 'timetable', label: lang === 'zh' ? '聚会时间' : 'Timetable' },
-                  vis.events !== false && { id: 'events', label: lang === 'zh' ? '活动预告' : 'Events' },
-                  vis.cellgroups !== false && { id: 'cellgroups', label: lang === 'zh' ? '小组' : 'Cell Groups' },
-                  vis.offerings !== false && { id: 'offerings', label: lang === 'zh' ? '奉献' : 'Offerings' },
-                  vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '家事与讲道' : 'Bulletins & Sermons' },
-                  vis.services !== false && { id: 'services', label: lang === 'zh' ? '崇拜与敬拜' : 'Services & Worships' },
-                  vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '新朋友' : 'New Friend' },
-                  vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
-                  (data.settings.showLoginButton || isAdminLoggedIn || activeTab === 'admin') && { id: 'admin', label: lang === 'zh' ? (isAdminLoggedIn ? '管理员控制台' : '后台管理') : (isAdminLoggedIn ? 'Admin Console' : 'Admin Area') }
-                ].filter(Boolean).map((lnk) => (
-                  <button
-                    key={lnk.id}
-                    onClick={() => switchTab(lnk.id)}
-                    className="text-left hover:text-white hover:underline transition-all"
-                  >
-                    {lnk.label}
-                  </button>
-                ));
-              })()}
-            </div>
-          </div>
-
-          {/* Col 3: Service Schedule Simple Summary */}
-          <div className="space-y-3 text-xs leading-relaxed">
-            <h4 className="text-white text-xs font-bold uppercase tracking-wider">{t(data.settings.footerServiceTitle) || (lang === 'zh' ? '核心崇拜聚会' : 'Combined Service')}</h4>
-            <div className="space-y-1.5">
-              <p className="font-bold text-gray-300">{t(data.settings.footerServiceName) || (lang === 'zh' ? '周日主日崇拜' : 'Sunday Combined Worship')}</p>
-              <div className="flex items-center gap-1.5 text-gray-400">
-                <Clock size={12} />
-                <span>{t(data.settings.footerServiceTime) || (lang === 'zh' ? '星期日早上 10:00 AM' : 'Sundays at 10:00 AM')}</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-gray-400">
-                <MapPin size={12} className="shrink-0" />
-                <span>{t(data.settings.footerServiceLocation) || (lang === 'zh' ? '教会主堂 / 线上直播同步' : 'Church Sanctuary / Live')}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Col 4: Contact & Social links */}
-          <div className="space-y-3 text-xs">
-            <h4 className="text-white text-xs font-bold uppercase tracking-wider">{t(data.settings.footerContactTitle) || (lang === 'zh' ? '联系与到访' : 'Contact Us')}</h4>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Phone size={14} className="text-primary shrink-0" />
-                <span>{data.settings.contactPhone}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail size={14} className="text-primary shrink-0" />
-                <span className="break-all">{data.settings.contactEmail}</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <MapPin size={14} className="text-primary shrink-0 mt-0.5" />
-                <span className="leading-relaxed">{data.settings.contactAddress}</span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-{/* Legal block */}
-        <div className="max-w-7xl mx-auto mt-10 pt-6 border-t border-gray-800 text-center flex flex-col sm:flex-row justify-between items-center gap-4 text-[11px] text-gray-500">
-          <p>© {new Date().getFullYear()} {t(data.settings.churchName)}. {t(data.settings.footerCopyright)}</p>
-          <p className="font-light">
-            {t(data.settings.footerTagline)}
-          </p>
-        </div>
-      </footer>
-
-      {/* Fellowship Highlight Lightbox Modal */}
-      {selectedFellowshipHighlight && (
-        <div 
-          className="fixed inset-0 z-[75] bg-gray-950/90 backdrop-blur-sm flex items-center justify-center p-4" 
-          role="dialog" 
-          aria-modal="true"
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedFellowshipHighlight(null); }}
-        >
-          <div className="relative w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <button onClick={() => setSelectedFellowshipHighlight(null)} className="absolute right-4 top-4 z-10 rounded-full bg-black/55 p-2 text-white hover:bg-black/75 transition-all"><X size={20} /></button>
-            
-            <div className="p-6 sm:p-8 border-b border-gray-200">
-              <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-primary mb-2">
-                <Calendar size={15} /> {selectedFellowshipHighlight.date}
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-gray-900 leading-tight">
-                {selectedFellowshipHighlight.title[lang] || selectedFellowshipHighlight.title.zh}
-              </h2>
-              <p className="mt-3 text-gray-600 text-sm font-light leading-relaxed whitespace-pre-line">
-                {selectedFellowshipHighlight.description[lang] || selectedFellowshipHighlight.description.zh}
-              </p>
-            </div>
-
-            {/* Photo Gallery */}
-            <div className="p-6 sm:p-8 max-h-[60vh] overflow-y-auto">
-              {selectedFellowshipHighlight.images && selectedFellowshipHighlight.images.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {selectedFellowshipHighlight.images.map((imgUrl, idx) => (
-                    <div 
-                      key={idx} 
-                      className="relative aspect-video overflow-hidden rounded-xl border border-gray-200 cursor-zoom-in hover:border-primary transition-all group"
-                      onClick={() => setSelectedImage({
-                        url: imgUrl,
-                        title: `${selectedFellowshipHighlight.title[lang] || selectedFellowshipHighlight.title.zh} - Photo ${idx + 1}`,
-                        images: selectedFellowshipHighlight.images,
-                        index: idx,
+        {/* Cart Drawer */}
+        {showCart && (
+          <div className="fixed inset-0 z-[80] flex justify-end">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" onClick={()=>setShowCart(false)}/>
+            <div className="relative w-[92vw] max-w-[440px] bg-white h-[100dvh] shadow-2xl flex flex-col animate-slide-in-right">
+              <div className="p-5 border-b flex items-center justify-between"><h3 className="font-black text-base flex items-center gap-2"><ShoppingCart size={18}/>{lang==='zh'?'購物車':'Cart'} ({cartCount})</h3><button onClick={()=>setShowCart(false)} className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200"><X size={16}/></button></div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {cart.length===0 ? (
+                  <div className="text-center py-16 space-y-3"><ShoppingBag size={40} className="mx-auto text-gray-300"/><p className="font-bold text-gray-700">{lang==='zh'?'購物車是空的':'Your cart is empty'}</p><button onClick={()=>{setShowCart(false); switchTab('shop');}} className="px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold">{lang==='zh'?'去選購':'Go Shopping'}</button></div>
+                ) : (
+                  <>
+                    {cart.map((ci, idx)=>{
+                      const prod=data.products.find(p=>p.id===ci.productId);
+                      if(!prod) return null;
+                      let price=prod.price; let title=t(prod.title); let img=prod.images[0];
+                      if(ci.variantId){ const v=prod.variants?.find(v=>v.id===ci.variantId); if(v){ price=v.price; title=`${t(prod.title)} - ${t(v.name)}`; if(v.image) img=v.image; } }
+                      return <div key={idx} className="flex gap-3 border border-gray-100 rounded-2xl p-3"><img src={img} className="w-16 h-16 rounded-xl object-cover border"/><div className="flex-1 min-w-0"><p className="font-bold text-xs line-clamp-2">{title}</p><p className="text-xs text-gray-500">{formatPrice(price)}</p><div className="flex items-center gap-2 mt-2"><button onClick={()=>updateCartQty(idx, ci.qty-1)} className="w-6 h-6 rounded-full border flex items-center justify-center hover:bg-gray-50"><Minus size={10}/></button><span className="text-xs font-bold w-6 text-center">{ci.qty}</span><button onClick={()=>updateCartQty(idx, ci.qty+1)} className="w-6 h-6 rounded-full border flex items-center justify-center hover:bg-gray-50"><Plus size={10}/></button><button onClick={()=>removeFromCart(idx)} className="ml-auto text-gray-400 hover:text-red-500"><Trash2 size={14}/></button></div></div><span className="font-bold text-xs">{formatPrice(price*ci.qty)}</span></div>;
+                    })}
+                    {/* GWP progress */}
+                    <div className="rounded-2xl bg-[#fdf8f5] border border-primary/20 p-3 space-y-2">
+                      <p className="text-xs font-bold flex items-center gap-1"><Gift size={12} className="text-primary"/>{lang==='zh'?'滿贈進度':'GWP Progress'}</p>
+                      {(data.settings.gwp?.rules||[]).filter(r=>r.active).sort((a,b)=>a.minSpend-b.minSpend).map(rule=>{
+                        const reached = cartSubtotal>=rule.minSpend;
+                        const remaining = Math.max(0, rule.minSpend-cartSubtotal);
+                        return <div key={rule.id} className="text-[11px]"><div className="flex justify-between"><span className={reached?'text-green-600 font-bold':''}>{t(rule.title)} ({formatPrice(rule.minSpend)})</span><span>{reached?(lang==='zh'?'已達成':'Reached'): `${lang==='zh'?'差':'Need'} ${formatPrice(remaining)}`}</span></div><div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden mt-1"><div className="h-full bg-primary transition-all" style={{width:`${Math.min(100, (cartSubtotal/rule.minSpend)*100)}%`}}></div></div></div>;
                       })}
-                    >
-                      <img 
-                        src={imgUrl} 
-                        alt={`Photo ${idx + 1}`} 
-                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/60 text-white text-xs font-bold">
-                        {idx + 1} / {selectedFellowshipHighlight.images.length}
-                      </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 text-gray-400">
-                  <Camera size={48} className="mx-auto mb-3" />
-                  <p>{lang === 'zh' ? '暂无照片' : 'No photos available'}</p>
+                    {/* Free shipping */}
+                    <div className="rounded-2xl bg-blue-50 border border-blue-200 p-3 text-[11px]"><div className="flex justify-between font-bold"><span className="flex items-center gap-1"><Truck size={12}/>{lang==='zh'?'免運費進度':'Free Shipping'}</span><span>{cartSubtotal>= (data.settings.shipping?.freeThreshold||800) ? (lang==='zh'?'已免運！':'Free!') : `${lang==='zh'?'差':''} ${formatPrice((data.settings.shipping?.freeThreshold||800)-cartSubtotal)}`}</span></div><div className="w-full h-1.5 bg-blue-100 rounded-full overflow-hidden mt-1"><div className="h-full bg-blue-500 transition-all" style={{width:`${Math.min(100, (cartSubtotal/(data.settings.shipping?.freeThreshold||800))*100)}%`}}></div></div></div>
+                    {/* Coupon */}
+                    <div className="space-y-2"><div className="flex gap-2"><input value={couponInput} onChange={e=>setCouponInput(e.target.value)} placeholder={lang==='zh'?'輸入優惠碼':'Coupon code'} className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-xs focus:ring-1 focus:ring-primary outline-none"/><button onClick={handleApplyCoupon} className="px-4 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold">{lang==='zh'?'套用':'Apply'}</button></div>{appliedCoupon && <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl p-2.5 text-xs"><span className="flex items-center gap-1 font-bold text-green-700"><Tag size={12}/>{appliedCoupon.code} -{appliedCoupon.discountType==='percentage'?`${appliedCoupon.discountValue}%`:`HK$${appliedCoupon.discountValue}`} • -{formatPrice(discountAmount)}</span><button onClick={clearCoupon} className="text-gray-500 hover:text-red-500"><X size={12}/></button></div>}{couponError && <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">{couponError}</p>}</div>
+                  </>
+                )}
+              </div>
+              {cart.length>0 && (
+                <div className="p-5 border-t bg-gray-50 space-y-3">
+                  <div className="space-y-1.5 text-sm"><div className="flex justify-between"><span className="text-gray-500">{lang==='zh'?'小計':'Subtotal'}</span><span className="font-bold">{formatPrice(cartSubtotal)}</span></div>{discountAmount>0 && <div className="flex justify-between text-green-600"><span>{lang==='zh'?'優惠':'Discount'}</span><span>-{formatPrice(discountAmount)}</span></div>}<div className="flex justify-between"><span className="text-gray-500">{lang==='zh'?'運費':'Shipping'}</span><span className={shippingCost===0?'text-green-600 font-bold':''}>{shippingCost===0?(lang==='zh'?'免運費':'Free'):formatPrice(shippingCost)}</span></div><div className="flex justify-between font-black text-base border-t pt-2"><span>{lang==='zh'?'總計':'Total'}</span><span>{formatPrice(cartTotal)}</span></div><p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-center gap-1"><Award size={12}/>{lang==='zh'?`此單可獲 ${pointsEarnedPreview} 積分`:`Earn ${pointsEarnedPreview} points`}</p></div>
+                  <button onClick={()=>{setShowCart(false); setActiveTab('checkout'); setCheckoutStep(1);}} className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"><CreditCard size={16}/>{lang==='zh'?'去結帳':'Checkout'} • {formatPrice(cartTotal)}</button>
+                  <button onClick={()=>{setShowCart(false); switchTab('shop');}} className="w-full py-2.5 rounded-xl border border-gray-200 font-bold text-sm hover:bg-white">{lang==='zh'?'繼續購物':'Continue Shopping'}</button>
                 </div>
               )}
             </div>
           </div>
-        </div>
-      )}
+        )}
 
+        {/* Wishlist Drawer */}
+        {showWishlist && (
+          <div className="fixed inset-0 z-[80] flex justify-end">
+            <div className="absolute inset-0 bg-black/40" onClick={()=>setShowWishlist(false)}/>
+            <div className="relative w-[92vw] max-w-[380px] bg-white h-[100dvh] shadow-2xl flex flex-col animate-slide-in-right">
+              <div className="p-5 border-b flex items-center justify-between"><h3 className="font-black text-base flex items-center gap-2"><Heart size={18} className="text-primary"/>{lang==='zh'?'我的收藏':'Wishlist'} ({wishlistCount})</h3><button onClick={()=>setShowWishlist(false)} className="p-2 rounded-xl bg-gray-100"><X size={16}/></button></div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {wishlist.length===0 ? <div className="text-center py-16 space-y-3"><Heart size={36} className="mx-auto text-gray-300"/><p className="text-sm text-gray-500">{lang==='zh'?'暫無收藏':'No wishlist'}</p></div> :
+                  wishlist.map(pid=>{ const p=data.products.find(pp=>pp.id===pid); if(!p) return null; return <div key={pid} className="flex gap-3 border rounded-2xl p-3"><img src={p.images[0]} className="w-16 h-16 rounded-xl object-cover"/><div className="flex-1"><p className="font-bold text-xs line-clamp-1">{t(p.title)}</p><p className="text-xs text-gray-500">{formatPrice(p.price)}</p><div className="flex gap-1.5 mt-2"><button onClick={()=>addToCart(p.id,null,1)} className="flex-1 py-1.5 rounded-lg bg-gray-900 text-white text-[11px] font-bold">{lang==='zh'?'加入購物車':'Add to Cart'}</button><button onClick={()=>toggleWishlist(pid)} className="px-2 py-1.5 rounded-lg border"><Trash2 size={12}/></button></div></div></div>; })
+                }
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Backup reauth modal */}
+        {backupReauthOpen && (
+          <div className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <form onSubmit={handleBackupReauth} className="bg-white rounded-2xl border max-w-sm w-full p-6 space-y-4 shadow-2xl">
+              <h3 className="font-black text-sm flex items-center gap-2"><Shield size={16}/>{lang==='zh'?'重新驗證才能訪問備份區':'Re-auth required for backup'}</h3>
+              <input type="password" value={backupPasswordInput} onChange={e=>setBackupPasswordInput(e.target.value)} placeholder={lang==='zh'?'輸入管理密碼':'Admin password'} className="w-full px-3 py-2.5 rounded-xl border border-gray-300 text-sm focus:ring-1 focus:ring-primary outline-none"/>
+              {backupLoginError && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl p-2.5">{backupLoginError}</div>}
+              <div className="flex gap-2"><button type="button" onClick={()=>setBackupReauthOpen(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-bold">{lang==='zh'?'取消':'Cancel'}</button><button type="submit" className="flex-1 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-bold">{lang==='zh'?'驗證':'Verify'}</button></div>
+            </form>
+          </div>
+        )}
       </div>
     </MediaUploadContext.Provider>
   );

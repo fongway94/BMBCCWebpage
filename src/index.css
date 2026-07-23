@@ -1,66 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Noto+Serif+SC:wght@400;600;700&family=Noto+Serif+TC:wght@400;600&family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&family=ZCOOL+KuaiLe&family=Long+Cang&family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Montserrat:wght@300;400;500;600&family=Inter:wght@300;400;500;600;700&family=Lora:wght@400;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer utilities {
-  .animate-fade-in {
-    animation: fadeIn 0.3s ease-out forwards;
-  }
-  .animate-fade-in-down {
-    animation: fadeInDown 0.4s ease-out forwards;
-  }
-  .animate-scale-in {
-    animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-  .animate-slide-in-right {
-    animation: slideInRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
+  .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+  .animate-fade-in-down { animation: fadeInDown 0.4s ease-out forwards; }
+  .animate-scale-in { animation: scaleIn 0.3s cubic-bezier(0.16,1,0.3,1) forwards; }
+  .animate-slide-in-right { animation: slideInRight 0.32s cubic-bezier(0.16,1,0.3,1) forwards; }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+@keyframes fadeInDown { from { opacity:0; transform:translateY(-10px) } to { opacity:1; transform:translateY(0) } }
+@keyframes scaleIn { from { opacity:0; transform:scale(0.95) } to { opacity:1; transform:scale(1) } }
+@keyframes slideInRight { from { transform:translateX(100%) } to { transform:translateX(0) } }
+
+@layer base { body { @apply transition-colors duration-300; } }
+
+.font-sans { font-family: var(--site-font-family, ui-sans-serif, system-ui, sans-serif); }
+.font-zh { font-family: var(--site-font-family-zh, "Noto Sans SC", sans-serif); }
+.font-en { font-family: var(--site-font-family-en, "Poppins", sans-serif); }
+
+::-webkit-scrollbar { width:8px; height:8px; }
+::-webkit-scrollbar-track { background:#f1f1f1; }
+::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
+::-webkit-scrollbar-thumb:hover { background:#94a3b8; }
+
+:root {
+  --color-primary: 212 165 165;
+  --color-primary-dark: 181 131 131;
+  --color-primary-light: 245 214 214;
+  --color-secondary: 168 195 176;
+  --color-accent: 232 201 160;
+  --color-bg: 253 248 245;
 }
 
-@keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Color picker styling */
+input[type="color"] {
+  -webkit-appearance: none;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
 }
-
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes slideInRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
-@layer base {
-  body {
-    @apply transition-colors duration-300;
-  }
-}
-
-/* The admin font setting is inherited by the site and also replaces Tailwind's
-   explicit font-sans utility where it is used inside the interface. */
-.font-sans {
-  font-family: var(--site-font-family, ui-sans-serif, system-ui, sans-serif);
-}
-
-/* Custom scrollbar to make it look elegant */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
+input[type="color"]::-webkit-color-swatch-wrapper { padding:0; }
+input[type="color"]::-webkit-color-swatch { border:none; border-radius:8px; }
