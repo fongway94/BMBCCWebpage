@@ -34,6 +34,7 @@ import {
   ArrowDown,
   ChevronDown,
   FileText,
+  Type,
   Gift,
   Map as MapIcon,
   Building,
@@ -245,6 +246,607 @@ const colorsMap = {
   amber: { primary: '245 158 11', dark: '217 119 6', light: '254 243 199', name: 'Amber / 琥珀黄' },
   rose: { primary: '244 63 94', dark: '225 29 72', light: '254 228 230', name: 'Rose / 玫瑰红' }
 };
+
+// 1. YouTube/Vimeo embed parser helper
+function getYouTubeEmbedUrl(url) {
+  if (!url) return null;
+  const ytMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  if (ytMatch && ytMatch[1]) {
+    return `https://www.youtube.com/embed/${ytMatch[1]}`;
+  }
+  const vimeoMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:vimeo\.com\/)(\d+)/);
+  if (vimeoMatch && vimeoMatch[1]) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  }
+  return null;
+}
+
+// 2. Feature Article Editor Component
+function FeatureArticleEditor({ featureBlocks = [], onChange, lang }) {
+  const handleAddBlock = (type) => {
+    const newBlock = {
+      id: `block_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      type,
+    };
+    if (type === 'heading') {
+      newBlock.text = { zh: '', en: '' };
+      newBlock.level = 'h2';
+    } else if (type === 'paragraph') {
+      newBlock.text = { zh: '', en: '' };
+    } else if (type === 'video') {
+      newBlock.url = '';
+      newBlock.description = { zh: '', en: '' };
+      newBlock.descPosition = 'bottom';
+    } else if (type === 'photos') {
+      newBlock.images = [];
+      newBlock.description = { zh: '', en: '' };
+      newBlock.descPosition = 'bottom';
+    }
+    onChange([...featureBlocks, newBlock]);
+  };
+
+  const handleUpdateBlock = (id, fields) => {
+    const updated = featureBlocks.map((b) => {
+      if (b.id === id) {
+        return { ...b, ...fields };
+      }
+      return b;
+    });
+    onChange(updated);
+  };
+
+  const handleRemoveBlock = (id) => {
+    onChange(featureBlocks.filter((b) => b.id !== id));
+  };
+
+  const handleMoveBlock = (index, direction) => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === featureBlocks.length - 1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    const list = [...featureBlocks];
+    const temp = list[index];
+    list[index] = list[targetIndex];
+    list[targetIndex] = temp;
+    onChange(list);
+  };
+
+  return (
+    <div className="space-y-4 border-t border-gray-200 pt-6 mt-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h4 className="text-sm font-extrabold text-gray-900">
+            {lang === 'zh' ? '特写/专题报道板块管理' : 'Feature Article Blocks Manager'}
+          </h4>
+          <p className="text-xs text-gray-500 font-light mt-0.5">
+            {lang === 'zh' 
+              ? '通过添加、删除或重新排序各种模块（段落、视频、图片相册）来撰写丰富的特写故事' 
+              : 'Compose rich featured stories by adding, removing, or re-ordering multiple content blocks.'}
+          </p>
+        </div>
+      </div>
+
+      {featureBlocks.length === 0 ? (
+        <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-6 text-center">
+          <p className="text-xs text-gray-400">
+            {lang === 'zh' ? '暂无内容模块。请点击下方按钮添加模块开始撰写。' : 'No blocks added yet. Click a button below to add content blocks.'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {featureBlocks.map((block, idx) => {
+            return (
+              <div key={block.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
+                {/* Block Header */}
+                <div className="flex justify-between items-center pb-2 border-b border-gray-100 mb-3">
+                  <span className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+                    {block.type === 'heading' && <Type size={14} />}
+                    {block.type === 'paragraph' && <FileText size={14} />}
+                    {block.type === 'video' && <Video size={14} />}
+                    {block.type === 'photos' && <Camera size={14} />}
+                    <span>
+                      {lang === 'zh' ? `模块 ${idx + 1}: ` : `Block ${idx + 1}: `}
+                      {block.type === 'heading' && (lang === 'zh' ? '标题 (Heading)' : 'Heading')}
+                      {block.type === 'paragraph' && (lang === 'zh' ? '段落 (Paragraph)' : 'Paragraph')}
+                      {block.type === 'video' && (lang === 'zh' ? '视频 (Video)' : 'Video')}
+                      {block.type === 'photos' && (lang === 'zh' ? '相册/多图 (Photos)' : 'Photos Gallery')}
+                    </span>
+                  </span>
+                  
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleMoveBlock(idx, 'up')}
+                      disabled={idx === 0}
+                      className="p-1 rounded border border-gray-250 hover:bg-gray-50 disabled:opacity-40"
+                      title={lang === 'zh' ? '上移' : 'Move Up'}
+                    >
+                      <ArrowUp size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveBlock(idx, 'down')}
+                      disabled={idx === featureBlocks.length - 1}
+                      className="p-1 rounded border border-gray-250 hover:bg-gray-50 disabled:opacity-40"
+                      title={lang === 'zh' ? '下移' : 'Move Down'}
+                    >
+                      <ArrowDown size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveBlock(block.id)}
+                      className="p-1 rounded border border-red-200 text-red-500 hover:bg-red-50"
+                      title={lang === 'zh' ? '删除' : 'Delete'}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Block Content Inputs */}
+                {block.type === 'heading' && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 mb-1">标题文本 (中文)</label>
+                        <input
+                          type="text"
+                          value={block.text?.zh || ''}
+                          onChange={(e) => handleUpdateBlock(block.id, { text: { ...block.text, zh: e.target.value } })}
+                          className="w-full px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          placeholder="输入中文标题..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 mb-1">Heading Text (English)</label>
+                        <input
+                          type="text"
+                          value={block.text?.en || ''}
+                          onChange={(e) => handleUpdateBlock(block.id, { text: { ...block.text, en: e.target.value } })}
+                          className="w-full px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          placeholder="Enter English heading..."
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 mb-1">标题层级 / Heading Level</label>
+                      <select
+                        value={block.level || 'h2'}
+                        onChange={(e) => handleUpdateBlock(block.id, { level: e.target.value })}
+                        className="px-2 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none bg-white"
+                      >
+                        <option value="h1">{lang === 'zh' ? '主标题 (H1 - Large Heading)' : 'Large Heading (H1)'}</option>
+                        <option value="h2">{lang === 'zh' ? '子标题 (H2 - Medium Heading)' : 'Medium Heading (H2)'}</option>
+                        <option value="h3">{lang === 'zh' ? '小标题 (H3 - Small Heading)' : 'Small Heading (H3)'}</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {block.type === 'paragraph' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 mb-1">段落文本 (中文)</label>
+                      <textarea
+                        rows={3}
+                        value={block.text?.zh || ''}
+                        onChange={(e) => handleUpdateBlock(block.id, { text: { ...block.text, zh: e.target.value } })}
+                        className="w-full px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                        placeholder="输入中文段落内容..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 mb-1">Paragraph Text (English)</label>
+                      <textarea
+                        rows={3}
+                        value={block.text?.en || ''}
+                        onChange={(e) => handleUpdateBlock(block.id, { text: { ...block.text, en: e.target.value } })}
+                        className="w-full px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                        placeholder="Enter English paragraph text..."
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {block.type === 'video' && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 mb-1">视频链接 / Video URL (YouTube, Vimeo or direct video link)</label>
+                      <input
+                        type="text"
+                        value={block.url || ''}
+                        onChange={(e) => handleUpdateBlock(block.id, { url: e.target.value })}
+                        className="w-full px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                        placeholder="https://www.youtube.com/watch?v=..."
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 mb-1">视频描述 (中文)</label>
+                        <input
+                          type="text"
+                          value={block.description?.zh || ''}
+                          onChange={(e) => handleUpdateBlock(block.id, { description: { ...block.description, zh: e.target.value } })}
+                          className="w-full px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          placeholder="输入中文描述..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 mb-1">Video Description (English)</label>
+                        <input
+                          type="text"
+                          value={block.description?.en || ''}
+                          onChange={(e) => handleUpdateBlock(block.id, { description: { ...block.description, en: e.target.value } })}
+                          className="w-full px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          placeholder="Enter English description..."
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 mb-1">描述文字显示位置 / Description Position</label>
+                      <select
+                        value={block.descPosition || 'bottom'}
+                        onChange={(e) => handleUpdateBlock(block.id, { descPosition: e.target.value })}
+                        className="px-2 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none bg-white"
+                      >
+                        <option value="top">{lang === 'zh' ? '上方 (Top)' : 'Top'}</option>
+                        <option value="bottom">{lang === 'zh' ? '下方 (Bottom)' : 'Bottom'}</option>
+                        <option value="left">{lang === 'zh' ? '左侧 (Left Side)' : 'Left Side'}</option>
+                        <option value="right">{lang === 'zh' ? '右侧 (Right Side)' : 'Right Side'}</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {block.type === 'photos' && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 mb-1">
+                        {lang === 'zh' ? '相册图片列表' : 'Photos List'}
+                      </label>
+                      <div className="space-y-2 border border-gray-100 rounded-lg p-3 bg-gray-50">
+                        {(block.images || []).map((img, imgIdx) => (
+                          <div key={imgIdx} className="flex gap-2 items-start bg-white p-2 rounded border border-gray-200 relative">
+                            <div className="flex-1">
+                              <MediaUrlField
+                                value={img}
+                                onChange={(val) => {
+                                  const updatedImgs = [...block.images];
+                                  updatedImgs[imgIdx] = val;
+                                  handleUpdateBlock(block.id, { images: updatedImgs });
+                                }}
+                                category="images"
+                                label={lang === 'zh' ? `图片 ${imgIdx + 1}` : `Photo ${imgIdx + 1}`}
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1 mt-6">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (imgIdx === 0) return;
+                                  const list = [...block.images];
+                                  const temp = list[imgIdx];
+                                  list[imgIdx] = list[imgIdx - 1];
+                                  list[imgIdx - 1] = temp;
+                                  handleUpdateBlock(block.id, { images: list });
+                                }}
+                                disabled={imgIdx === 0}
+                                className="p-1 rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40"
+                              >
+                                <ArrowUp size={10} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (imgIdx === block.images.length - 1) return;
+                                  const list = [...block.images];
+                                  const temp = list[imgIdx];
+                                  list[imgIdx] = list[imgIdx + 1];
+                                  list[imgIdx + 1] = temp;
+                                  handleUpdateBlock(block.id, { images: list });
+                                }}
+                                disabled={imgIdx === block.images.length - 1}
+                                className="p-1 rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40"
+                              >
+                                <ArrowDown size={10} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updatedImgs = block.images.filter((_, i) => i !== imgIdx);
+                                  handleUpdateBlock(block.id, { images: updatedImgs });
+                                }}
+                                className="p-1 rounded border border-red-100 text-red-500 hover:bg-red-50"
+                              >
+                                <Trash2 size={10} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleUpdateBlock(block.id, { images: [...(block.images || []), ''] });
+                          }}
+                          className="w-full py-1.5 rounded border border-dashed border-primary/40 text-primary hover:bg-primary/5 text-xs font-semibold flex items-center justify-center gap-1 transition-all"
+                        >
+                          <Plus size={12} />
+                          <span>{lang === 'zh' ? '添加图片' : 'Add Photo'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 mb-1">相册描述 (中文)</label>
+                        <input
+                          type="text"
+                          value={block.description?.zh || ''}
+                          onChange={(e) => handleUpdateBlock(block.id, { description: { ...block.description, zh: e.target.value } })}
+                          className="w-full px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          placeholder="输入中文描述..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 mb-1">Photos Description (English)</label>
+                        <input
+                          type="text"
+                          value={block.description?.en || ''}
+                          onChange={(e) => handleUpdateBlock(block.id, { description: { ...block.description, en: e.target.value } })}
+                          className="w-full px-2.5 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                          placeholder="Enter English description..."
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 mb-1">描述文字显示位置 / Description Position</label>
+                      <select
+                        value={block.descPosition || 'bottom'}
+                        onChange={(e) => handleUpdateBlock(block.id, { descPosition: e.target.value })}
+                        className="px-2 py-1.5 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none bg-white"
+                      >
+                        <option value="top">{lang === 'zh' ? '上方 (Top)' : 'Top'}</option>
+                        <option value="bottom">{lang === 'zh' ? '下方 (Bottom)' : 'Bottom'}</option>
+                        <option value="left">{lang === 'zh' ? '左侧 (Left Side)' : 'Left Side'}</option>
+                        <option value="right">{lang === 'zh' ? '右侧 (Right Side)' : 'Right Side'}</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add Block Buttons Group */}
+      <div className="flex flex-wrap gap-2 justify-center pt-2">
+        <button
+          type="button"
+          onClick={() => handleAddBlock('heading')}
+          className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold flex items-center gap-1.5 transition-all"
+        >
+          <Type size={13} />
+          <span>{lang === 'zh' ? '+ 添加标题' : '+ Add Heading'}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddBlock('paragraph')}
+          className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold flex items-center gap-1.5 transition-all"
+        >
+          <FileText size={13} />
+          <span>{lang === 'zh' ? '+ 添加段落' : '+ Add Paragraph'}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddBlock('video')}
+          className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold flex items-center gap-1.5 transition-all"
+        >
+          <Video size={13} />
+          <span>{lang === 'zh' ? '+ 添加视频' : '+ Add Video'}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddBlock('photos')}
+          className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold flex items-center gap-1.5 transition-all"
+        >
+          <Camera size={13} />
+          <span>{lang === 'zh' ? '+ 添加相册' : '+ Add Photos'}</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// 3. Feature Article Renderer Component
+function FeatureArticleRenderer({ featureBlocks = [], lang, t }) {
+  if (!featureBlocks || featureBlocks.length === 0) return null;
+
+  return (
+    <div className="space-y-12">
+      {featureBlocks.map((block, idx) => {
+        if (block.type === 'heading') {
+          const text = t(block.text);
+          const level = block.level || 'h2';
+          if (level === 'h1') {
+            return (
+              <div key={block.id || idx} className="pt-4 pb-2 border-b border-gray-150">
+                <h3 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight leading-tight">
+                  {text}
+                </h3>
+              </div>
+            );
+          } else if (level === 'h2') {
+            return (
+              <div key={block.id || idx} className="pt-3">
+                <h4 className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight leading-snug flex items-center gap-2">
+                  <span className="w-1.5 h-6 bg-primary rounded-full inline-block shrink-0" />
+                  <span>{text}</span>
+                </h4>
+              </div>
+            );
+          } else { // h3
+            return (
+              <div key={block.id || idx} className="pt-2">
+                <h5 className="text-lg sm:text-xl font-bold text-gray-800 tracking-tight leading-normal">
+                  {text}
+                </h5>
+              </div>
+            );
+          }
+        }
+
+        if (block.type === 'paragraph') {
+          return (
+            <div key={block.id || idx} className="prose max-w-none">
+              <p className="text-gray-700 text-sm sm:text-base md:text-lg font-light leading-relaxed whitespace-pre-line">
+                {t(block.text)}
+              </p>
+            </div>
+          );
+        }
+
+        if (block.type === 'video') {
+          const embedUrl = getYouTubeEmbedUrl(block.url);
+          const hasDesc = block.description && (block.description.zh || block.description.en);
+          const descText = t(block.description);
+          const pos = block.descPosition || 'bottom';
+
+          const videoPlayer = (
+            <div className="w-full">
+              {embedUrl ? (
+                <div className="relative w-full aspect-video rounded-2xl overflow-hidden shadow-md border border-gray-150">
+                  <iframe
+                    src={embedUrl}
+                    className="absolute inset-0 w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    title={descText || "Video Player"}
+                  />
+                </div>
+              ) : block.url ? (
+                <div className="relative w-full rounded-2xl overflow-hidden shadow-md border border-gray-150 bg-black">
+                  <video src={block.url} controls className="w-full h-auto aspect-video max-h-[500px]" />
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-gray-50 border border-gray-250 flex items-center justify-center text-xs text-gray-400 gap-2">
+                  <Video size={16} />
+                  <span>{lang === 'zh' ? '（未提供视频链接）' : '(No video link provided)'}</span>
+                </div>
+              )}
+            </div>
+          );
+
+          const descElem = hasDesc ? (
+            <div className="text-gray-500 text-xs sm:text-sm font-light italic leading-relaxed py-1 px-2 border-l-2 border-primary/20">
+              {descText}
+            </div>
+          ) : null;
+
+          if (pos === 'top') {
+            return (
+              <div key={block.id || idx} className="space-y-3">
+                {descElem}
+                {videoPlayer}
+              </div>
+            );
+          } else if (pos === 'bottom') {
+            return (
+              <div key={block.id || idx} className="space-y-3">
+                {videoPlayer}
+                {descElem}
+              </div>
+            );
+          } else if (pos === 'left') {
+            return (
+              <div key={block.id || idx} className="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
+                <div className="md:col-span-2 space-y-2">{descElem}</div>
+                <div className="md:col-span-3">{videoPlayer}</div>
+              </div>
+            );
+          } else { // right
+            return (
+              <div key={block.id || idx} className="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
+                <div className="md:col-span-3">{videoPlayer}</div>
+                <div className="md:col-span-2 space-y-2">{descElem}</div>
+              </div>
+            );
+          }
+        }
+
+        if (block.type === 'photos') {
+          const validImages = (block.images || []).filter(Boolean);
+          const hasDesc = block.description && (block.description.zh || block.description.en);
+          const descText = t(block.description);
+          const pos = block.descPosition || 'bottom';
+
+          const galleryElement = (
+            <div className="w-full">
+              {validImages.length === 0 ? (
+                <div className="p-4 rounded-xl bg-gray-50 border border-gray-250 flex items-center justify-center text-xs text-gray-400 gap-2">
+                  <Camera size={16} />
+                  <span>{lang === 'zh' ? '（相册暂无图片）' : '(No images in album)'}</span>
+                </div>
+              ) : (
+                <div className={`grid gap-4 ${
+                  validImages.length === 1 ? 'grid-cols-1' :
+                  validImages.length === 2 ? 'grid-cols-2' :
+                  validImages.length === 3 ? 'grid-cols-3' :
+                  'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
+                }`}>
+                  {validImages.map((img, i) => (
+                    <div key={i} className="group relative aspect-[4/3] rounded-2xl overflow-hidden shadow-sm hover:shadow-md border border-gray-150 bg-gray-50 cursor-zoom-in">
+                      <a href={img} target="_blank" rel="noopener noreferrer" className="absolute inset-0">
+                        <img src={img} alt={`Gallery ${i}`} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+
+          const descElem = hasDesc ? (
+            <div className="text-gray-500 text-xs sm:text-sm font-light italic leading-relaxed py-1 px-2 border-l-2 border-primary/20">
+              {descText}
+            </div>
+          ) : null;
+
+          if (pos === 'top') {
+            return (
+              <div key={block.id || idx} className="space-y-3">
+                {descElem}
+                {galleryElement}
+              </div>
+            );
+          } else if (pos === 'bottom') {
+            return (
+              <div key={block.id || idx} className="space-y-3">
+                {galleryElement}
+                {descElem}
+              </div>
+            );
+          } else if (pos === 'left') {
+            return (
+              <div key={block.id || idx} className="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
+                <div className="md:col-span-2 space-y-2">{descElem}</div>
+                <div className="md:col-span-3">{galleryElement}</div>
+              </div>
+            );
+          } else { // right
+            return (
+              <div key={block.id || idx} className="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
+                <div className="md:col-span-3">{galleryElement}</div>
+                <div className="md:col-span-2 space-y-2">{descElem}</div>
+              </div>
+            );
+          }
+        }
+
+        return null;
+      })}
+    </div>
+  );
+}
 
 export default function App() {
   // A saved browser copy is an *admin draft*, not public site content. Loading it
@@ -6053,6 +6655,32 @@ export default function App() {
                                 className="w-full px-3 py-2 rounded border border-gray-300 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
                               />
                             </div>
+
+                            <div className="md:col-span-2 pt-4 border-t border-gray-150">
+                              <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-gray-700">
+                                <input 
+                                  type="checkbox" 
+                                  checked={!!editingMinistry.hasFeatureArticle} 
+                                  onChange={(e) => setEditingMinistry({ 
+                                    ...editingMinistry, 
+                                    hasFeatureArticle: e.target.checked,
+                                    featureBlocks: editingMinistry.featureBlocks || []
+                                  })} 
+                                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" 
+                                />
+                                <span>{lang === 'zh' ? '启用特写/专题报道 (Enable Feature Article)' : 'Enable Feature Article'}</span>
+                              </label>
+                            </div>
+
+                            {editingMinistry.hasFeatureArticle && (
+                              <div className="md:col-span-2 bg-gray-50/50 rounded-xl p-4 border border-gray-200">
+                                <FeatureArticleEditor 
+                                  featureBlocks={editingMinistry.featureBlocks || []} 
+                                  onChange={(blocks) => setEditingMinistry({ ...editingMinistry, featureBlocks: blocks })}
+                                  lang={lang}
+                                />
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
@@ -8451,39 +9079,113 @@ export default function App() {
           aria-modal="true" 
           onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedMinistry(null); }}
         >
-          <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl">
-            <button onClick={() => setSelectedMinistry(null)} className="absolute right-4 top-4 z-10 rounded-full bg-black/55 p-2 text-white hover:bg-black/75 transition-all"><X size={20} /></button>
-            <div className="flex flex-col lg:flex-row">
-              <div className="lg:w-1/2 h-64 sm:h-80 lg:h-auto relative bg-gray-100 shrink-0">
-                <img src={selectedMinistry.image} alt={t(selectedMinistry.name)} className="absolute inset-0 w-full h-full object-cover" />
-              </div>
-              <div className="lg:w-1/2 p-6 sm:p-8 space-y-6">
-                <div className="inline-flex px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
-                  {lang === 'zh' ? '事工详情' : 'Ministry Details'}
+          {selectedMinistry.hasFeatureArticle ? (
+            /* IMMERSIVE FEATURE ARTICLE MODAL */
+            <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl animate-fade-in-down">
+              <button 
+                onClick={() => setSelectedMinistry(null)} 
+                className="absolute right-4 top-4 z-20 rounded-full bg-black/55 p-2 text-white hover:bg-black/75 transition-all"
+                title={lang === 'zh' ? '关闭' : 'Close'}
+              >
+                <X size={20} />
+              </button>
+              
+              {/* Feature Hero Header */}
+              <div className="relative h-64 sm:h-80 md:h-[350px] w-full bg-gray-150">
+                <img 
+                  src={selectedMinistry.image} 
+                  alt={t(selectedMinistry.name)} 
+                  className="w-full h-full object-cover" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-950/95 via-gray-950/40 to-transparent" />
+                <div className="absolute bottom-6 left-6 right-6 sm:left-10 sm:right-10 text-white space-y-2">
+                  <span className="bg-primary/95 text-white px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider mb-2 inline-block shadow-sm">
+                    {lang === 'zh' ? '✨ 特写故事 / FEATURE' : '✨ Feature Story'}
+                  </span>
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-tight">
+                    {t(selectedMinistry.name)}
+                  </h2>
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-black text-gray-900 leading-tight">{t(selectedMinistry.name)}</h2>
-                <div className="w-16 h-1.5 bg-primary rounded-full" />
-                <p className="text-gray-700 text-sm sm:text-base font-light leading-relaxed whitespace-pre-line">
-                  {t(selectedMinistry.description)}
-                </p>
-                <div className="pt-6 border-t border-gray-100 flex flex-wrap gap-3">
-                  <button 
-                    onClick={() => { setSelectedMinistry(null); openTimetableSection('ministry'); }}
-                    className="flex-1 px-5 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
-                  >
-                    <Clock size={18} />
-                    <span>{lang === 'zh' ? '查看聚会时间' : 'View Timetable'}</span>
-                  </button>
-                  <button 
-                    onClick={() => { setSelectedMinistry(null); setActiveTab('about'); window.scrollTo(0, 0); }}
-                    className="px-5 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all"
-                  >
-                    {lang === 'zh' ? '联系教会' : 'Contact Us'}
-                  </button>
+              </div>
+
+              {/* Feature Article Body */}
+              <div className="px-6 py-8 sm:px-10 sm:py-10 max-w-3xl mx-auto space-y-8">
+                {/* Intro / Main Description */}
+                <div className="pb-8 border-b border-gray-100">
+                  <p className="text-gray-600 text-sm sm:text-base md:text-lg font-light leading-relaxed whitespace-pre-line italic">
+                    {t(selectedMinistry.description)}
+                  </p>
+                </div>
+
+                {/* Render Article Blocks */}
+                <FeatureArticleRenderer 
+                  featureBlocks={selectedMinistry.featureBlocks || []} 
+                  lang={lang} 
+                  t={t} 
+                />
+
+                {/* Action Buttons at the Bottom */}
+                <div className="pt-10 border-t border-gray-100 space-y-4">
+                  <div className="text-center">
+                    <p className="text-xs text-gray-400">
+                      {lang === 'zh' ? '想要了解更多或参与我们？' : 'Want to learn more or join us?'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap sm:flex-nowrap gap-3">
+                    <button 
+                      onClick={() => { setSelectedMinistry(null); openTimetableSection('ministry'); }}
+                      className="flex-1 px-5 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+                    >
+                      <Clock size={18} />
+                      <span>{lang === 'zh' ? '查看聚会时间' : 'View Timetable'}</span>
+                    </button>
+                    <button 
+                      onClick={() => { setSelectedMinistry(null); setActiveTab('about'); window.scrollTo(0, 0); }}
+                      className="px-5 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Phone size={16} />
+                      <span>{lang === 'zh' ? '联系教会' : 'Contact Us'}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            /* STANDARD 2-COLUMN DETAIL MODAL */
+            <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl">
+              <button onClick={() => setSelectedMinistry(null)} className="absolute right-4 top-4 z-10 rounded-full bg-black/55 p-2 text-white hover:bg-black/75 transition-all"><X size={20} /></button>
+              <div className="flex flex-col lg:flex-row">
+                <div className="lg:w-1/2 h-64 sm:h-80 lg:h-auto relative bg-gray-100 shrink-0">
+                  <img src={selectedMinistry.image} alt={t(selectedMinistry.name)} className="absolute inset-0 w-full h-full object-cover" />
+                </div>
+                <div className="lg:w-1/2 p-6 sm:p-8 space-y-6">
+                  <div className="inline-flex px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
+                    {lang === 'zh' ? '事工详情' : 'Ministry Details'}
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900 leading-tight">{t(selectedMinistry.name)}</h2>
+                  <div className="w-16 h-1.5 bg-primary rounded-full" />
+                  <p className="text-gray-700 text-sm sm:text-base font-light leading-relaxed whitespace-pre-line">
+                    {t(selectedMinistry.description)}
+                  </p>
+                  <div className="pt-6 border-t border-gray-100 flex flex-wrap gap-3">
+                    <button 
+                      onClick={() => { setSelectedMinistry(null); openTimetableSection('ministry'); }}
+                      className="flex-1 px-5 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+                    >
+                      <Clock size={18} />
+                      <span>{lang === 'zh' ? '查看聚会时间' : 'View Timetable'}</span>
+                    </button>
+                    <button 
+                      onClick={() => { setSelectedMinistry(null); setActiveTab('about'); window.scrollTo(0, 0); }}
+                      className="px-5 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all"
+                    >
+                      {lang === 'zh' ? '联系教会' : 'Contact Us'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -715,7 +715,68 @@ export const initialData = {
       "description": {
         "zh": "由教会同工与义工团队爱心筹备，为百利镇社区里处于贫困、残疾、孤寡或行动不便的弱势群体，提供每日/每周的营养爱心便当派送服务。透过这份看似微薄的便当，传递神无限的顾念与无限的供给。",
         "en": "Lovingly prepared by our staff and volunteer teams, this ministry provides nutritious bento meal deliveries to low-income, disabled, solitary elderly, or mobility-impaired individuals. Through these simple boxes of meals, we convey God's unlimited care and provision."
-      }
+      },
+      "hasFeatureArticle": true,
+      "featureBlocks": [
+        {
+          "id": "init_block_title_1",
+          "type": "heading",
+          "text": {
+            "zh": "带着祝福与问候的爱心便当 🍱",
+            "en": "Love Bentos Loaded with Blessings 🍱"
+          },
+          "level": "h2"
+        },
+        {
+          "id": "init_block_1",
+          "type": "paragraph",
+          "text": {
+            "zh": "每一份爱心便当，不仅代表着一顿温饱，更代表着上帝的祝福与教会的问候。我们的团队每天清晨开始采购与烹饪，确保食材新鲜营养，并由义工亲手送到每个家庭中。\n\n我们的服务已经覆盖了百利镇周边数十个弱势家庭。在这个过程中，我们见证了许多生命的改变，从绝望走向喜乐，从孤单走向团契。",
+            "en": "Every love bento represents not just a warm meal, but also God's blessing and the church's warm greetings. Our team starts sourcing and cooking early in the morning to ensure ingredients are fresh and nutritious, delivered by volunteers directly to each family.\n\nOur service has covered dozens of vulnerable families in the Bukit Mertajam area. Through this journey, we have witnessed many life transformations—from despair to joy, and from loneliness to beautiful fellowship."
+          }
+        },
+        {
+          "id": "init_block_title_2",
+          "type": "heading",
+          "text": {
+            "zh": "义工的每日奉献纪录",
+            "en": "Daily Dedication of Our Volunteers"
+          },
+          "level": "h2"
+        },
+        {
+          "id": "init_block_2",
+          "type": "video",
+          "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          "description": {
+            "zh": "观看吗哪食物银行义工团队每日服务纪录短片",
+            "en": "Watch our Manna Food Bank volunteer team's daily service documentary."
+          },
+          "descPosition": "bottom"
+        },
+        {
+          "id": "init_block_title_3",
+          "type": "heading",
+          "text": {
+            "zh": "温馨的服务掠影",
+            "en": "Heartwarming Moments"
+          },
+          "level": "h3"
+        },
+        {
+          "id": "init_block_3",
+          "type": "photos",
+          "images": [
+            "https://images.unsplash.com/photo-1542810634-71277d95dcbb?auto=format&fit=crop&w=800&q=80",
+            "https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&w=800&q=80"
+          ],
+          "description": {
+            "zh": "义工团队爱心打包与热心配送的真实掠影",
+            "en": "Behind-the-scenes look at our volunteers preparing and delivering warm bento meals."
+          },
+          "descPosition": "right"
+        }
+      ]
     },
     {
       "id": 1,
