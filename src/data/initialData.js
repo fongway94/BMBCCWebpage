@@ -716,7 +716,7 @@ export const initialData = {
         "zh": "由教会同工与义工团队爱心筹备，为百利镇社区里处于贫困、残疾、孤寡或行动不便的弱势群体，提供每日/每周的营养爱心便当派送服务。透过这份看似微薄的便当，传递神无限的顾念与无限的供给。",
         "en": "Lovingly prepared by our staff and volunteer teams, this ministry provides nutritious bento meal deliveries to low-income, disabled, solitary elderly, or mobility-impaired individuals. Through these simple boxes of meals, we convey God's unlimited care and provision."
       },
-      "hasFeatureArticle": false,
+      "hasFeatureArticle": true,
       "featureBlocks": [
         {
           "id": "init_block_title_1",
