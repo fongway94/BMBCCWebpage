@@ -658,7 +658,10 @@ function FeatureArticleEditor({ featureBlocks = [], onChange, lang }) {
 }
 
 // 3. Feature Article Renderer Component
-function FeatureArticleRenderer({ featureBlocks = [], lang, t }) {
+// `onImageClick(images, index, caption)` lets the host page open its shared
+// lightbox so a multi-photo album can be browsed with next/previous controls
+// (same behaviour as the Fellowship Highlights gallery).
+function FeatureArticleRenderer({ featureBlocks = [], lang, t, onImageClick }) {
   if (!featureBlocks || featureBlocks.length === 0) return null;
 
   return (
@@ -794,11 +797,23 @@ function FeatureArticleRenderer({ featureBlocks = [], lang, t }) {
                   'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
                 }`}>
                   {validImages.map((img, i) => (
-                    <div key={i} className="group relative aspect-[4/3] rounded-2xl overflow-hidden shadow-sm hover:shadow-md border border-gray-150 bg-gray-50 cursor-zoom-in">
-                      <a href={img} target="_blank" rel="noopener noreferrer" className="absolute inset-0">
-                        <img src={img} alt={`Gallery ${i}`} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                      </a>
-                    </div>
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        if (onImageClick) onImageClick(validImages, i, descText);
+                        else window.open(img, '_blank', 'noopener,noreferrer');
+                      }}
+                      aria-label={`${lang === 'zh' ? '放大照片' : 'Enlarge photo'} ${i + 1} / ${validImages.length}`}
+                      className="group relative block w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-sm hover:shadow-md border border-gray-150 bg-gray-50 cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <img src={img} alt={`Gallery ${i + 1}`} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      {validImages.length > 1 && (
+                        <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/60 text-white text-[11px] font-bold">
+                          {i + 1} / {validImages.length}
+                        </span>
+                      )}
+                    </button>
                   ))}
                 </div>
               )}
@@ -875,6 +890,10 @@ export default function App() {
   const [selectedFellowshipHighlight, setSelectedFellowshipHighlight] = useState(null);
   const [editingFellowshipHighlight, setEditingFellowshipHighlight] = useState(null);
   const [selectedMinistry, setSelectedMinistry] = useState(null);
+  // Ministries flagged with `hasFeatureArticle` open as a full page section
+  // (instead of a cramped modal) so the whole story can be read comfortably.
+  const [featureArticleMinistry, setFeatureArticleMinistry] = useState(null);
+  const featureHistoryRef = React.useRef(false);
   const [selectedCellGroup, setSelectedCellGroup] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   
@@ -1021,7 +1040,39 @@ export default function App() {
   const [copiedModalItem, setCopiedModalItem] = useState(false);
   const [adminTimetableSubSection, setAdminTimetableSubSection] = useState('weekly'); // 'weekly', 'ministry', 'cellgroup'
 
-  const openTimetableSection = (section) => { setTimetableFilterSection(section); setActiveTab('timetable'); window.scrollTo(0, 0); };
+  const openTimetableSection = (section) => { setFeatureArticleMinistry(null); setTimetableFilterSection(section); setActiveTab('timetable'); window.scrollTo(0, 0); };
+
+  // Ministries with a feature article take over the Ministries page as a full
+  // reading view. A history entry is pushed so the phone/browser Back button
+  // returns to the ministry list instead of leaving the site.
+  const openFeatureArticle = (ministry) => {
+    setSelectedMinistry(null);
+    setFeatureArticleMinistry(ministry);
+    setActiveTab('ministries');
+    try {
+      if (window.history && window.history.pushState) {
+        window.history.pushState({ bmbccFeature: true }, '');
+        featureHistoryRef.current = true;
+      }
+    } catch (e) { /* history unavailable: back button simply won't be wired */ }
+    window.scrollTo(0, 0);
+  };
+
+  const closeFeatureArticle = () => {
+    // Unwind our own history entry so the URL doesn't accumulate dead states.
+    if (featureHistoryRef.current) {
+      featureHistoryRef.current = false;
+      try { window.history.back(); return; } catch (e) { /* fall through */ }
+    }
+    setFeatureArticleMinistry(null);
+    window.scrollTo(0, 0);
+  };
+
+  // A ministry either opens the full-page feature article or the compact modal.
+  const openMinistryDetails = (ministry) => {
+    if (ministry?.hasFeatureArticle) openFeatureArticle(ministry);
+    else setSelectedMinistry(ministry);
+  };
 
   // Build-time GitHub config (injected by Vite from env vars)
   const GITHUB_PAT_DEFAULT = ''; // Never inject GitHub tokens at build time; enter them in the admin UI only.
@@ -1367,6 +1418,25 @@ export default function App() {
     };
   }, []);
 
+  // Browser/phone Back closes the full-page feature article instead of leaving the site.
+  useEffect(() => {
+    if (!featureArticleMinistry) return;
+    const onPopState = () => {
+      featureHistoryRef.current = false;
+      setFeatureArticleMinistry(null);
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [featureArticleMinistry]);
+
+  // Leaving the Ministries tab (nav click, logo, mobile drawer…) drops the article view.
+  useEffect(() => {
+    if (activeTab !== 'ministries' && featureArticleMinistry) {
+      setFeatureArticleMinistry(null);
+    }
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // When mobile drawer is open, lock background scroll so the drawer scrolls independently
   // and the page behind does not move. This fixes the issue where you have to scroll
   // the whole page to reach the bottom of the menu.
@@ -1496,6 +1566,11 @@ export default function App() {
   // Helper function to switch tabs and handle URL hashes smoothly
   const switchTab = (tabId) => {
     setActiveTab(tabId);
+    // Any explicit navigation leaves the full-page feature article, including
+    // re-clicking "Ministries" while an article is open (activeTab is unchanged
+    // then, so the tab-change effect alone would not catch it).
+    setFeatureArticleMinistry(null);
+    featureHistoryRef.current = false;
     setMobileMenuOpen(false);
     if (tabId === 'admin') {
       if (window.location.hash !== '#/admin' && window.location.hash !== '#admin' && !window.location.pathname.endsWith('/admin')) {
@@ -2045,21 +2120,21 @@ export default function App() {
 
       {/* 1. TOP INFORMATION HEADER */}
       <header className="bg-gray-900 text-gray-300 text-xs py-2 px-4 sm:px-6 md:px-8 border-b border-gray-800 transition-all">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1">
-              <Phone size={13} className="text-primary" />
-              <span>{data.settings.contactPhone}</span>
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2 min-w-0">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0 max-w-full">
+            <span className="flex items-center gap-1 shrink-0">
+              <Phone size={13} className="text-primary shrink-0" />
+              <span className="whitespace-nowrap">{data.settings.contactPhone}</span>
             </span>
-            <span className="flex items-center gap-1">
-              <Mail size={13} className="text-primary" />
-              <span>{data.settings.contactEmail}</span>
+            <span className="flex items-center gap-1 min-w-0">
+              <Mail size={13} className="text-primary shrink-0" />
+              <span className="truncate">{data.settings.contactEmail}</span>
             </span>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1 text-center sm:text-right">
+          <div className="flex items-center gap-4 min-w-0 max-w-full">
+            <span className="flex items-center gap-1 text-center sm:text-right min-w-0 max-w-full">
               <MapPin size={13} className="text-primary shrink-0" />
-              <span className="truncate max-w-[280px] md:max-w-md">{data.settings.contactAddress}</span>
+              <span className="truncate min-w-0 md:max-w-md">{data.settings.contactAddress}</span>
             </span>
           </div>
         </div>
@@ -2068,28 +2143,31 @@ export default function App() {
       {/* 2. NAVIGATION BAR */}
       <nav className="bg-white sticky top-0 z-40 shadow-sm transition-all border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-20">
-            <div className="flex items-center shrink-0">
-              <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => switchTab('home')}>
+          <div className="flex justify-between items-center gap-2 h-20">
+            {/* Brand block. `min-w-0` lets it shrink instead of pushing the menu
+                buttons off-screen when a long church name (e.g. the English one)
+                is displayed on a narrow phone. */}
+            <div className="flex items-center min-w-0">
+              <div className="flex items-center gap-2 sm:gap-2.5 cursor-pointer min-w-0" onClick={() => switchTab('home')}>
                 {data.settings.headerLogo ? (
                   <img
                     src={data.settings.headerLogo}
                     alt={`${t(data.settings.churchName)} logo`}
-                    className="w-12 h-12 rounded-xl object-contain border border-gray-100 bg-white p-1 shadow-sm"
+                    className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl object-contain border border-gray-100 bg-white p-1 shadow-sm"
                   />
                 ) : (
-                  <div className="bg-primary hover:bg-primary-dark text-white p-2.5 rounded-xl shadow-md shadow-primary/20 transition-all">
+                  <div className="bg-primary hover:bg-primary-dark text-white p-2 sm:p-2.5 rounded-xl shadow-md shadow-primary/20 transition-all shrink-0">
                     {/* Default cross shown until a logo URL is set in Admin Settings. */}
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m-6-8h12" />
                     </svg>
                   </div>
                 )}
-                <div>
-                  <span className="font-bold text-lg md:text-xl text-gray-900 block leading-tight tracking-wide font-sans">
+                <div className="min-w-0">
+                  <span className="font-bold text-sm sm:text-lg md:text-xl text-gray-900 block leading-tight tracking-wide font-sans line-clamp-2 break-words">
                     {t(data.settings.churchName)}
                   </span>
-                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">
+                  <span className="text-[9px] sm:text-[10px] uppercase font-bold text-gray-400 tracking-wider block truncate">
                     {data.settings.churchAbbreviation} • {t(data.settings.churchTagline)}
                   </span>
                 </div>
@@ -2097,7 +2175,7 @@ export default function App() {
             </div>
 
             {/* Desktop Navigation Links - Grouped */}
-            <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
+            <div className="hidden md:flex items-center space-x-1 lg:space-x-2 shrink-0">
               {(() => {
                 const vis = data.pageVisibility || {};
                 const navGroups = [
@@ -2241,12 +2319,13 @@ export default function App() {
               )}
             </div>
 
-            {/* Mobile menu button */}
-            <div className="flex md:hidden items-center gap-2">
+            {/* Mobile menu button — `shrink-0` keeps these controls anchored on
+                the right no matter how long the church name is. */}
+            <div className="flex md:hidden items-center gap-1.5 shrink-0">
               {(activeTab === 'admin' || isAdminLoggedIn) && (
                 <button
                   onClick={() => switchTab('admin')}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold uppercase shrink-0 whitespace-nowrap"
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold uppercase shrink-0 whitespace-nowrap"
                 >
                   <Shield size={12} className="text-amber-600 shrink-0" />
                   <span>{lang === 'zh' ? '控制台' : 'Admin'}</span>
@@ -2254,15 +2333,17 @@ export default function App() {
               )}
               <button
                 onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
-                className="p-2 rounded-lg bg-gray-100 text-gray-700 flex items-center gap-1 transition-all"
+                aria-label={lang === 'zh' ? 'Switch to English' : '切换到中文'}
+                className="p-2 rounded-lg bg-gray-100 text-gray-700 flex items-center gap-1 transition-all shrink-0"
               >
-                <Languages size={16} />
+                <Languages size={16} className="shrink-0" />
                 <span className="text-[10px] font-bold uppercase">{lang === 'zh' ? 'EN' : '中'}</span>
               </button>
               
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2.5 rounded-lg text-gray-600 hover:bg-gray-100 transition-all focus:outline-none"
+                aria-label={lang === 'zh' ? '菜单' : 'Menu'}
+                className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-all focus:outline-none shrink-0"
               >
                 {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
@@ -2281,23 +2362,23 @@ export default function App() {
             {/* Drawer Panel - fixed height, independent scroll */}
             <div data-mobile-drawer className="relative w-[86vw] max-w-[360px] bg-white h-[100dvh] h-[100vh] shadow-2xl animate-slide-in-right flex flex-col overflow-hidden">
               {/* Drawer Header */}
-              <div className="shrink-0 flex items-center justify-between px-5 h-20 border-b border-gray-100 bg-white">
-                <div className="flex items-center gap-2.5">
+              <div className="shrink-0 flex items-center justify-between gap-2 px-5 h-20 border-b border-gray-100 bg-white">
+                <div className="flex items-center gap-2.5 min-w-0">
                   {data.settings.headerLogo ? (
-                    <img src={data.settings.headerLogo} alt="logo" className="w-9 h-9 rounded-lg object-contain border border-gray-100 p-0.5" />
+                    <img src={data.settings.headerLogo} alt="logo" className="w-9 h-9 shrink-0 rounded-lg object-contain border border-gray-100 p-0.5" />
                   ) : (
-                    <div className="bg-primary text-white p-2 rounded-lg">
+                    <div className="bg-primary text-white p-2 rounded-lg shrink-0">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m-6-8h12" />
                       </svg>
                     </div>
                   )}
-                  <div className="flex flex-col leading-tight">
-                    <span className="font-bold text-sm text-gray-900 truncate max-w-[150px]">{t(data.settings.churchName)}</span>
-                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{lang==='zh'?'菜单导览':'Navigation'}</span>
+                  <div className="flex flex-col leading-tight min-w-0">
+                    <span className="font-bold text-sm text-gray-900 line-clamp-2 break-words">{t(data.settings.churchName)}</span>
+                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider truncate">{lang==='zh'?'菜单导览':'Navigation'}</span>
                   </div>
                 </div>
-                <button onClick={()=>setMobileMenuOpen(false)} className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all">
+                <button onClick={()=>setMobileMenuOpen(false)} aria-label={lang === 'zh' ? '关闭菜单' : 'Close menu'} className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all shrink-0">
                   <X size={20} />
                 </button>
               </div>
@@ -2844,8 +2925,106 @@ export default function App() {
           </div>
         )}
 
+        {/* ==================== PAGE: MINISTRIES — FEATURE ARTICLE (full page) ==================== */}
+        {activeTab === 'ministries' && featureArticleMinistry && (() => {
+          // Re-read the ministry from `data` so live admin edits stay in sync while reading.
+          const article = (data.ministries || []).find(m => m.id === featureArticleMinistry.id) || featureArticleMinistry;
+          return (
+            <article className="animate-fade-in">
+              {/* Sticky back bar — always reachable while scrolling a long story.
+                  `top-20` parks it directly under the sticky h-20 navigation bar. */}
+              <div className="sticky top-20 z-30 bg-white/95 backdrop-blur border-b border-gray-150 shadow-sm">
+                <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 h-14 flex items-center justify-between gap-3">
+                  <button
+                    onClick={closeFeatureArticle}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 -ml-1 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-100 hover:text-primary transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    <ChevronLeft size={18} className="shrink-0" />
+                    <span>{lang === 'zh' ? '返回事工列表' : 'Back to Ministries'}</span>
+                  </button>
+                  <span className="hidden sm:block text-xs font-semibold text-gray-400 truncate max-w-[45%]">
+                    {t(article.name)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Feature hero */}
+              <header className="relative h-64 sm:h-80 md:h-[420px] w-full bg-gray-150">
+                <img
+                  src={article.image}
+                  alt={t(article.name)}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-950/95 via-gray-950/40 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0">
+                  <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 pb-6 sm:pb-10 text-white">
+                    <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight drop-shadow-sm">
+                      {t(article.name)}
+                    </h1>
+                  </div>
+                </div>
+              </header>
+
+              {/* Article body */}
+              <div className="max-w-3xl mx-auto px-4 sm:px-6 md:px-8 py-8 sm:py-12 space-y-8">
+                {/* Intro / main description */}
+                <div className="pb-8 border-b border-gray-100">
+                  <p className="text-gray-600 text-sm sm:text-base md:text-lg font-light leading-relaxed whitespace-pre-line italic">
+                    {t(article.description)}
+                  </p>
+                </div>
+
+                <FeatureArticleRenderer
+                  featureBlocks={article.featureBlocks || []}
+                  lang={lang}
+                  t={t}
+                  onImageClick={(images, index, caption) => setSelectedImage({
+                    url: images[index],
+                    title: caption || t(article.name),
+                    images,
+                    index,
+                  })}
+                />
+
+                {/* Footer actions */}
+                <div className="pt-10 border-t border-gray-100 space-y-4">
+                  <div className="text-center">
+                    <p className="text-xs text-gray-400">
+                      {lang === 'zh' ? '想要了解更多或参与我们？' : 'Want to learn more or join us?'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap sm:flex-nowrap gap-3">
+                    <button
+                      onClick={() => openTimetableSection('ministry')}
+                      className="flex-1 px-5 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+                    >
+                      <Clock size={18} />
+                      <span>{lang === 'zh' ? '查看聚会时间' : 'View Timetable'}</span>
+                    </button>
+                    <button
+                      onClick={() => switchTab('about')}
+                      className="px-5 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Phone size={16} />
+                      <span>{lang === 'zh' ? '联系教会' : 'Contact Us'}</span>
+                    </button>
+                  </div>
+                  {/* Secondary back button at the end of the read */}
+                  <button
+                    onClick={closeFeatureArticle}
+                    className="w-full px-5 py-3 rounded-xl border border-gray-200 text-gray-600 text-sm font-bold hover:bg-gray-50 hover:text-primary transition-all flex items-center justify-center gap-2"
+                  >
+                    <ChevronLeft size={16} />
+                    <span>{lang === 'zh' ? '返回事工列表' : 'Back to Ministries'}</span>
+                  </button>
+                </div>
+              </div>
+            </article>
+          );
+        })()}
+
         {/* ==================== PAGE: MINISTRIES ==================== */}
-        {activeTab === 'ministries' && (
+        {activeTab === 'ministries' && !featureArticleMinistry && (
           <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
             {/* Header */}
             <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
@@ -2873,7 +3052,7 @@ export default function App() {
                 >
                   <div 
                     className="w-full lg:w-1/2 h-64 sm:h-80 md:h-96 relative overflow-hidden rounded-xl shrink-0 cursor-zoom-in"
-                    onClick={() => setSelectedMinistry(min)}
+                    onClick={() => openMinistryDetails(min)}
                   >
                     <img 
                       src={min.image} 
@@ -2887,7 +3066,7 @@ export default function App() {
                     </div>
                     <h2 
                       className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight leading-tight cursor-pointer hover:text-primary transition-colors"
-                      onClick={() => setSelectedMinistry(min)}
+                      onClick={() => openMinistryDetails(min)}
                     >
                       {t(min.name)}
                     </h2>
@@ -2897,7 +3076,7 @@ export default function App() {
                     </p>
                     <div className="pt-2 flex flex-wrap gap-3">
                       <button 
-                        onClick={() => setSelectedMinistry(min)}
+                        onClick={() => openMinistryDetails(min)}
                         className="px-5 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-black transition-all flex items-center gap-1.5 shadow-md"
                       >
                         <Info size={16} />
@@ -9071,7 +9250,9 @@ export default function App() {
         </div>
       )}
 
-      {/* Selected Ministry Details Modal */}
+      {/* Selected Ministry Details Modal — compact detail view for ministries
+          without a feature article. Feature articles now render as a full page
+          section on the Ministries tab instead of inside a modal. */}
       {selectedMinistry && (
         <div 
           className="fixed inset-0 z-[75] bg-gray-950/75 backdrop-blur-sm flex items-center justify-center p-4" 
@@ -9079,113 +9260,39 @@ export default function App() {
           aria-modal="true" 
           onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedMinistry(null); }}
         >
-          {selectedMinistry.hasFeatureArticle ? (
-            /* IMMERSIVE FEATURE ARTICLE MODAL */
-            <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl animate-fade-in-down">
-              <button 
-                onClick={() => setSelectedMinistry(null)} 
-                className="absolute right-4 top-4 z-20 rounded-full bg-black/55 p-2 text-white hover:bg-black/75 transition-all"
-                title={lang === 'zh' ? '关闭' : 'Close'}
-              >
-                <X size={20} />
-              </button>
-              
-              {/* Feature Hero Header */}
-              <div className="relative h-64 sm:h-80 md:h-[350px] w-full bg-gray-150">
-                <img 
-                  src={selectedMinistry.image} 
-                  alt={t(selectedMinistry.name)} 
-                  className="w-full h-full object-cover" 
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-gray-950/95 via-gray-950/40 to-transparent" />
-                <div className="absolute bottom-6 left-6 right-6 sm:left-10 sm:right-10 text-white space-y-2">
-                  <span className="bg-primary/95 text-white px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider mb-2 inline-block shadow-sm">
-                    {lang === 'zh' ? '✨ 特写故事 / FEATURE' : '✨ Feature Story'}
-                  </span>
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-tight">
-                    {t(selectedMinistry.name)}
-                  </h2>
-                </div>
+          <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl">
+            <button onClick={() => setSelectedMinistry(null)} className="absolute right-4 top-4 z-10 rounded-full bg-black/55 p-2 text-white hover:bg-black/75 transition-all"><X size={20} /></button>
+            <div className="flex flex-col lg:flex-row">
+              <div className="lg:w-1/2 h-64 sm:h-80 lg:h-auto relative bg-gray-100 shrink-0">
+                <img src={selectedMinistry.image} alt={t(selectedMinistry.name)} className="absolute inset-0 w-full h-full object-cover" />
               </div>
-
-              {/* Feature Article Body */}
-              <div className="px-6 py-8 sm:px-10 sm:py-10 max-w-3xl mx-auto space-y-8">
-                {/* Intro / Main Description */}
-                <div className="pb-8 border-b border-gray-100">
-                  <p className="text-gray-600 text-sm sm:text-base md:text-lg font-light leading-relaxed whitespace-pre-line italic">
-                    {t(selectedMinistry.description)}
-                  </p>
+              <div className="lg:w-1/2 p-6 sm:p-8 space-y-6">
+                <div className="inline-flex px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
+                  {lang === 'zh' ? '事工详情' : 'Ministry Details'}
                 </div>
-
-                {/* Render Article Blocks */}
-                <FeatureArticleRenderer 
-                  featureBlocks={selectedMinistry.featureBlocks || []} 
-                  lang={lang} 
-                  t={t} 
-                />
-
-                {/* Action Buttons at the Bottom */}
-                <div className="pt-10 border-t border-gray-100 space-y-4">
-                  <div className="text-center">
-                    <p className="text-xs text-gray-400">
-                      {lang === 'zh' ? '想要了解更多或参与我们？' : 'Want to learn more or join us?'}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap sm:flex-nowrap gap-3">
-                    <button 
-                      onClick={() => { setSelectedMinistry(null); openTimetableSection('ministry'); }}
-                      className="flex-1 px-5 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
-                    >
-                      <Clock size={18} />
-                      <span>{lang === 'zh' ? '查看聚会时间' : 'View Timetable'}</span>
-                    </button>
-                    <button 
-                      onClick={() => { setSelectedMinistry(null); setActiveTab('about'); window.scrollTo(0, 0); }}
-                      className="px-5 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
-                    >
-                      <Phone size={16} />
-                      <span>{lang === 'zh' ? '联系教会' : 'Contact Us'}</span>
-                    </button>
-                  </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-gray-900 leading-tight">{t(selectedMinistry.name)}</h2>
+                <div className="w-16 h-1.5 bg-primary rounded-full" />
+                <p className="text-gray-700 text-sm sm:text-base font-light leading-relaxed whitespace-pre-line">
+                  {t(selectedMinistry.description)}
+                </p>
+                <div className="pt-6 border-t border-gray-100 flex flex-wrap gap-3">
+                  <button 
+                    onClick={() => { setSelectedMinistry(null); openTimetableSection('ministry'); }}
+                    className="flex-1 px-5 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+                  >
+                    <Clock size={18} />
+                    <span>{lang === 'zh' ? '查看聚会时间' : 'View Timetable'}</span>
+                  </button>
+                  <button 
+                    onClick={() => { setSelectedMinistry(null); switchTab('about'); }}
+                    className="px-5 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all"
+                  >
+                    {lang === 'zh' ? '联系教会' : 'Contact Us'}
+                  </button>
                 </div>
               </div>
             </div>
-          ) : (
-            /* STANDARD 2-COLUMN DETAIL MODAL */
-            <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl">
-              <button onClick={() => setSelectedMinistry(null)} className="absolute right-4 top-4 z-10 rounded-full bg-black/55 p-2 text-white hover:bg-black/75 transition-all"><X size={20} /></button>
-              <div className="flex flex-col lg:flex-row">
-                <div className="lg:w-1/2 h-64 sm:h-80 lg:h-auto relative bg-gray-100 shrink-0">
-                  <img src={selectedMinistry.image} alt={t(selectedMinistry.name)} className="absolute inset-0 w-full h-full object-cover" />
-                </div>
-                <div className="lg:w-1/2 p-6 sm:p-8 space-y-6">
-                  <div className="inline-flex px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
-                    {lang === 'zh' ? '事工详情' : 'Ministry Details'}
-                  </div>
-                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900 leading-tight">{t(selectedMinistry.name)}</h2>
-                  <div className="w-16 h-1.5 bg-primary rounded-full" />
-                  <p className="text-gray-700 text-sm sm:text-base font-light leading-relaxed whitespace-pre-line">
-                    {t(selectedMinistry.description)}
-                  </p>
-                  <div className="pt-6 border-t border-gray-100 flex flex-wrap gap-3">
-                    <button 
-                      onClick={() => { setSelectedMinistry(null); openTimetableSection('ministry'); }}
-                      className="flex-1 px-5 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
-                    >
-                      <Clock size={18} />
-                      <span>{lang === 'zh' ? '查看聚会时间' : 'View Timetable'}</span>
-                    </button>
-                    <button 
-                      onClick={() => { setSelectedMinistry(null); setActiveTab('about'); window.scrollTo(0, 0); }}
-                      className="px-5 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all"
-                    >
-                      {lang === 'zh' ? '联系教会' : 'Contact Us'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       )}
 
