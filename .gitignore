@@ -32,3 +32,5 @@ dist-ssr
 
 # Cloudflare
 wrangler.toml.bak
+# Cloudflare Wrangler local state (dev only, never commit)
+.wrangler/

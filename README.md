@@ -14,15 +14,23 @@ This project has been completely redesigned and engineered from scratch using **
 2. **No Subscription Fees & Hassle-Free Hosting**
    - The website can be hosted **100% free of charge** on **GitHub Pages**, **Vercel**, or **Netlify**. There are zero database or subscription fees required.
    
-3. **Interactive Admin Panel (`/admin`)**
+3. **Venue Booking System (`场地租借申请`)**
+   - Members apply online for the Jabez Hall, Sanctuary, Meeting Room, Wisdom Valley, Grace Overflow, Karaoke Room, I-Sayang Centre and more — replacing the old Google Form.
+   - Live availability grid shows approved (🔴 blocked) and pending (🟡 warning) slots, so the same venue/time cannot be double-booked.
+   - Each application gets a reference number plus a one-tap WhatsApp hand-off to the church co-worker.
+   - Staff review, approve, reject or complete applications under **Admin Console → Venue Booking Manager**, with a pending-count badge in the sidebar.
+   - See [`VENUE_BOOKING.md`](VENUE_BOOKING.md) for setup (a `BOOKINGS` KV binding) and the API reference.
+
+4. **Interactive Admin Panel (`/admin`)**
    - **General Settings**: Update Church Name, Slogan, and Contact Details.
    - **Live Theme Customization**: Change the entire website's brand theme color instantly (Emerald, Indigo, Blue, Violet, Amber, Rose) using dynamic CSS custom properties.
    - **Service Timetable Editor**: Add, modify, or delete church services, schedules, times, locations, and languages.
    - **Event Manager**: Create and publish new upcoming events with pictures, location, date, time, and full description.
    - **Ministry Content Management**: Edit cards, details, and pictures of major ministries (Neighborly Community Care, Five Loaves & Two Fishes, Spring of Grace Elderly Day Care, etc.).
    - **Banner Carousel Management**: Control homepage slide images, captions, and text descriptions.
+   - **Venue Booking Manager**: Review member applications and edit venues, rules, opening hours and serving-leader contacts (bilingual).
 
-4. **Zero-Database Git-as-CMS / LocalStorage Pattern**
+5. **Zero-Database Git-as-CMS / LocalStorage Pattern**
    - All modifications are automatically persisted inside the administrator's browser's local storage for real-time preview and editing.
    - **JSON Backup & Restore**: An easy "Export JSON" button lets you download the entire customized site layout as a file. If you make a mistake, you can re-import the file in seconds to restore it, or commit it to your GitHub repository (`src/data/initialData.js`) to make your changes public for all users!
 
@@ -62,6 +70,13 @@ npm install
 npm run dev
 ```
 Open your browser and navigate to `http://localhost:5173`.
+
+### 2b. Full-stack local preview (Cloudflare Pages Functions + KV)
+
+```bash
+cp .dev.vars.example .dev.vars   # set a local ADMIN_PASSWORD and JWT_SECRET
+npm run dev:cf                   # builds and serves http://localhost:8788 with /bookings enabled
+```
 
 ### 3. Build for Production
 ```bash

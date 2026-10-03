@@ -1055,7 +1055,281 @@ export const initialData = {
     "bulletins": true,
     "cellgroups": true,
     "newfriend": true,
-    "maps": true
+    "maps": true,
+    "venueBooking": true
+  },
+  "venueBooking": {
+    "enabled": true,
+    "badge": {
+      "zh": "场地与设备借用",
+      "en": "Venue & Equipment Booking"
+    },
+    "title": {
+      "zh": "场地租借申请",
+      "en": "Venue Booking Application"
+    },
+    "intro": {
+      "zh": "教会场地与设备开放给弟兄姐妹及社区团体借用。申请前请先阅读场地申请规则，并至少提前两天提交申请；教会同工将在审核后与您联系确认。",
+      "en": "Our church venues and equipment are available for members and community groups. Please read the rules below and apply at least two days in advance; a church co-worker will contact you after reviewing your application."
+    },
+    "rulesTitle": {
+      "zh": "📌 场地申请规则",
+      "en": "📌 Venue Application Rules"
+    },
+    "rules": [
+      {
+        "id": "advance",
+        "title": {
+          "zh": "1️⃣ 申请时间",
+          "en": "1️⃣ Application Time"
+        },
+        "body": {
+          "zh": "需至少提前 两天 提出申请，并注明使用日期、时间、人数与用途。",
+          "en": "Applications must be submitted at least 2 days in advance, stating the date, time, number of people and purpose of use."
+        }
+      },
+      {
+        "id": "access",
+        "title": {
+          "zh": "2️⃣ 出入场安排",
+          "en": "2️⃣ Entry & Exit Arrangement"
+        },
+        "body": {
+          "zh": "请于申请时间 前后30分钟内 抵达。若过早或延迟超过30分钟，需等待同工开门。\n\n同工歇息时间：\n• 12:00pm - 1:00pm\n• 6:00pm - 7:00pm",
+          "en": "Please arrive within 30 minutes before or after your booked time. If you arrive earlier or are delayed by more than 30 minutes, you will need to wait for a co-worker to open the door.\n\nCo-worker rest times:\n• 12:00pm - 1:00pm\n• 6:00pm - 7:00pm"
+        }
+      },
+      {
+        "id": "care",
+        "title": {
+          "zh": "3️⃣ 场地与设备维护",
+          "en": "3️⃣ Venue & Equipment Care"
+        },
+        "body": {
+          "zh": "请保持清洁、物归原位、关闭灯源。若有损坏请立即通报。\n\n使用完毕后，必须拍照确认场地的灯光已关闭、环境干净，并将照片转发给 018-4663128 张若祈同工。",
+          "en": "Please keep the venue clean, return everything to its place and switch off the lights. Report any damage immediately.\n\nAfter use, you must take a photo confirming that the lights are off and the venue is clean, then send it to 018-4663128 (Sis. 张若祈)."
+        }
+      },
+      {
+        "id": "special",
+        "title": {
+          "zh": "4️⃣ 特殊情况",
+          "en": "4️⃣ Special Situations"
+        },
+        "body": {
+          "zh": "大型活动、额外设备、超时或外部团队参与，须 事先获得杨桔槟牧师允许。",
+          "en": "Large events, extra equipment, overtime, or participation by outside teams require prior approval from Pastor 杨桔槟."
+        }
+      },
+      {
+        "id": "responsibility",
+        "title": {
+          "zh": "5️⃣ 责任与守时",
+          "en": "5️⃣ Responsibility & Punctuality"
+        },
+        "body": {
+          "zh": "使用者须为遗失或损坏负责，并彼此尊重安排。",
+          "en": "Users are responsible for any loss or damage, and are expected to respect one another's arrangements."
+        }
+      }
+    ],
+    "contactTitle": {
+      "zh": "若有任何疑问，可联系：",
+      "en": "For any enquiries, please contact:"
+    },
+    "contactNote": {
+      "zh": "将会有相关教会同工与您对接。",
+      "en": "A church co-worker will follow up with you."
+    },
+    "contactPhone": "018-4663128",
+    "whatsapp": "60184663128",
+    "formTitle": {
+      "zh": "填写租借申请",
+      "en": "Booking Application Form"
+    },
+    "formIntro": {
+      "zh": "请填写以下资料。提交后将显示申请编号，教会同工将在审核后与您联系。",
+      "en": "Please fill in the details below. A reference number will be shown after submission, and a co-worker will contact you after review."
+    },
+    "availabilityTitle": {
+      "zh": "场地使用情况",
+      "en": "Venue Availability"
+    },
+    "availabilityHint": {
+      "zh": "先选择日期与场地，即可查看该场地已批准的时段。🔴 已被批准使用的时段无法重复申请；🟡 已有弟兄姐妹申请、等待同工审核的时段仍可提交，但同工将优先处理较早的申请。",
+      "en": "Pick a date and venue to see which slots are already taken. 🔴 Approved slots cannot be double-booked. 🟡 Slots with a pending application can still be applied for, but earlier applications are processed first."
+    },
+    "leadersTitle": {
+      "zh": "确认已通知相关服侍负责人",
+      "en": "Confirm the relevant serving leader has been notified"
+    },
+    "leadersIntro": {
+      "zh": "请在提交申请前先通知服侍负责人，并获得负责人批准后，才将申请递交给教会同工办理。（可多选）",
+      "en": "Before submitting, please notify the relevant serving leader and obtain their approval, then hand this application to the church co-worker. (Multiple selections allowed)"
+    },
+    "leaders": [
+      {
+        "id": "instrument",
+        "label": {
+          "zh": "乐器班负责人 曾明强执事",
+          "en": "Instrument Class - Deacon 曾明强"
+        },
+        "phone": "016-4207135"
+      },
+      {
+        "id": "youth",
+        "label": {
+          "zh": "少年事工负责人 邓婉龄传道",
+          "en": "Youth Ministry - Preacher 邓婉龄"
+        },
+        "phone": "012-4182535"
+      },
+      {
+        "id": "worship",
+        "label": {
+          "zh": "敬拜事工负责人 郑金兰传道",
+          "en": "Worship Ministry - Preacher 郑金兰"
+        },
+        "phone": "012-4260338"
+      },
+      {
+        "id": "community",
+        "label": {
+          "zh": "教会及社区事工负责人 林美凤同工",
+          "en": "Church & Community Ministry - Sis. 林美凤"
+        },
+        "phone": "010-5056220"
+      }
+    ],
+    "venuesTitle": {
+      "zh": "请选择要租借的场地",
+      "en": "Please select the venue you want to rent"
+    },
+    "venues": [
+      {
+        "id": "jabez-hall",
+        "name": {
+          "zh": "雅比斯副堂",
+          "en": "Jabez Hall"
+        },
+        "note": {
+          "zh": "副堂空间，适合中型聚会与活动",
+          "en": "Secondary hall for mid-sized gatherings and activities"
+        }
+      },
+      {
+        "id": "sanctuary",
+        "name": {
+          "zh": "教会大堂",
+          "en": "BMBCC Sanctuary"
+        },
+        "note": {
+          "zh": "主日崇拜主堂，大型聚会使用",
+          "en": "Main worship hall for larger gatherings"
+        }
+      },
+      {
+        "id": "meeting-room",
+        "name": {
+          "zh": "会议室",
+          "en": "Meeting Room"
+        },
+        "note": {
+          "zh": "适合小组会议与查经",
+          "en": "Suitable for small meetings and Bible study"
+        }
+      },
+      {
+        "id": "wisdom-valley",
+        "name": {
+          "zh": "智慧谷",
+          "en": "Wisdom Valley"
+        },
+        "note": {
+          "zh": "适合教学、培训与小组活动",
+          "en": "Suitable for teaching, training and small group activities"
+        }
+      },
+      {
+        "id": "grace-overflow",
+        "name": {
+          "zh": "恩溢家",
+          "en": "Grace Overflow House"
+        },
+        "note": {
+          "zh": "聚会与团契空间",
+          "en": "Space for gatherings and fellowship"
+        }
+      },
+      {
+        "id": "karaoke-room",
+        "name": {
+          "zh": "卡拉房",
+          "en": "Karaoke Room"
+        },
+        "note": {
+          "zh": "影音练习与康乐活动",
+          "en": "Audio practice and recreational activities"
+        }
+      },
+      {
+        "id": "i-sayang",
+        "name": {
+          "zh": "爱邻社区关怀中心",
+          "en": "I-Sayang Community Care Centre"
+        },
+        "note": {
+          "zh": "社区关怀事工场地",
+          "en": "Venue for community care ministry"
+        }
+      },
+      {
+        "id": "other",
+        "name": {
+          "zh": "其他（请注明）",
+          "en": "Other (please specify)"
+        },
+        "note": {
+          "zh": "其他空间、设备或户外场地",
+          "en": "Other space, equipment or outdoor area"
+        }
+      }
+    ],
+    "purposeOptions": [
+      {
+        "id": "private",
+        "label": {
+          "zh": "私人用途",
+          "en": "For Private Use"
+        }
+      },
+      {
+        "id": "meeting",
+        "label": {
+          "zh": "聚会用途",
+          "en": "For Meeting Use"
+        }
+      }
+    ],
+    "durations": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "advanceDays": 2,
+    "openTime": "08:00",
+    "closeTime": "22:00",
+    "slotMinutes": 30,
+    "maxDurationHours": 4,
+    "afterSubmitTitle": {
+      "zh": "申请已提交，等待同工审核",
+      "en": "Application submitted — pending review"
+    },
+    "afterSubmitNote": {
+      "zh": "场地是否批准，以教会同工的最终确认为准。您可以把以下资料转发给教会同工，方便跟进。",
+      "en": "Approval is subject to final confirmation by a church co-worker. You may forward the details below to the co-worker for follow-up."
+    }
   },
   "cellGroups": [
     {

@@ -55,13 +55,17 @@ import {
   Video,
   ExternalLink,
   HardDrive,
-  Camera
+  Camera,
+  ClipboardList
 } from 'lucide-react';
 import { initialData } from './data/initialData';
 import MediaStorageManager from './components/MediaStorageManager';
+import VenueBookingPage from './components/VenueBookingPage';
+import VenueBookingAdmin from './components/VenueBookingAdmin';
 
 const AUTH_ENDPOINT = '/functions/auth';
 const GITHUB_SETTINGS_ENDPOINT = '/functions/github-settings';
+const BOOKINGS_ENDPOINT = '/functions/bookings';
 
 // A site-data setting controlled from Admin → Media Storage. It defaults to off
 // so the existing URL-first workflow remains available while the R2 public domain
@@ -208,8 +212,21 @@ const normalizeLoadedData = (parsed) => {
       mergedSettings[k] = mergeBilingualField(initialData.settings[k], parsed.settings?.[k]);
     }
   });
+  // Venue booking config is merged one level deep so newly added fields
+  // (extra venues, rules, settings) are never lost when loading data saved by
+  // an older build, while admin edits still win over the bundled defaults.
+  const mergedVenueBooking = {
+    ...(initialData.venueBooking || {}),
+    ...(parsed.venueBooking || {}),
+  };
+  ['venues', 'rules', 'leaders', 'purposeOptions', 'durations'].forEach((key) => {
+    if (!Array.isArray(parsed.venueBooking?.[key])) {
+      mergedVenueBooking[key] = initialData.venueBooking?.[key] || [];
+    }
+  });
+
   // Ensure standard structure is present
-  return stripSensitiveData({ ...initialData, ...parsed, settings: mergedSettings });
+  return stripSensitiveData({ ...initialData, ...parsed, settings: mergedSettings, venueBooking: mergedVenueBooking });
 };
 
 const hexToRgb = (hex) => {
@@ -883,6 +900,8 @@ export default function App() {
   const [adminLoginError, setAdminLoginError] = useState('');
   const [adminActiveSection, setAdminActiveSection] = useState('settings'); // 'settings', 'carousel', 'timetable', 'events', 'ministries', 'fellowshipHighlights', 'backup'
   const [adminSuccessMessage, setAdminSuccessMessage] = useState('');
+  // Pending venue-booking applications shown as a badge in the admin sidebar.
+  const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
   const [eventPopupOpen, setEventPopupOpen] = useState(false);
   const [eventPopupSlide, setEventPopupSlide] = useState(0);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
@@ -992,6 +1011,33 @@ export default function App() {
     if (isAdminLoggedIn) {
       loadGithubSettingsFromCloud();
     }
+  }, [isAdminLoggedIn]);
+
+  // Keep the venue-booking badge in the admin sidebar up to date.
+  useEffect(() => {
+    if (!isAdminLoggedIn) {
+      setPendingBookingsCount(0);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${BOOKINGS_ENDPOINT}?scope=admin`, {
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+        });
+        if (!res.ok) return;
+        const payload = await res.json();
+        if (!cancelled && payload?.ok) {
+          setPendingBookingsCount(
+            (payload.bookings || []).filter((booking) => booking.status === 'pending').length
+          );
+        }
+      } catch (err) {
+        // Booking storage may not be configured yet - the badge just stays hidden.
+      }
+    })();
+    return () => { cancelled = true; };
   }, [isAdminLoggedIn]);
 
   // Editor temporary states
@@ -2205,7 +2251,8 @@ export default function App() {
                     items: [
                       vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '家事与讲道' : 'Bulletins & Sermons' },
                       vis.services !== false && { id: 'services', label: lang === 'zh' ? '崇拜与敬拜' : 'Services & Worships' },
-                      vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide' }
+                      vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '新朋友指南' : 'New Friend Guide' },
+                      vis.venueBooking !== false && (data.venueBooking?.enabled !== false) && { id: 'venueBooking', label: lang === 'zh' ? '场地租借' : 'Venue Booking' }
                     ].filter(Boolean)
                   },
                   vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps', standalone: true }
@@ -2401,6 +2448,7 @@ export default function App() {
                   vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '  家事与讲道' : '  Bulletins & Sermons', sub: true },
                   vis.services !== false && { id: 'services', label: lang === 'zh' ? '  崇拜与敬拜' : '  Services & Worships', sub: true },
                   vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '  新朋友指南' : '  New Friend Guide', sub: true },
+                  vis.venueBooking !== false && (data.venueBooking?.enabled !== false) && { id: 'venueBooking', label: lang === 'zh' ? '  场地租借' : '  Venue Booking', sub: true },
                   vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
                   (data.settings.showLoginButton || isAdminLoggedIn || activeTab === 'admin') && { id: 'admin', label: lang === 'zh' ? (isAdminLoggedIn ? '管理员控制台' : '后台管理登录') : (isAdminLoggedIn ? 'Admin Console' : 'Admin Login'), icon: Shield }
                 ].filter(Boolean);
@@ -5140,6 +5188,11 @@ export default function App() {
           </div>
         )}
 
+        {/* ==================== PAGE: VENUE BOOKING ==================== */}
+        {activeTab === 'venueBooking' && (
+          <VenueBookingPage data={data} lang={lang} t={t} />
+        )}
+
         {/* ==================== PAGE: FELLOWSHIP HIGHLIGHTS ==================== */}
         {activeTab === 'fellowshipHighlights' && (
           <div className="animate-fade-in py-12 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto">
@@ -5417,6 +5470,7 @@ export default function App() {
                         { id: 'timetable', label: lang === 'zh' ? '聚会时间表日程管理' : 'Schedule Timetable Manager', icon: Calendar },
                         { id: 'ministries', label: lang === 'zh' ? '核心事工管理' : 'Ministries Content', icon: Heart },
                         { id: 'events', label: lang === 'zh' ? '活动内容发布' : 'Events Post', icon: CalendarCheck },
+                        { id: 'booking', label: lang === 'zh' ? '场地租借管理' : 'Venue Booking Manager', icon: ClipboardList, badge: pendingBookingsCount },
                         { id: 'fellowshipHighlights', label: lang === 'zh' ? '聚会点滴管理' : 'Fellowship Highlights', icon: Camera },
                         { id: 'offerings', label: lang === 'zh' ? '奉献设置' : 'Offerings Settings', icon: HandHeart },
                         { id: 'bulletins', label: lang === 'zh' ? '家事与讲道库' : 'Bulletins & Sermon Library', icon: BookOpen },
@@ -5446,7 +5500,12 @@ export default function App() {
                           }`}
                         >
                           <sec.icon size={15} />
-                          <span>{sec.label}</span>
+                          <span className="flex-grow">{sec.label}</span>
+                          {sec.badge > 0 && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-amber-400 text-white text-[10px] font-bold shrink-0">
+                              {sec.badge}
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -5850,6 +5909,7 @@ export default function App() {
                               { key: 'services', zh: '崇拜与敬拜', en: 'Services & Worships' },
                               { key: 'cellgroups', zh: '小组', en: 'Cell Groups' },
                               { key: 'newfriend', zh: '新朋友指南', en: 'New Friend Guide' },
+                              { key: 'venueBooking', zh: '场地租借', en: 'Venue Booking' },
                               { key: 'maps', zh: '地图', en: 'Maps' }
                             ].map((page) => {
                               const isVisible = (data.pageVisibility || {})[page.key] !== false;
@@ -8937,6 +8997,17 @@ export default function App() {
                     </div>
                   )}
 
+                  {/* SECTION: VENUE BOOKING MANAGER */}
+                  {adminActiveSection === 'booking' && (
+                    <VenueBookingAdmin
+                      data={data}
+                      lang={lang}
+                      t={t}
+                      saveAllData={saveAllData}
+                      onToast={(message) => triggerAdminSuccess(message)}
+                      onPendingCountChange={setPendingBookingsCount}
+                    />
+                  )}
                   {/* SECTION: MEDIA STORAGE (Phase 2 R2 media manager) */}
                   {adminActiveSection === 'media' && (
                     <MediaStorageManager
@@ -9530,6 +9601,7 @@ export default function App() {
                   vis.bulletins !== false && { id: 'bulletins', label: lang === 'zh' ? '家事与讲道' : 'Bulletins & Sermons' },
                   vis.services !== false && { id: 'services', label: lang === 'zh' ? '崇拜与敬拜' : 'Services & Worships' },
                   vis.newfriend !== false && { id: 'newfriend', label: lang === 'zh' ? '新朋友' : 'New Friend' },
+                  vis.venueBooking !== false && (data.venueBooking?.enabled !== false) && { id: 'venueBooking', label: lang === 'zh' ? '场地租借' : 'Venue Booking' },
                   vis.maps !== false && { id: 'maps', label: lang === 'zh' ? '地图' : 'Maps' },
                   (data.settings.showLoginButton || isAdminLoggedIn || activeTab === 'admin') && { id: 'admin', label: lang === 'zh' ? (isAdminLoggedIn ? '管理员控制台' : '后台管理') : (isAdminLoggedIn ? 'Admin Console' : 'Admin Area') }
                 ].filter(Boolean).map((lnk) => (
