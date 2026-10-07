@@ -60,7 +60,22 @@ Go to **Settings** → **Environment variables** → **Add variable**:
 
 ⚠️ **Mark both as "Secret"** (encrypted, not visible in dashboard)
 
-### 2.3 Trigger New Deploy
+### 2.3 Bind the Venue Booking KV Namespace
+
+The venue booking system stores member applications in a KV namespace bound as `BOOKINGS`.
+
+1. **Workers & Pages → KV → Create a namespace** (e.g. `bmbcc-bookings`)
+2. **Workers & Pages → bmbcc-webpage → Settings → Functions → KV namespace bindings**
+   - Variable name: `BOOKINGS`
+   - KV namespace: the namespace you just created
+3. Save (this triggers a redeploy). Alternatively add the real id under `[[kv_namespaces]]`
+   in `wrangler.toml`.
+
+Without this binding the booking page still renders but shows a WhatsApp fallback instead of
+the availability checker, and the admin console explains what is missing.
+See [`VENUE_BOOKING.md`](VENUE_BOOKING.md) for the full feature + API documentation.
+
+### 2.4 Trigger New Deploy
 
 After adding env vars, go to **Deployments** → **Retry deployment** (or push a new commit).
 
@@ -121,9 +136,13 @@ npm run dev
 
 ```bash
 npm run build
-npx wrangler pages dev dist --port 8788
-# Opens http://localhost:8788 with edge functions
+npx wrangler pages dev dist --kv=BOOKINGS --port 8788
+# Opens http://localhost:8788 with edge functions and a local KV store
+# (or simply: npm run dev:cf)
 ```
+
+`--kv=BOOKINGS` creates a local KV namespace for the venue booking API, so no real
+namespace id is needed during development. `dist/` must be rebuilt after code changes.
 
 ---
 

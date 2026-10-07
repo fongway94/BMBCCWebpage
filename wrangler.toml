@@ -28,6 +28,24 @@ bucket_name = "bmbcc-media"
 binding = "MEDIA_INDEX"
 id = "d3e26fe020c347ae8641b978bec81d04"
 
+# KV namespace that stores venue booking applications (the /bookings Pages Function).
+#
+# Create it once:
+#   Cloudflare Dashboard → Workers & Pages → KV → Create a namespace
+#   name it e.g. "bmbcc-bookings"
+# Then bind it either in wrangler.toml (uncomment + paste the real id) or in the
+# dashboard: Workers & Pages → bmbcc-webpage → Settings → Functions → KV namespace bindings
+#   Variable name: BOOKINGS
+#
+# Without this binding the public booking page still renders, the availability
+# checker and the admin review console stay disabled, and members are offered a
+# WhatsApp fallback instead. Local development uses `--kv=BOOKINGS` (see package.json
+# `npm run dev:cf`), which does not need a real id.
+#
+# [[kv_namespaces]]
+# binding = "BOOKINGS"
+# id = "paste-the-real-namespace-id-here"
+
 # Metadata index used for quota display and the later media-manager phase. Create a
 # dedicated KV namespace and bind it as MEDIA_INDEX in the Pages dashboard (or add
 # its real ID here; do not commit a placeholder ID).
