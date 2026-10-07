@@ -15,7 +15,7 @@ This project has been completely redesigned and engineered from scratch using **
    - The website can be hosted **100% free of charge** on **GitHub Pages**, **Vercel**, or **Netlify**. There are zero database or subscription fees required.
    
 3. **Venue Booking System (`场地租借申请`)**
-   - Members apply online for the Jabez Hall, Sanctuary, Meeting Room, Wisdom Valley, Grace Overflow, Karaoke Room, I-Sayang Centre and more — replacing the old Google Form.
+   - Members apply online for the Jabez Hall, Sanctuary, Meeting Room, Wisdom Valley, Grace Flow Home, Karaoke Room, I-Sayang Centre and more — replacing the old Google Form.
    - Live availability grid shows approved (🔴 blocked) and pending (🟡 warning) slots, so the same venue/time cannot be double-booked.
    - Each application gets a reference number plus a one-tap WhatsApp hand-off to the church co-worker.
    - Staff review, approve, reject or complete applications under **Admin Console → Venue Booking Manager**, with a pending-count badge in the sidebar.

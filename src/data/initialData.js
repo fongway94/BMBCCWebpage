@@ -1254,7 +1254,7 @@ export const initialData = {
         "id": "grace-overflow",
         "name": {
           "zh": "恩溢家",
-          "en": "Grace Overflow House"
+          "en": "Grace Flow Home"
         },
         "note": {
           "zh": "聚会与团契空间",

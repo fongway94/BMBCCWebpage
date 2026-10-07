@@ -114,5 +114,5 @@ npm run dev:cf                   # 建立 dist 并在 http://localhost:8788 启�
   由同工决定（批准时会再次检查冲突）。
 - **时区**：所有日期以马来西亚时间（UTC+8）计算。
 - **翻译**：所有文字都是 `{ zh, en }` 格式，跟随网站右上角的语言切换，并可在后台修改。
-- **英文名称**：`恩溢家` 的英文暂译为 "Grace Overflow House"，`雅比斯副堂` 使用 Google Form 的
+- **英文名称**：`恩溢家` 的英文使用 "Grace Flow Home"，`雅比斯副堂` 使用 Google Form 的
   "Jabez Hall"。如教会另有官方英文名，可在后台「场地与规则设置」直接修改。
